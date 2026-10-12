@@ -50,3 +50,7 @@ Railway, Fly.io and any other host that runs Node work the same way: run `npm in
 - The redeem code works once per browser. Anyone who has it can use it.
 - Each browser gets a secret key the first time it connects, so nobody else can take back or collect payment for its market listings.
 - Only lap records and market trades are checked by the server. Money and XP live in the player's browser, so a determined player could edit their own save. That's fine for a game among friends.
+
+## Sound credits
+
+The car sounds come from [Bungee Engine Audio](https://github.com/leonmaniora/bungee-engine-audio) by Leon (MIT License). They are built into `public/index.html`. See `SOUNDS-LICENSE.txt`.
