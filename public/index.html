@@ -89,6 +89,18 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 #minimap { width: 100%; height: 100%; display: block; }
 
 #speedo { position: absolute; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding: 10px 16px 12px; min-width: 170px; text-align: right; }
+.fitwrap { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 14px; align-items: start; margin-top: 10px; }
+#fitCanvas { width: 200px; height: 270px; border: 3px solid var(--ink); border-radius: 14px; background: linear-gradient(#2a2546, #4a4370); position: sticky; top: 0; }
+@media (max-width: 560px) { .fitwrap { grid-template-columns: 1fr; } #fitCanvas { width: 100%; height: 220px; position: static; } }
+.cbadge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-display); font-size: .82rem; color: #fff; border: 2.5px solid var(--ink); border-radius: 8px; padding: 0 7px; line-height: 1.5; white-space: nowrap; }
+.cbadge small { font: 900 .6rem var(--font-body); opacity: .9; letter-spacing: .06em; }
+.carinfo { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-weight: 800; font-size: .85rem; color: var(--muted); margin-top: 4px; }
+.platerow { display: flex; gap: 8px; align-items: center; }
+.platerow input { flex: 1; text-transform: uppercase; letter-spacing: .12em; font-family: var(--font-display); }
+.fuelrow { display: flex; align-items: center; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+.fuel { flex: 1; height: 10px; border: 2.5px solid var(--ink); border-radius: 999px; background: var(--card-soft); overflow: hidden; }
+.fuel i { display: block; height: 100%; width: 100%; background: #3ddc97; }
+.fuel.low i { background: #ff4f5e; }
 #speedo .num { font-family: var(--font-display); font-size: 3.2rem; line-height: .95; font-variant-numeric: tabular-nums; }
 #speedo .unit { font-weight: 900; font-size: .72rem; letter-spacing: .14em; color: var(--muted); }
 .nitro { margin-top: 8px; height: 14px; border: 2.5px solid var(--ink); border-radius: 999px; background: var(--card-soft); overflow: hidden; }
@@ -334,6 +346,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
         <button class="mbtn" id="bCodes" type="button">Codes</button>
         <button class="mbtn" id="bMute" type="button">Sound on</button>
         <button class="mbtn" id="bGearbox" type="button">Gearbox: auto</button>
+        <button class="mbtn" id="bWardrobe" type="button">Wardrobe<kbd>V</kbd></button>
         <button class="mbtn" id="bTut" type="button">Tutorial</button>
       </div>
     </div>
@@ -368,11 +381,13 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   <div id="speedo" class="sticker">
     <div class="num" id="spd">0</div><div class="unit"><span id="gearTxt">N</span> · KM/H</div>
     <div class="nitro"><i id="nitroFill"></i></div><div class="nitro-l">NITRO</div>
+    <div class="nitro-l" id="oweTxt" style="color:#ff4f5e" hidden></div>
+    <div class="fuelrow"><span class="cbadge" id="hudClass">150</span><span class="nitro-l" style="margin:0">FUEL</span><div class="fuel" id="fuelBar"><i id="fuelFill"></i></div></div>
   </div>
   <div id="prompt" class="sticker" hidden></div>
   <button id="raceInvite" class="sticker" type="button" hidden></button>
   <div id="lobby" class="sticker" hidden>
-    <h3>Race lobby</h3>
+    <h3 id="lobbyTitle">Race lobby</h3>
     <div class="sub" id="lobbySub">Waiting for racers…</div>
     <div class="names" id="lobbyNames"></div>
     <div class="row"><button class="btn small" id="bStartNow" type="button">Start now</button><button class="btn small alt" id="bLeaveQ" type="button">Leave queue</button></div>
@@ -430,6 +445,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <h2>Pebble Garage</h2>
     <p class="lede">Build a collection. Every car keeps its own upgrades, engine bay parts, wheels and paint.</p>
     <div class="label" id="carLabel">Your car</div>
+    <div class="carinfo" id="carInfo"></div>
     <div class="stats" id="statBars"></div>
     <div class="tabs" role="tablist" id="gTabs">
       <button class="tab" type="button" role="tab" data-tab="perf">Performance</button>
@@ -456,12 +472,17 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="opts" id="wheelList"></div>
       <div class="label">Stance</div>
       <div class="row" id="stanceList"></div>
+      <div class="label">Tyre compound</div>
+      <div class="opts" id="tyreList"></div>
     </div>
     <div data-pane="look" hidden>
       <div class="label">Paint</div>
       <div class="swatches" id="garagePaints"></div>
       <div class="label">Neon underglow</div>
       <div class="swatches" id="garageNeon"></div>
+      <div class="label">Custom licence plate · $250</div>
+      <div class="platerow"><input type="text" id="plateIn" maxlength="8" autocomplete="off" spellcheck="false" placeholder="GLOP 99"><button class="btn small" id="bPlate" type="button">Register</button></div>
+      <p class="hint" id="plateHint">Up to 8 letters, numbers, spaces or dashes.</p>
     </div>
     <div data-pane="mine" hidden>
       <div class="label" id="myCarsLabel">Your cars</div>
@@ -483,6 +504,27 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   </div>
 </div>
 
+<div id="wardrobe" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseWardrobe" type="button">Close</button>
+    <h2>Wardrobe</h2>
+    <p class="lede">Streetwear for when you get out of the car. Buy a piece once, wear it whenever, recolour it for free. Everyone online sees your fit.</p>
+    <div class="fitwrap"><canvas id="fitCanvas"></canvas><div class="fitside"><div class="tabs" id="fitTabs"></div><div id="fitList"></div></div></div>
+  </div>
+</div>
+<div id="fuelPanel" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseFuel" type="button">Close</button>
+    <h2 id="fuelTitle">Pebble Fuel</h2>
+    <p class="lede" id="fuelLede"></p>
+    <div class="label">Fuel</div>
+    <div class="row" id="octRow"></div>
+    <p class="hint" id="octNote"></p>
+    <div class="label">Pump</div>
+    <div class="row" id="amtRow"></div>
+    <p class="hint" id="fuelOwe"></p>
+  </div>
+</div>
 <div id="missions" class="overlay" hidden>
   <div class="panel sticker">
     <button class="btn small alt x" id="bCloseMissions" type="button">Close</button>
@@ -714,7 +756,16 @@ const BODIES = [
   { id: 'sakura', name: 'Sakura GT Wagon', cls: 'JDM wagon', cost: 3400, s: { top: 1.1, accel: 1.16, grip: 1.12, turn: 1.04, drift: 1.05, drive: 'awd' } },
   { id: 'yoru', name: 'Yoru RS', cls: 'JDM sports car', cost: 6500, s: { top: 1.2, accel: 1.18, grip: 1.08, turn: 1.2, drift: 1.28 } },
   { id: 'raijin', name: 'Raijin GT-4', cls: 'JDM AWD legend', cost: 9500, s: { top: 1.28, accel: 1.3, grip: 1.26, turn: 1.04, drift: 1.0, drive: 'awd' } },
+  { id: 'arashi', name: 'Arashi WRS', cls: 'JDM rally sedan', cost: 7200, s: { top: 1.22, accel: 1.28, grip: 1.24, turn: 1.12, drift: 1.04, drive: 'awd', offroad: true } },
+  // barn finds: never sold, only found abandoned somewhere on the map
+  { id: 'oni', name: 'Oni Group-R', cls: 'Barn find · rally legend', cost: 16000, find: 1, s: { top: 1.3, accel: 1.42, grip: 1.36, turn: 1.14, drift: 1.06, drive: 'awd', offroad: true } },
+  { id: 'kaminari', name: 'Kaminari TT', cls: 'Barn find · twin-turbo coupe', cost: 18000, find: 1, s: { top: 1.4, accel: 1.36, grip: 1.24, turn: 1.12, drift: 1.32 } },
+  { id: 'hakone', name: 'Hakone 240', cls: 'Barn find · 70s overfender', cost: 12000, find: 1, s: { top: 1.24, accel: 1.32, grip: 1.22, turn: 1.26, drift: 1.42 } },
+  { id: 'shogun', name: 'Shogun MR', cls: 'Barn find · midship wedge', cost: 24000, find: 1, s: { top: 1.46, accel: 1.44, grip: 1.38, turn: 1.12, drift: 0.96 } },
+  { id: 'tanuki', name: 'Tanuki Kei-R', cls: 'Barn find · kei rocket', cost: 9000, find: 1, s: { top: 1.18, accel: 1.46, grip: 1.3, turn: 1.42, drift: 1.1, drive: 'fwd' } },
 ];
+// kerb weight per car (kg): with acceleration this gives the power and power-to-weight shown in the garage
+const KG = { mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
 const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
 const UPGRADES = [
   { id: 'engine', name: 'Engine', d: 'Raises top speed' },
@@ -771,7 +822,7 @@ const UNLOCK = {
   i: { t38: 4, c30: 7, t52: 9, tsb: 11, t68: 15, h76: 22 },
   a: { cai: 2, ram: 6, itb: 13 },
   w: { star: 2, dish: 4, knob: 6, aero: 8, kagero: 9, kagerow: 9, mesh: 10, split: 12, slick: 14, y5: 16 },
-  car: { brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
+  car: { brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
 };
 const UP_LVL = [1, 4, 8, 13, 19];
 const MAX_PLAYER_LVL = 50, XP_CAP = 1e9, MONEY_CAP = 1e9;
@@ -785,13 +836,23 @@ const ENGINE = Object.fromEntries(ENGINES.map(x => [x.id, x]));
 const IND = Object.fromEntries(INDUCTIONS.map(x => [x.id, x]));
 const INTAKE = Object.fromEntries(INTAKES.map(x => [x.id, x]));
 const WHEEL = Object.fromEntries(WHEELS.map(x => [x.id, x]));
-const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL };
-const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', has: [] });
-const tuneKey = t => [t.e, t.i, t.a, t.w].join('.');
+// tyre compounds, separate from the rims: more grip costs drift and dirt manners; drift tyres are the other way round
+const TYRES = [
+  { id: 'street', name: 'Street tyres', brand: 'Stock', cost: 0, grip: 1, drift: 1, off: 0 },
+  { id: 'sport', name: 'Sport tyres', brand: 'Grippa', cost: 400, grip: 1.05, drift: 0.97, off: -0.02, ring: 0xf4f2fa },
+  { id: 'drift', name: 'Drift tyres', brand: 'Smokehouse', cost: 700, grip: 0.9, drift: 1.3, off: -0.03, ring: 0x3fa7ff },
+  { id: 'semi', name: 'Half slicks', brand: 'Grippa', cost: 900, grip: 1.1, drift: 0.92, off: -0.07, ring: 0xffd23f },
+  { id: 'slick', name: 'Full slicks', brand: 'Grippa Racing', cost: 1600, grip: 1.17, drift: 0.85, off: -0.16, ring: 0xff4f5e, smooth: true },
+];
+const TYRE = Object.fromEntries(TYRES.map(x => [x.id, x]));
+UNLOCK.y = { sport: 3, drift: 5, semi: 9, slick: 14 };
+const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE };
+const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', has: [] });
+const tuneKey = t => [t.e, t.i, t.a, t.w, t.y || 'street'].join('.');
 function parseTune(str) {
   const parts = typeof str === 'string' ? str.split('.') : [];
   const pick = (k, slot, def) => SLOT_MAP[slot][parts[k]] ? parts[k] : def;
-  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), has: [] };
+  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), has: [] };
 }
 const UP_COST = [150, 300, 550, 900, 1400];
 const MAX_LVL = 5;
@@ -806,42 +867,89 @@ const REWARD = [400, 250, 150, 80];
 
 function statsFor(car) {
   const b = (BODY[car.m] || BODY.bubble).s, up = car.up;
-  const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, W = WHEEL[t.w] || WHEEL.stock;
+  const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
+  // fuel: 98 octane gives a little more, most of all to boosted engines; a tuned engine on 95 loses a bit
+  const oct = clamp(num(car.oct, 95), 95, 98), boosted = I.turbo || I.blower || I.id === 'c30', ox = (oct - 95) / 3;
+  const fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && oct < 96 ? 0.015 : 0);
   return {
-    top: (28 + 3.2 * up.engine) * b.top * E.top * I.top * A.top,
-    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc,
+    top: (28 + 3.2 * up.engine) * b.top * E.top * I.top * A.top * (1 + (fuelMul - 1) * 0.5),
+    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul,
     boostAcc: I.acc - 1, lag: I.lag, drive: b.drive || 'rwd',
     brake: 30,
     grip: 9,
-    latMax: (30 + 3 * up.grip) * b.grip * W.grip,
+    latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip,
     turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn,
-    drift: b.drift * (1 + 0.06 * up.drift) * (E.drift || 1),
+    drift: b.drift * (1 + 0.06 * up.drift) * (E.drift || 1) * Y.drift,
     driftScore: b.drift * (1 + 0.12 * up.drift),
     nitroMax: 2 + 0.6 * up.nitro,
-    offroad: clamp((b.offroad ? 0.98 : 0.78 + 0.035 * up.susp) + W.off, 0.6, 1),
+    offroad: clamp((b.offroad ? 0.98 : 0.78 + 0.035 * up.susp) + W.off + Y.off, 0.55, 1),
   };
 }
+// ---------- performance index and classes ----------
+// PI mixes top speed, power-to-weight (acceleration incl. boost), cornering grip, steering and nitro.
+// Classes are PI caps: a car races in the lowest class its PI fits under.
+const CLASSES = [150, 300, 450, 600, 750, 900, Infinity];
+const CLASS_COL = ['#9aa0b5', '#3ddc97', '#3fa7ff', '#9b6bff', '#ff7ac8', '#ff9a3c', '#ff4f5e'];
+function perfIndex(st) {
+  const sp = st.top / 84, ac = st.accel * (1 + st.boostAcc * 0.6) / 64, gr = st.latMax / 62, tu = st.turn / 3.5, ni = st.nitroMax / 5;
+  const raw = 0.33 * sp + 0.3 * ac + 0.24 * gr + 0.08 * tu + 0.05 * ni;
+  return Math.max(60, Math.round(1000 * raw * raw));
+}
+function classOf(pi) { for (let k = 0; k < CLASSES.length; k++) if (pi <= CLASSES[k]) return k; return CLASSES.length - 1; }
+const className = k => CLASSES[k] === Infinity ? 'UNL' : String(CLASSES[k]);
+function carPI(car) { return perfIndex(statsFor(car)); }
+function carClass(car) { return classOf(carPI(car)); }
+// shown power and weight: power follows from acceleration and kerb weight
+function carPower(car) { const st = statsFor(car), kg = KG[car.m] || 1300; return { kg, hp: Math.round(st.accel * (1 + st.boostAcc * 0.6) * kg / 110) }; }
 const STAT_MAX = { top: 44 * 1.34 * 1.21 * 1.14 * 1.04, accel: 30 * 1.3 * 1.2 * 1.16 * 1.06, latMax: 45 * 1.3 * 1.1, drift: 1.35 * 1.3 * 1.05, nitroMax: 5 };
 
 // ---------- save ----------
 const SAVE_KEY = 'pebble-isle-rally-save-v1';
 const GEAR_TQ = [1.45, 1.2, 1.02, 0.88, 0.77, 0.68];   // pull in each gear of the manual box
 const STARTER_UP = () => ({ engine: 0, accel: 0, grip: 0, drift: 0, nitro: 0, susp: 0 });
-function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', has: [] } }; }
+function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', has: [] }, plate: '', fuel: 1, oct: 95 }; }
 function sanitizeCar(o, keepId) {
   if (!o || typeof o !== 'object' || !BODY[o.m]) return null;
   const c = newCarObj(o.m, o.paint);
   if (keepId && typeof o.id === 'string' && /^c[a-z0-9]{2,24}$/.test(o.id)) c.id = o.id;
   if (o.up && typeof o.up === 'object') for (const u of UPGRADES) c.up[u.id] = clamp(Math.floor(num(o.up[u.id], 0)), 0, MAX_LVL);
   const t = o.tune && typeof o.tune === 'object' ? o.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiaw]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawy]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   const pick = (slot, def) => { const v = t[slot], m = SLOT_MAP[slot][v]; return m && (m.cost === 0 || has.includes(slot + ':' + v)) ? v : def; };
-  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), has };
+  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), has };
+  const pl = cleanPlate(o.plate); c.plate = pl && !nameIsBad(pl) ? pl : '';
+  c.fuel = clamp(num(o.fuel, 1), 0, 1); c.oct = clamp(num(o.oct, 95), 95, 98);
   c.neon = NEON[o.neon] ? o.neon : 'none';
   c.stance = STANCE[o.stance] ? o.stance : 'stock';
   return c;
 }
-function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0 }; }
+// ---------- streetwear for your character (all original designs, no real labels) ----------
+const FIT_COLS = ['#1d1a2e', '#f4f2fa', '#8a8f9e', '#ff4f5e', '#ff9a3c', '#ffd23f', '#3ddc97', '#3fa7ff', '#9b6bff', '#ff7ac8', '#5b6b3a', '#c2a37a', '#2a3f6e', '#7a2f3a'];
+const FIT = {
+  top: [{ id: 'tee', name: 'Oversized tee', cost: 0 }, { id: 'longtee', name: 'Long-sleeve tee', cost: 150 }, { id: 'hoodie', name: 'Heavyweight hoodie', cost: 450 }, { id: 'track', name: 'Track jacket', cost: 600 }, { id: 'coach', name: 'Coach jacket', cost: 700 }, { id: 'puffer', name: 'Puffer jacket', cost: 1100 }, { id: 'varsity', name: 'Varsity jacket', cost: 1400 }],
+  print: [{ id: 'none', name: 'Plain', cost: 0 }, { id: 'tag', name: 'Pebble tag', cost: 100 }, { id: 'star', name: 'Star', cost: 200 }, { id: 'koi', name: 'Koi', cost: 250 }, { id: 'kanji', name: '走 Run', cost: 250 }, { id: 'flame', name: 'Flames', cost: 300 }, { id: 'wave', name: 'Big wave', cost: 300 }, { id: 'check', name: 'Checker', cost: 350 }],
+  bottom: [{ id: 'cargo', name: 'Cargo pants', cost: 0 }, { id: 'jogger', name: 'Joggers', cost: 200 }, { id: 'shorts', name: 'Shorts and long socks', cost: 250 }, { id: 'denim', name: 'Baggy denim', cost: 350 }],
+  shoes: [{ id: 'low', name: 'Low-top sneakers', cost: 0 }, { id: 'slides', name: 'Slides and socks', cost: 200 }, { id: 'high', name: 'High-tops', cost: 500 }, { id: 'chunky', name: 'Chunky runners', cost: 800 }],
+  hat: [{ id: 'none', name: 'No hat', cost: 0 }, { id: 'cap', name: 'Cap', cost: 150 }, { id: 'back', name: 'Cap, worn backwards', cost: 150 }, { id: 'beanie', name: 'Beanie', cost: 200 }, { id: 'bucket', name: 'Bucket hat', cost: 300 }],
+  acc: [{ id: 'shades', name: 'Shades', cost: 300 }, { id: 'bag', name: 'Cross-body bag', cost: 500 }, { id: 'phones', name: 'Headphones', cost: 600 }, { id: 'chain', name: 'Gold chain', cost: 900 }],
+};
+const SKINS = ['#ffd3b0', '#f1b98f', '#d39a6c', '#a8724a', '#6e4a32'], HAIRS = ['#1d1a2e', '#4a2f22', '#c89b5a', '#f4f2fa', '#ff7ac8', '#3fa7ff'];
+const FIT_SLOTS = ['top', 'print', 'bottom', 'shoes', 'hat'];
+function sanitizeFit(o) {
+  o = o && typeof o === 'object' ? o : {};
+  const pick = (k, d) => FIT[k].some(x => x.id === o[k]) ? o[k] : d;
+  const col = (v, d, n) => Number.isInteger(v) && v >= 0 && v < (n || FIT_COLS.length) ? v : d;
+  return { top: pick('top', 'tee'), tc: col(o.tc, 1), print: pick('print', 'none'), bottom: pick('bottom', 'cargo'), bc: col(o.bc, 0), shoes: pick('shoes', 'low'), sc: col(o.sc, 1), hat: pick('hat', 'none'), hc: col(o.hc, 0),
+    acc: Array.isArray(o.acc) ? FIT.acc.map(x => x.id).filter(id => o.acc.includes(id)) : [], skin: col(o.skin, 0, SKINS.length), hair: col(o.hair, 1, HAIRS.length) };
+}
+// compact form sent to other players: item indexes and colour numbers
+function fitCode(f) { return [FIT.top.findIndex(x => x.id === f.top), f.tc, FIT.print.findIndex(x => x.id === f.print), FIT.bottom.findIndex(x => x.id === f.bottom), f.bc, FIT.shoes.findIndex(x => x.id === f.shoes), f.sc, FIT.hat.findIndex(x => x.id === f.hat), f.hc, FIT.acc.reduce((m, x, k) => m | (f.acc.includes(x.id) ? 1 << k : 0), 0), f.skin, f.hair].join('.'); }
+function fitDecode(str) {
+  const a = typeof str === 'string' ? str.split('.').slice(0, 12).map(v => parseInt(v, 10)) : [];
+  const it = (k, i) => (FIT[k][a[i]] || FIT[k][0]).id;
+  return sanitizeFit({ top: it('top', 0), tc: a[1], print: it('print', 2), bottom: it('bottom', 3), bc: a[4], shoes: it('shoes', 5), sc: a[6], hat: it('hat', 7), hc: a[8], acc: FIT.acc.filter((x, k) => (a[9] || 0) & (1 << k)).map(x => x.id), skin: a[10], hair: a[11] });
+}
+function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0, finds: [], fit: sanitizeFit(null), fitOwn: [] }; }
 function sanitizeSave(o) {
   const s = defaultSave(); if (!o || typeof o !== 'object') return s;
   s.money = clamp(Math.floor(num(o.money, s.money)), 0, MONEY_CAP);
@@ -882,6 +990,10 @@ function sanitizeSave(o) {
   s.home = s.homes.includes(o.home) ? o.home : '';
   s.tut = o.tut ? 1 : 0;
   s.manual = o.manual ? 1 : 0;
+  s.finds = Array.isArray(o.finds) ? BODIES.filter(b => b.find && o.finds.includes(b.id)).map(b => b.id) : [];
+  s.fit = sanitizeFit(o.fit); s.fitOwn = Array.isArray(o.fitOwn) ? o.fitOwn.filter(x => typeof x === 'string' && /^[a-z]{1,6}:[a-z0-9]{1,10}$/.test(x)).slice(0, 80) : [];
+  for (const k of FIT_SLOTS) { const it = FIT[k].find(x => x.id === s.fit[k]); if (it.cost && !s.fitOwn.includes(k + ':' + it.id)) s.fit[k] = FIT[k][0].id; }
+  s.fit.acc = s.fit.acc.filter(id => s.fitOwn.includes('acc:' + id));
   return s;
 }
 let save = defaultSave();
@@ -956,6 +1068,12 @@ const gradTex = (() => {
   const d = new Uint8Array([105, 105, 105, 255, 185, 185, 185, 255, 255, 255, 255, 255]);
   const t = new THREE.DataTexture(d, 3, 1, THREE.RGBAFormat);
   t.minFilter = t.magFilter = THREE.NearestFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
+})();
+// a softer ramp for the ground, so headlights fade out across the road instead of painting a hard white shape
+const softGrad = (() => {
+  const n = 16, d = new Uint8Array(n * 4);
+  for (let k = 0; k < n; k++) { const v = Math.round(100 + 155 * Math.pow(k / (n - 1), 0.85)); d.set([v, v, v, 255], k * 4); }
+  const t = new THREE.DataTexture(d, n, 1, THREE.RGBAFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true; return t;
 })();
 const matCache = new Map();
 function toon(color, extra) {
@@ -1071,6 +1189,13 @@ function extrudeX(P, width, bt, bs, segs) {
   const depth = Math.max(0.01, width - 2 * bt);
   const g = new THREE.ExtrudeGeometry(toShape(P), { depth, bevelEnabled: bt > 0, bevelThickness: bt, bevelSize: bs, bevelOffset: -bs, bevelSegments: segs || 3, curveSegments: 4, steps: 1 });
   g.translate(0, 0, -depth / 2); g.rotateY(-Math.PI / 2);
+  return smoothNormals(g, 40);
+}
+// bends a shape across the car's width: every vertex x is scaled by f(y, z); normals are rebuilt
+function warpX(g, f) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setX(i, p.getX(i) * f(p.getY(i), p.getZ(i)));
+  p.needsUpdate = true;
   return smoothNormals(g, 40);
 }
 const rrect = (w, h, r, n) => roundPoly([[w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2], [-w / 2, -h / 2]], [r, r, r, r], n || 3);
@@ -1273,7 +1398,7 @@ function terrainColor(x, z, h, i) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeVertexNormals();
-  const terrain = new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: gradTex }));
+  const terrain = new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: softGrad }));
   terrain.receiveShadow = true; scene.add(terrain);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), toon(0x163a6e));
   water.rotation.x = -Math.PI / 2; water.position.y = -0.5; scene.add(water);
@@ -1305,7 +1430,7 @@ function ribbon(off0, off1, y, vScale, mat) {
   g.setIndex(idx); g.computeVertexNormals();
   const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); return m;
 }
-const roadMat = new THREE.MeshToonMaterial({ map: roadTex, gradientMap: gradTex });
+const roadMat = new THREE.MeshToonMaterial({ map: roadTex, gradientMap: softGrad });
 const curbMat = new THREE.MeshToonMaterial({ map: curbTex, gradientMap: gradTex });
 const r0 = ribbon(-ROAD_W / 2, ROAD_W / 2, 0.06, 12, roadMat);
 const r1m = ribbon(-ROAD_W / 2 - 1.8, -ROAD_W / 2, 0.065, 5, curbMat);
@@ -1534,7 +1659,7 @@ const RESERVED = [];   // {x,z,r}: random trees, rocks and houses keep out
 const SITES = {};      // id -> {x, z, yaw, y}
 const snapYaw = a => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
 // city blocks are 100 m squares between the streets; a site takes a whole block
-const CITY_SITES = { dealer: [750, 50, Math.PI], taxi: [850, -150, Math.PI], chop: [1250, 350, Math.PI / 2], loft: [950, 150, 0] };
+const CITY_SITES = { gas1: [1150, -250, 0], dealer: [750, 50, Math.PI], taxi: [850, -150, Math.PI], chop: [1250, 350, Math.PI / 2], loft: [950, 150, 0] };
 for (const [id, [x, z, yaw]] of Object.entries(CITY_SITES)) SITES[id] = { x, z, yaw, y: gridH(x, z) };
 const citySite = (cx, cz) => Object.values(CITY_SITES).some(s => Math.abs(s[0] - cx) < 10 && Math.abs(s[1] - cz) < 10);
 // on the island: search outward from a preferred spot for open ground, facing the plaza
@@ -1550,6 +1675,7 @@ function islandSite(id, x0, z0, r) {
 }
 islandSite('wash', 120, 110, 15);
 islandSite('cottage', -150, 120, 13);
+islandSite('gas3', -40, -175, 17);
 
 // --- houses ---
 const HOUSE_COLS = [0xf1e7d0, 0xe8dcc0, 0xd9c8a8, 0xf4f2fa, 0xc8b08a, 0xe0d4bc, 0xb89a7a];
@@ -1688,6 +1814,7 @@ roadSite('tune', WEST, 0.08, 34, 15);
 roadSite('farmhouse', WEST, 0.4, 36, 14);
 roadSite('shroom', WEST, 0.58, 40, 15);
 roadSite('beach', SPUR, 0.72, 32, 14);
+roadSite('gas2', WEST, 0.24, 33, 16);
 roadSite('fizz', NORTH, 0.5, 30, 12);
 roadSite('chalet', NORTH, 0.86, 32, 14);
 roadSite('pagoda', NORTH, 0.3, 44, 12);
@@ -2267,6 +2394,12 @@ const BODY_DEF = {
   sakura: { wheels: [[0.85, 1.48, 0.34, 0.42, 1], [-0.85, 1.48, 0.34, 0.42, 1], [0.85, -1.42, 0.34, 0.44, 0], [-0.85, -1.42, 0.34, 0.44, 0]], back: -2.35, exhaustY: 0.36 },
   yoru: { wheels: [[0.84, 1.3, 0.33, 0.42, 1], [-0.84, 1.3, 0.33, 0.42, 1], [0.83, -1.25, 0.34, 0.48, 0], [-0.83, -1.25, 0.34, 0.48, 0]], back: -2.15, exhaustY: 0.32 },
   raijin: { wheels: [[0.9, 1.45, 0.35, 0.46, 1], [-0.9, 1.45, 0.35, 0.46, 1], [0.9, -1.38, 0.35, 0.5, 0], [-0.9, -1.38, 0.35, 0.5, 0]], back: -2.35, exhaustY: 0.36 },
+  arashi: { wheels: [[0.88, 1.32, 0.34, 0.44, 1], [-0.88, 1.32, 0.34, 0.44, 1], [0.88, -1.3, 0.34, 0.44, 0], [-0.88, -1.3, 0.34, 0.44, 0]], back: -2.22, exhaustY: 0.34 },
+  oni: { wheels: [[0.92, 1.32, 0.34, 0.48, 1], [-0.92, 1.32, 0.34, 0.48, 1], [0.92, -1.3, 0.34, 0.48, 0], [-0.92, -1.3, 0.34, 0.48, 0]], back: -2.24, exhaustY: 0.34 },
+  kaminari: { wheels: [[0.88, 1.4, 0.34, 0.44, 1], [-0.88, 1.4, 0.34, 0.44, 1], [0.88, -1.35, 0.35, 0.5, 0], [-0.88, -1.35, 0.35, 0.5, 0]], back: -2.29, exhaustY: 0.32 },
+  hakone: { wheels: [[0.86, 1.3, 0.33, 0.44, 1], [-0.86, 1.3, 0.33, 0.44, 1], [0.86, -1.25, 0.33, 0.48, 0], [-0.86, -1.25, 0.33, 0.48, 0]], back: -2.16, exhaustY: 0.32 },
+  shogun: { wheels: [[0.88, 1.4, 0.34, 0.46, 1], [-0.88, 1.4, 0.34, 0.46, 1], [0.9, -1.3, 0.36, 0.54, 0], [-0.9, -1.3, 0.36, 0.54, 0]], back: -2.24, exhaustY: 0.34 },
+  tanuki: { wheels: [[0.74, 1.08, 0.3, 0.36, 1], [-0.74, 1.08, 0.3, 0.36, 1], [0.74, -1.08, 0.3, 0.36, 0], [-0.74, -1.08, 0.3, 0.36, 0]], back: -1.72, exhaustY: 0.3 },
   hatch: { wheels: [[0.85, 1.32, 0.37, 0.4, 1], [-0.85, 1.32, 0.37, 0.4, 1], [0.85, -1.28, 0.37, 0.4, 0], [-0.85, -1.28, 0.37, 0.4, 0]], back: -2.1, exhaustY: 0.4 },
   sedan: { wheels: [[0.87, 1.55, 0.39, 0.42, 1], [-0.87, 1.55, 0.39, 0.42, 1], [0.87, -1.55, 0.39, 0.42, 0], [-0.87, -1.55, 0.39, 0.42, 0]], back: -2.45, exhaustY: 0.4 },
   suv: { wheels: [[0.88, 1.5, 0.45, 0.46, 1], [-0.88, 1.5, 0.45, 0.46, 1], [0.88, -1.5, 0.45, 0.46, 0], [-0.88, -1.5, 0.45, 0.46, 0]], back: -2.4, exhaustY: 0.6 },
@@ -2274,7 +2407,7 @@ const BODY_DEF = {
   gt: { wheels: [[0.88, 1.55, 0.41, 0.44, 1], [-0.88, 1.55, 0.41, 0.44, 1], [0.86, -1.45, 0.42, 0.5, 0], [-0.86, -1.45, 0.42, 0.5, 0]], back: -2.4, exhaustY: 0.38 },
   super: { wheels: [[0.9, 1.45, 0.4, 0.46, 1], [-0.9, 1.45, 0.4, 0.46, 1], [0.86, -1.4, 0.42, 0.54, 0], [-0.86, -1.4, 0.42, 0.54, 0]], back: -2.35, exhaustY: 0.38 },
 };
-const HOOD = { kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
+const HOOD = { arashi: [1, 1.5], oni: [1, 1.5], kaminari: [1, 1.4], hakone: [1, 1.4], shogun: [1, -1.5], tanuki: [1, 1.15], kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
 // wheels: a tyre around a rim face on each side, with brake discs and calipers showing through the spokes
 function addRim(wh, W, r, w, lite) {
   const rim = toon(W.rim), dk = toon(0x2b2d42);
@@ -2336,11 +2469,17 @@ const CAR_SPECS = {
   falcon: { L: 4.9, W: 2.35, gc: 0.46, sh: 1.2, nose: 0.9, tail: 1.16, hoodZ: 0.5, deckZ: -1.8, roof: 1.92, roofF: -0.25, roofR: -1.05, cabW: 1.86, look: 'sport', lamp: 'slit', x: ['ducktail', 'vents', 'tailbar'] },
   vento: { L: 4.8, W: 2.5, gc: 0.42, sh: 1.05, nose: 0.64, tail: 1.08, hoodZ: 0.9, deckZ: -1.2, roof: 1.65, roofF: 0.45, roofR: -0.5, cabW: 1.6, cabin: 'canopy', flares: 1, look: 'super', lamp: 'slit', x: ['hyper2'] },
   muscle: { L: 4.7, W: 2.4, gc: 0.45, sh: 1.3, nose: 1.15, tail: 1.25, hoodZ: 0.5, deckZ: -1.6, roof: 1.95, roofF: -0.05, roofR: -1.0, cabW: 1.9, look: 'classic', x: ['scoop', 'wing'], stripes: [[-0.33, 0.38], [0.33, 0.38]] },
-  kitsune: { L: 4.1, W: 1.96, gc: 0.22, sh: 0.92, nose: 0.74, tail: 0.92, hoodZ: 0.62, deckZ: -1.74, roof: 1.42, roofF: -0.06, roofR: -1.5, cabW: 1.7, look: 'sport', x: ['hatchwing'] },
+  kitsune: { L: 4.1, W: 1.96, gc: 0.22, sh: 0.92, nose: 0.74, tail: 0.92, hoodZ: 0.62, deckZ: -1.74, roof: 1.42, roofF: -0.06, roofR: -1.5, cabW: 1.7, look: 'sport', x: ['hatchwing', 'popup'] },
   hikari: { L: 4.55, W: 2.0, gc: 0.22, sh: 0.94, nose: 0.74, tail: 0.92, hoodZ: 0.42, deckZ: -1.55, roof: 1.36, roofF: -0.35, roofR: -1.0, cabW: 1.66, look: 'sport', lamp: 'slit', x: ['ducktail'] },
   sakura: { L: 4.7, W: 2.02, gc: 0.24, sh: 0.98, nose: 0.78, tail: 0.96, hoodZ: 0.72, deckZ: -2.02, roof: 1.48, roofF: 0.2, roofR: -1.95, cabW: 1.76, look: 'sport', doors: 4, x: ['rails', 'hatchwing'] },
   yoru: { L: 4.3, W: 2.0, gc: 0.2, sh: 0.9, nose: 0.66, tail: 0.94, hoodZ: 0.38, deckZ: -1.3, roof: 1.3, roofF: -0.25, roofR: -0.85, cabW: 1.62, flares: 1, look: 'sport', lamp: 'slit', x: ['ducktail'] },
   raijin: { L: 4.7, W: 2.14, gc: 0.24, sh: 0.98, nose: 0.78, tail: 0.98, hoodZ: 0.6, deckZ: -1.5, roof: 1.44, roofF: -0.05, roofR: -0.9, cabW: 1.72, flares: 1, look: 'sport', x: ['wing2', 'scoop'] },
+  arashi: { L: 4.42, W: 2.04, gc: 0.26, sh: 1.0, nose: 0.8, tail: 1.0, hoodZ: 0.78, deckZ: -1.42, roof: 1.5, roofF: 0.12, roofR: -0.98, cabW: 1.76, flares: 1, look: 'sport', doors: 4, x: ['rallywing', 'hoodvents', 'mudflaps'] },
+  oni: { L: 4.46, W: 2.12, gc: 0.25, sh: 1.0, nose: 0.78, tail: 1.0, hoodZ: 0.78, deckZ: -1.42, roof: 1.49, roofF: 0.12, roofR: -0.98, cabW: 1.76, flares: 1, look: 'sport', doors: 4, x: ['rallywing', 'hoodvents', 'roofscoop', 'mudflaps'], stripes: [[0.42, 0.16]] },
+  kaminari: { L: 4.55, W: 2.06, gc: 0.22, sh: 0.94, nose: 0.72, tail: 0.96, hoodZ: 0.45, deckZ: -1.6, roof: 1.32, roofF: -0.35, roofR: -1.35, cabW: 1.66, flares: 1, look: 'sport', lamp: 'slit', x: ['ducktail', 'hoodvents'] },
+  hakone: { L: 4.3, W: 2.0, gc: 0.24, sh: 0.92, nose: 0.76, tail: 0.92, hoodZ: 0.55, deckZ: -1.45, roof: 1.36, roofF: -0.15, roofR: -1.0, cabW: 1.64, flares: 1, look: 'sport', lamp: 'round', x: ['ducktail'] },
+  shogun: { L: 4.45, W: 2.1, gc: 0.22, sh: 0.86, nose: 0.55, tail: 0.92, hoodZ: 0.75, deckZ: -1.0, roof: 1.2, roofF: 0.25, roofR: -0.45, cabW: 1.56, flares: 1, look: 'super', lamp: 'slit', x: ['wing2', 'vents'] },
+  tanuki: { L: 3.4, W: 1.72, gc: 0.22, sh: 0.94, nose: 0.78, tail: 0.96, hoodZ: 0.55, deckZ: -1.5, roof: 1.5, roofF: 0.05, roofR: -1.45, cabW: 1.52, flares: 1, look: 'sport', lamp: 'round', x: ['hatchwing'] },
   hatch: { L: 4.25, W: 2.0, gc: 0.3, sh: 1.02, nose: 0.86, tail: 1.0, hoodZ: 0.7, deckZ: -1.8, roof: 1.6, roofF: 0.0, roofR: -1.62, cabW: 1.78, look: 'sport', x: ['hatchwing'] },
   sedan: { L: 4.95, W: 2.06, gc: 0.3, sh: 1.0, nose: 0.84, tail: 0.98, hoodZ: 0.9, deckZ: -1.5, roof: 1.52, roofF: 0.15, roofR: -0.95, cabW: 1.78, look: 'modern', doors: 4 },
   suv: { L: 4.85, W: 2.12, gc: 0.5, sh: 1.3, nose: 1.12, tail: 1.26, hoodZ: 1.0, deckZ: -2.1, roof: 2.0, roofF: 0.5, roofR: -1.95, cabW: 1.96, look: 'modern', doors: 4, x: ['rails'] },
@@ -2384,24 +2523,53 @@ function sleekGeo(id, S, wheels) {
         arches.push([wz, r, ra, dz]);
       }
     }
-    const out = { body: extrudeX(pts, S.W, 0.24, 0.1, 3), top, surf, zF, zR, rn, rt, arches };
+    // real cars are narrower at the nose and tail, roll in under the sills and round over the shoulder
+    const sport = S.look !== 'classic', TF = S.noArch ? 0 : S.look === 'super' ? 0.11 : sport ? 0.085 : 0.05, TR = S.noArch ? 0 : sport ? 0.06 : 0.035;
+    const pf = z => { const f = clamp((z - (zF - 1.0)) / 1.0, 0, 1), r = clamp(((zR + 0.8) - z) / 0.8, 0, 1); return 1 - TF * f * f - TR * r * r; };
+    const vf = y => 1 - 0.05 * clamp((S.gc + 0.2 - y) / 0.2, 0, 1) - 0.035 * clamp((y - (S.sh - 0.22)) / 0.22, 0, 1) ** 2;
+    const out = { body: warpX(extrudeX(pts, S.W, 0.24, 0.1, 3), (y, z) => pf(z) * vf(y)), top, surf, zF, zR, rn, rt, arches, pf, vf, kf: () => 1 };
     if (S.cabin !== 'none') {
       const base = S.sh - 0.1;
       const cab = roundPoly([[S.hoodZ, base], [S.roofF, S.roof], [S.roofR, S.roof], [S.deckZ, base]], [0, 0.32, 0.3, 0], 5);
       out.cabPts = cab; out.cabTop = z => ylook(cab, z);
-      out.cab = extrudeX(cab, S.cabW, 0.18, 0.1, 3);
+      // tumblehome: the glasshouse leans in towards the roof
+      const TH = S.cabin === 'van' ? 0.04 : S.cabin === 'canopy' ? 0.1 : sport ? 0.15 : 0.1;
+      const kf = y => 1 - TH * clamp((y - base) / (S.roof - base), 0, 1), cw = (y, z) => kf(y) * pf(z);
+      out.kf = kf; out.cw = cw;
+      out.cab = warpX(extrudeX(cab, S.cabW, 0.18, 0.1, 3), cw);
       const tp = cab.filter(p => p[1] >= S.roof - 0.17);
-      out.slab = extrudeX(tp.map(p => [p[0], p[1] + 0.035]).concat(tp.slice().reverse().map(p => [p[0], p[1] - 0.1])), S.cabW + 0.06, 0.1, 0.03, 2);
+      out.slab = warpX(extrudeX(tp.map(p => [p[0], p[1] + 0.035]).concat(tp.slice().reverse().map(p => [p[0], p[1] - 0.1])), S.cabW + 0.06, 0.1, 0.03, 2), cw);
       // side windows, split by a B-pillar when the cabin is long enough
       const Hh = S.roof - base, zW = y => lerp(S.hoodZ, S.roofF, (y - base) / Hh), zRr = y => lerp(S.deckZ, S.roofR, (y - base) / Hh);
       const yb = S.sh + 0.06, yt = S.roof - 0.17, d = 0.17;
       const f0 = zW(yb) - d, f1 = zW(yt) - d, r0 = zRr(yb) + d, r1 = zRr(yt) + d;
-      out.sideWin = []; out.r0 = r0;
+      // windscreen and rear window follow the cabin's own curve, sitting a hair proud of it
+      const band = (pts, up, dn) => {
+        const o = [], i = [];
+        for (let k = 0; k < pts.length; k++) {
+          const p = pts[Math.max(0, k - 1)], q = pts[Math.min(pts.length - 1, k + 1)], dz = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dz, dy) || 1, nz = dy / l, ny = -dz / l;
+          o.push([pts[k][0] + nz * up, pts[k][1] + ny * up]); i.push([pts[k][0] - nz * dn, pts[k][1] - ny * dn]);
+        }
+        return o.concat(i.reverse());
+      };
+      const pane = (pts, w, up) => warpX(extrudeX(band(pts, up, 0.03), w, 0.015, 0.01, 1), cw);
+      const wsP = cab.slice(0, 5), rwP = cab.slice(cab.length - 4);
+      out.ws = pane(wsP.slice(0, 4), S.cabW - 0.3, 0.014); out.rw = pane(rwP.slice(1), S.cabW - 0.34, 0.014);
+      out.wsT = pane(wsP, S.cabW - 0.2, 0.007); out.rwT = pane(rwP, S.cabW - 0.24, 0.007);
+      out.sideWin = []; out.trim = []; out.r0 = r0;
+      // each window is baked onto its side of the leaning cabin; a black frame (and B-pillar) sits behind the glass
+      const side = (g, x) => { const o = []; for (const s of [-1, 1]) o.push(warpX(g.clone().translate(s * x, 0, 0), cw)); return o; };
       if (f1 - r1 > 0.6 && f0 - r0 > 0.6 && yt - yb > 0.22) {
         const split = f1 - r1 > 1.5, zB = lerp(r1, f1, 0.45);
         out.zB = split ? zB : null;
         const polys = split ? [[[f0, yb], [f1, yt], [zB + 0.08, yt], [zB + 0.08, yb]], [[zB - 0.08, yb], [zB - 0.08, yt], [r1, yt], [r0, yb]]] : [[[f0, yb], [f1, yt], [r1, yt], [r0, yb]]];
-        for (const P of polys) if (P[0][0] - P[3][0] > 0.2) out.sideWin.push(extrudeX(roundPoly(P, [0.06, 0.1, 0.1, 0.05], 3), 0.03, 0, 0));
+        // keep every window point inside the cabin silhouette, where the roof corners round off
+        const under = (Q, m) => Q.map(p => [p[0], Math.min(p[1], ylook(cab, p[0]) - m)]);
+        for (const P of polys) if (P[0][0] - P[3][0] > 0.2) out.sideWin.push(...side(extrudeX(under(roundPoly(P, [0.06, 0.1, 0.1, 0.05], 3), 0.075), 0.03, 0, 0), S.cabW / 2 + 0.006));
+        if (S.cabin !== 'van') {
+          const e = 0.055, T = [[f0 + e, yb - e], [f1 + e * 0.6, yt + e], [r1 - e * 0.6, yt + e], [r0 - e, yb - e]];
+          out.trim.push(...side(extrudeX(under(roundPoly(T, [0.07, 0.12, 0.12, 0.06], 3), 0.035), 0.02, 0, 0), S.cabW / 2 + 0.002));
+        }
       }
     }
     // racing stripes follow the hood, roof and boot
@@ -2426,11 +2594,34 @@ const tyre = (r, w, open) => geo('ty' + r + ',' + w + (open ? 'o' : ''), () => {
   pts.push(new THREE.Vector2(r0, w / 2));
   return new THREE.LatheGeometry(pts, 26);
 });
+// number plates: Japanese layout, small region line on top and the owner's text below
+const PLATE_DEF = ['PI 21-07', 'PI 48-19', 'PI 33-86', 'PI 13-20', 'PI 77-01', 'PI 90-42', 'PI 26-58', 'PI 64-11'];
+function cleanPlate(t) { return String(t == null ? '' : t).toUpperCase().replace(/[^A-Z0-9 \-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 8); }
+function plateMat(text) {
+  text = cleanPlate(text) || PLATE_DEF[0];
+  return geo('plateM:' + text, () => new THREE.MeshBasicMaterial({ map: canvasTex(256, 100, (c, w, h) => {
+    c.fillStyle = '#f4f2ea'; roundRect(c, 2, 2, w - 4, h - 4, 10); c.fill(); c.strokeStyle = '#2c6a3e'; c.lineWidth = 4; roundRect(c, 5, 5, w - 10, h - 10, 8); c.stroke();
+    c.fillStyle = '#2c6a3e'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = '20px "Lilita One", "Arial Black", sans-serif'; c.fillText('PEBBLE ISLE', w / 2, 24);
+    c.font = '48px "Lilita One", "Arial Black", sans-serif'; c.fillText(text, w / 2, 66, w - 26);
+  }) }));
+}
 function buildSleek(bodyId, S, def, add, M) {
   const K = sleekGeo(bodyId, S, def.wheels), has = k => (S.x || []).includes(k);
   const { P, GLASS, DARK, GREY, LIGHT, TAIL } = M, WHITE = toon(0xffffff), TINT = toon(0x23263f);
   const addS = (g, m, x, y, z, t) => { const mesh = add(g, m, x, y, z, 0); if (t !== 0) outlineShell(mesh, t || 0.035); return mesh; };
-  addS(K.body, P, 0, 0, 0, 0.05);
+  const real = S.look !== 'classic';
+  addS(K.body, P, 0, 0, 0, real ? 0.03 : 0.05);
+  // dark wheel wells so you can't see through the arches
+  if (real && !S.noArch) for (const [wz, r, ra] of K.arches) {
+    const wx = Math.min(...def.wheels.filter(w => w[1] === wz).map(w => Math.abs(w[0]) - w[3] / 2)), lw = 2 * wx - 0.06;
+    if (lw < 0.3) continue;
+    add(geo('well:' + bodyId + wz, () => {
+      const th = Math.asin(clamp((r - S.gc + 0.02) / ra, 0, 1)), W2 = [];
+      for (let k = 0; k <= 16; k++) { const a = -th + (Math.PI + 2 * th) * k / 16; W2.push([wz + Math.cos(a) * (ra - 0.015), r + Math.sin(a) * (ra - 0.015)]); }
+      return extrudeX(W2, lw, 0, 0);
+    }), toon(0x121220), 0, 0, 0, 0);
+  }
   if (S.cabin === 'canopy') addS(K.cab, TINT, 0, 0, 0, 0.045);
   else if (S.cabin === 'van') {
     addS(K.cab, P, 0, 0, 0, 0.05);
@@ -2438,16 +2629,19 @@ function buildSleek(bodyId, S, def, add, M) {
     for (const s of [-1, 1]) for (const [z, l] of [[0.45, 1.3], [-1.0, 1.4]]) add(rbox(0.05, 0.55, l, 0.03), GLASS, s * S.cabW / 2, (S.sh + S.roof) / 2 + 0.12, z, 0);
   } else if (S.cabin !== 'none') {
     // painted cabin with tinted glass: windscreen, rear window and side windows between the pillars
-    const GL = toon(0x3d5f80);
-    addS(K.cab, P, 0, 0, 0, 0.045);
+    const GL = toon(0x3d5f80), TRIM = toon(0x16161f);
+    addS(K.cab, P, 0, 0, 0, real ? 0.03 : 0.045);
     if (S.roofCol != null) addS(K.slab, toon(S.roofCol), 0, 0, 0, 0.03);
-    slopePanel(add, S.hoodZ, S.sh - 0.1, S.roofF, S.roof, S.cabW - 0.3, GL, 0.74);
-    slopePanel(add, S.roofR, S.roof, S.deckZ, S.sh - 0.1, S.cabW - 0.34, GL, 0.7);
-    for (const g of K.sideWin) for (const s of [-1, 1]) add(g, GL, s * (S.cabW / 2 + 0.004), 0, 0, 0);
+    if (real) { add(K.wsT, TRIM, 0, 0, 0, 0); add(K.rwT, TRIM, 0, 0, 0, 0); add(K.ws, GL, 0, 0, 0, 0); add(K.rw, GL, 0, 0, 0, 0); }
+    else { slopePanel(add, S.hoodZ, S.sh - 0.1, S.roofF, S.roof, S.cabW - 0.3, GL, 0.74); slopePanel(add, S.roofR, S.roof, S.deckZ, S.sh - 0.1, S.cabW - 0.34, GL, 0.7); }
+    for (const g of K.trim) add(g, TRIM, 0, 0, 0, 0);
+    for (const g of K.sideWin) add(g, GL, 0, 0, 0, 0);
+    // wipers resting at the base of the windscreen
+    if (real) for (const s of [-1, 1]) { const w = add(rbox(0.55, 0.025, 0.035, 0.01), TRIM, s * 0.3 - 0.05, S.sh - 0.02, S.hoodZ - 0.06, 0); w.rotation.y = -0.08; }
     // door shut lines and handles
     const archTop = z => { let y = -1; for (const [wz, r, ra] of K.arches) if (Math.abs(z - wz) < ra) y = Math.max(y, r + Math.sqrt(ra * ra - (z - wz) ** 2)); return y; };
     const seam = z => { const y0 = Math.max(S.gc + 0.16, archTop(z) + 0.07), y1 = S.sh - 0.14; if (y1 - y0 < 0.22) return; for (const s of [-1, 1]) add(rbox(0.02, y1 - y0, 0.035, 0.008), DARK, s * (S.W / 2 + 0.003), (y0 + y1) / 2, z, 0); };
-    const handle = z => { for (const s of [-1, 1]) add(rbox(0.04, 0.05, 0.2, 0.02), GREY, s * (S.W / 2 + 0.01), S.sh - 0.24, z, 0); };
+    const handle = z => { for (const s of [-1, 1]) add(rbox(0.035, 0.04, real ? 0.17 : 0.2, 0.015), real ? DARK : GREY, s * (S.W / 2 * K.vf(S.sh - 0.24) + 0.008), S.sh - 0.24, z, 0); };
     if (K.sideWin.length) {
       const rearEdge = S.doors === 4 && K.zB != null ? K.zB : (K.zB != null ? K.zB - 0.02 : K.r0 + 0.1);
       seam(S.hoodZ - 0.04); seam(rearEdge); handle(rearEdge + 0.3);
@@ -2456,8 +2650,15 @@ function buildSleek(bodyId, S, def, add, M) {
   }
   // door mirrors
   if (S.cabin !== 'none' && S.cabin !== 'van') for (const s of [-1, 1]) {
-    add(rbox(0.24, 0.05, 0.08, 0.02), DARK, s * (S.cabW / 2 + 0.08), S.sh + 0.14, S.hoodZ - 0.2, 0);
-    const mir = addS(rbox(0.12, 0.17, 0.26, 0.05), P, s * (S.cabW / 2 + 0.2), S.sh + 0.2, S.hoodZ - 0.2, 0.02);
+    if (real) {
+      const mz = S.hoodZ - 0.28, cx = S.cabW / 2 * K.cw(S.sh + 0.1, mz);
+      add(rbox(0.16, 0.04, 0.07, 0.015), DARK, s * (cx + 0.06), S.sh + 0.1, mz, 0);
+      addS(rbox(0.09, 0.12, 0.2, 0.04), P, s * (cx + 0.15), S.sh + 0.15, mz, 0.015);
+      add(rbox(0.02, 0.09, 0.15, 0.01), toon(0x8fb3d6), s * (cx + 0.15), S.sh + 0.15, mz - 0.1, 0).rotation.y = Math.PI / 2;
+    } else {
+      add(rbox(0.24, 0.05, 0.08, 0.02), DARK, s * (S.cabW / 2 + 0.08), S.sh + 0.14, S.hoodZ - 0.2, 0);
+      addS(rbox(0.12, 0.17, 0.26, 0.05), P, s * (S.cabW / 2 + 0.2), S.sh + 0.2, S.hoodZ - 0.2, 0.02);
+    }
   }
   // lights
   const lampG = geo('lamp', () => new THREE.SphereGeometry(0.5, 14, 10));
@@ -2465,28 +2666,77 @@ function buildSleek(bodyId, S, def, add, M) {
   const LW = S.lamp === 'round' ? [0.36, 0.36] : S.lamp === 'slit' ? [0.6, 0.13] : [0.5, 0.22];
   const ly = S.nose - Math.max(K.rn, 0.12) * 0.75, ty = S.tail - Math.max(K.rt, 0.12) * 0.8, lx = S.W / 2 - 0.16 - LW[0] / 2;
   const bar = has('tailbar') || S.look === 'super';
-  for (const s of [-1, 1]) {
-    lamp(LIGHT, s * lx, ly, K.zF - 0.03, LW[0], LW[1]);
-    if (!bar) lamp(TAIL, s * lx, ty, K.zR + 0.03, LW[0] * 0.9, Math.max(0.18, LW[1]));
+  const plateM = plateMat(M.plate);
+  const plate = (y, z, back) => { const m = add(geo('plateG2', () => new THREE.PlaneGeometry(0.44, 0.17)), plateM, 0, y, z, 0); m.castShadow = false; if (back) m.rotation.y = Math.PI; return m; };
+  // where the nose / tail surface sits at height y, and how far it leans back there
+  const faceAt = (y, front) => {
+    const T = front ? K.top : K.top.slice().reverse(), z0 = front ? K.zF : K.zR;
+    for (let k = 1; k < T.length; k++) { const p = T[k - 1], q = T[k]; if ((y - p[1]) * (y - q[1]) <= 0 && Math.abs(q[1] - p[1]) > 1e-4) { const t = (y - p[1]) / (q[1] - p[1]); return [lerp(p[0], q[0], t), Math.atan2(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1]))]; } }
+    return [z0, 0];
+  };
+  const pz = K.pf(K.zF - 0.05);
+  if (!real) {
+    for (const s of [-1, 1]) {
+      lamp(LIGHT, s * lx, ly, K.zF - 0.03, LW[0], LW[1]);
+      if (!bar) lamp(TAIL, s * lx, ty, K.zR + 0.03, LW[0] * 0.9, Math.max(0.18, LW[1]));
+    }
+    if (bar) add(rbox(S.W * 0.8, 0.14, 0.1, 0.05), TAIL, 0, ty, K.zR + 0.02, 0);
+  } else {
+    const HOUS = toon(0x15161f), RED = toon(0x6a1424, { emissive: 0x3a0610 }), AMBER = toon(0xffa53c, { emissive: 0x803a00 }), REV = toon(0xf4f2fa, { emissive: 0x404040 });
+    const unit = (front, x, y, w, h, fill) => {
+      const [z, lean] = faceAt(y, front), dir = front ? 1 : -1;
+      const u = add(rbox(w, h, 0.1, Math.min(0.04, h * 0.4)), front ? HOUS : RED, x, y, z - dir * 0.035, 0);
+      u.rotation.x = -dir * lean; if (!front) u.rotation.y = 0; u.castShadow = false;
+      const part = (g, m, px, py) => { const c = new THREE.Mesh(g, m); c.position.set(px, py, dir * 0.052); u.add(c); return c; };
+      fill(part, dir); return u;
+    };
+    const hx = S.W / 2 * pz - 0.12 - LW[0] / 2;
+    if (has('popup')) {
+      // pop-up headlights, raised for the night
+      for (const s of [-1, 1]) {
+        const z = K.zF - 0.5, y = K.surf(z);
+        const pod = addS(rbox(0.44, 0.16, 0.34, 0.04), P, s * (S.W / 2 * K.pf(z) - 0.36), y + 0.06, z, 0.02); pod.rotation.x = -0.12;
+        const face = new THREE.Mesh(rbox(0.38, 0.11, 0.02, 0.01), HOUS); face.position.set(0, 0, 0.17); pod.add(face);
+        for (const t of [-1, 1]) { const l = new THREE.Mesh(cyl(0.045, 0.045, 0.02, 12), LIGHT); l.rotation.x = Math.PI / 2; l.position.set(t * 0.09, 0, 0.012); face.add(l); }
+        unit(true, s * hx, ly, LW[0], 0.08, (part, d) => part(rbox(LW[0] * 0.8, 0.045, 0.02, 0.01), AMBER, 0, 0));
+      }
+    } else for (const s of [-1, 1]) {
+      if (S.lamp === 'round') unit(true, s * hx, ly, 0.42, 0.24, (part) => { for (const t of [-1, 1]) { const c = part(cyl(0.08, 0.08, 0.02, 14), LIGHT, t * 0.1, 0); c.rotation.x = Math.PI / 2; } });
+      else if (S.lamp === 'slit') unit(true, s * hx, ly, LW[0], 0.15, (part) => { part(rbox(LW[0] * 0.86, 0.03, 0.015, 0.01), LIGHT, 0, -0.04); for (const t of [-0.22, 0.05]) { const c = part(cyl(0.04, 0.04, 0.02, 12), LIGHT, s * t * LW[0], 0.02); c.rotation.x = Math.PI / 2; } });
+      else unit(true, s * hx, ly, LW[0], LW[1], (part) => { part(rbox(LW[0] * 0.5, LW[1] * 0.6, 0.015, 0.03), LIGHT, s * LW[0] * 0.18, 0); part(rbox(LW[0] * 0.25, LW[1] * 0.35, 0.015, 0.02), LIGHT, -s * LW[0] * 0.25, 0); part(rbox(LW[0] * 0.2, 0.04, 0.015, 0.01), AMBER, s * LW[0] * 0.18, -LW[1] * 0.36); });
+    }
+    // tail lights: housings with the brake light outboard and a reverse lamp inboard
+    const tw = bar ? S.W * 0.8 : Math.min(0.56, LW[0] + 0.04), th = S.lamp === 'slit' ? 0.14 : 0.19;
+    if (bar) unit(false, 0, ty, tw, th, (part) => { part(rbox(tw * 0.96, th * 0.35, 0.015, 0.02), TAIL, 0, th * 0.12); part(rbox(0.3, th * 0.3, 0.015, 0.02), REV, 0, -th * 0.22); });
+    else for (const s of [-1, 1]) {
+      const x = s * (S.W / 2 * K.pf(K.zR + 0.05) - 0.1 - tw / 2);
+      if (S.lamp === 'round') unit(false, x, ty, tw, th + 0.04, (part) => { for (const t of [-1, 1]) { const c = part(cyl(0.085, 0.085, 0.02, 14), TAIL, t * 0.13, 0); c.rotation.x = Math.PI / 2; } });
+      else unit(false, x, ty, tw, th, (part) => { part(rbox(tw * 0.58, th * 0.62, 0.015, 0.03), TAIL, -s * tw * 0.18, 0); part(rbox(tw * 0.22, th * 0.5, 0.015, 0.02), REV, s * tw * 0.3, 0); });
+    }
   }
-  if (bar) add(rbox(S.W * 0.8, 0.14, 0.1, 0.05), TAIL, 0, ty, K.zR + 0.02, 0);
   // bumpers, grilles, splitters
-  const plateM = geo('plateM', () => new THREE.MeshBasicMaterial({ map: canvasTex(128, 40, (c, w, h) => { c.fillStyle = '#f4f2fa'; c.fillRect(0, 0, w, h); c.strokeStyle = '#1d1a2e'; c.lineWidth = 4; c.strokeRect(2, 2, w - 4, h - 4); c.fillStyle = '#1d1a2e'; c.font = '25px "Lilita One", "Arial Black", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('PEBBLE', w / 2, h / 2 + 1); }) }));
-  const plate = (y, z, back) => { const m = add(geo('plateG', () => new THREE.PlaneGeometry(0.6, 0.19)), plateM, 0, y, z, 0); m.castShadow = false; if (back) m.rotation.y = Math.PI; };
   if (S.look === 'classic') {
     for (const z of [K.zF - 0.06, K.zR + 0.06]) addS(rbox(S.W - 0.08, 0.22, 0.34, 0.09), GREY, 0, S.gc + 0.3, z, 0.03);
     add(rbox(S.W * 0.34, Math.min(0.24, (S.nose - S.gc) * 0.3), 0.1, 0.04), DARK, 0, lerp(S.gc + 0.42, ly, 0.55), K.zF - 0.01, 0);
     plate(S.gc + 0.3, K.zF + 0.115); plate(S.gc + 0.3, K.zR - 0.115, true);
-  } else if (S.look === 'modern') {
-    add(rbox(S.W * 0.62, 0.16, 0.1, 0.05), DARK, 0, S.gc + 0.2, K.zF - 0.01, 0);
-    add(rbox(S.W * 0.4, 0.2, 0.1, 0.06), DARK, 0, lerp(S.gc + 0.35, ly, 0.6), K.zF - 0.005, 0);
-    add(rbox(S.W * 0.6, 0.12, 0.25, 0.04), S.x && S.x.includes('rails') ? GREY : DARK, 0, S.gc + 0.08, K.zR + 0.1, 0);
-    plate(S.gc + 0.36, K.zF + 0.012); plate(S.gc + 0.42, K.zR - 0.012, true);
   } else {
-    addS(rbox(S.W - (S.look === 'super' ? 0.05 : 0.2), 0.09, 0.45, 0.04), DARK, 0, S.gc + 0.04, K.zF - 0.12, 0.025);
-    add(rbox(S.W * 0.42, 0.14, 0.1, 0.05), DARK, 0, lerp(S.gc, ly, 0.45), K.zF - 0.01, 0);
-    add(rbox(S.W * 0.7, 0.16, 0.3, 0.05), DARK, 0, S.gc + 0.14, K.zR + 0.1, 0);
-    if (S.tail - S.gc > 0.6) plate(S.gc + 0.4, K.zR - 0.012, true);
+    const MESH = toon(0x101018), sup = S.look === 'super', mod = S.look === 'modern';
+    // front: slim upper grille between the lamps, a wide lower intake with a plate on it, fog lamps and a lip
+    if (!has('popup') && S.lamp !== 'slit') add(rbox(S.W * (mod ? 0.4 : 0.26), mod ? 0.14 : 0.06, 0.03, 0.02), MESH, 0, ly - (mod ? 0.02 : 0.03), faceAt(ly, true)[0] - 0.01, 0);
+    const iy = S.gc + 0.17, iz = faceAt(iy, true)[0];
+    add(rbox(S.W * 0.62 * pz, 0.15, 0.06, 0.05), MESH, 0, iy, iz - 0.012, 0);
+    for (const s of [-1, 1]) { const f = add(cyl(0.045, 0.045, 0.03, 12), sup ? MESH : LIGHT, s * S.W * 0.36 * pz, iy, iz - 0.005, 0); f.rotation.x = Math.PI / 2; }
+    if (!sup) plate(iy + 0.005, iz + 0.025);
+    addS(rbox(S.W * pz - 0.12, 0.045, 0.34, 0.02), DARK, 0, S.gc + 0.02, K.zF - 0.14, 0.015);
+    // sills between the wheels
+    if (K.arches.length >= 2) { const zr = K.arches[0][0] + K.arches[0][2] + 0.04, zf = K.arches[K.arches.length - 1][0] - K.arches[K.arches.length - 1][2] - 0.04; if (zf - zr > 0.6) for (const s of [-1, 1]) add(rbox(0.07, 0.09, zf - zr, 0.03), DARK, s * (S.W / 2 * K.vf(S.gc + 0.06) - 0.01), S.gc + 0.05, (zf + zr) / 2, 0); }
+    // rear: plate recess, diffuser with fins, reflectors
+    const ry = S.gc + (S.tail - S.gc) * 0.52, rz = faceAt(ry, false)[0];
+    add(rbox(0.5, 0.21, 0.04, 0.03), MESH, 0, ry, rz + 0.008, 0);
+    plate(ry, rz - 0.018, true);
+    add(rbox(S.W * 0.7, 0.14, 0.3, 0.04), MESH, 0, S.gc + 0.1, K.zR + 0.12, 0);
+    for (let k = -2; k <= 2; k++) add(rbox(0.025, 0.12, 0.26, 0.01), DARK, k * S.W * 0.12, S.gc + 0.06, K.zR + 0.1, 0);
+    for (const s of [-1, 1]) add(rbox(0.16, 0.04, 0.03, 0.01), TAIL, s * S.W * 0.4 * K.pf(K.zR), S.gc + 0.2, faceAt(S.gc + 0.2, false)[0] + 0.005, 0);
   }
   if (S.look === 'super') for (const s of [-1, 1]) add(rbox(0.1, 0.32, 1.1, 0.05), DARK, s * (S.W / 2 + 0.01), S.gc + 0.32, -0.45, 0);
   if (S.flares) for (const [x, z, r0, w0] of def.wheels) {
@@ -2545,18 +2795,25 @@ function buildSleek(bodyId, S, def, add, M) {
   if (has('scoop')) addS(rbox(0.8, 0.22, 1.0, 0.1), DARK, 0, K.surf(1.2) + 0.05, 1.2, 0.025);
   if (has('wing')) wing(-2.05, S.tail + 0.38, 2.2, 0.55);
   if (has('wing2')) wing(K.zR + 0.35, S.tail + 0.28, S.W - 0.1, 0.42);
+  if (has('rallywing')) { wing(K.zR + 0.3, S.tail + 0.42, S.W - 0.28, 0.32); }
+  if (has('hoodvents')) for (const x of [-0.32, 0.32]) {
+    const z = S.hoodZ + 0.55, sl = (K.surf(z + 0.1) - K.surf(z - 0.1)) / 0.2;
+    const v = add(rbox(0.34, 0.05, 0.24, 0.02), toon(0x101018), x, K.surf(z) + 0.004, z, 0); v.rotation.x = -Math.atan(sl);
+  }
+  if (has('roofscoop')) addS(rbox(0.5, 0.1, 0.32, 0.05), P, 0, S.roof + 0.05, S.roofF - 0.25, 0.015);
+  if (has('mudflaps')) for (const [x, z, r0, w0] of def.wheels) add(rbox(w0 * 0.9, 0.24, 0.025, 0.01), toon(0x16161f), x, 0.2, z - r0 - 0.12, 0);
   if (has('rails')) for (const s of [-0.68, 0.68]) { addS(rbox(0.07, 0.07, (S.roofF - S.roofR) * 0.85, 0.03), DARK, s, S.roof + 0.09, (S.roofF + S.roofR) / 2, 0.015); for (const z of [S.roofF - 0.2, S.roofR + 0.2]) add(rbox(0.08, 0.1, 0.12, 0.03), DARK, s, S.roof + 0.03, z, 0); }
   return K;
 }
 const beamTex = canvasTex(64, 128, (c, w, h) => { const gr = c.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,236,190,.55)'); gr.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = gr; c.beginPath(); c.moveTo(w * 0.32, h); c.lineTo(w * 0.68, h); c.lineTo(w, 0); c.lineTo(0, 0); c.closePath(); c.fill(); });
 const glowTex = canvasTex(128, 128, (c, w, h) => { const gr = c.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); });
 const beamMat = new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -3 });
-let BEAMS = true;
+let BEAMS = false; // no painted light strips on the road: only the real headlight lights it
 function addUnderglow(root, hex, L, W) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.9, L * 1.35), new THREE.MeshBasicMaterial({ map: glowTex, color: hex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -3 }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.07; root.add(m); return m;
 }
-function buildCar(bodyId, paintHex, tune, neon, stance) {
+function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   tune = tune || DEFAULT_TUNE;
   let def = BODY_DEF[bodyId] || BODY_DEF.bubble;
   const root = new THREE.Group();
@@ -2568,7 +2825,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance) {
   let K = null;
   if (SP) {
     def = Object.assign({}, def, { back: -SP.L / 2 + 0.02, exhaustY: SP.gc + 0.12 });
-    K = buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL });
+    K = buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText });
   } else {
     add(rbox(2.0, 0.55, 3.7), P, 0, 0.95, 0, 1.05);
     add(rbox(1.4, 0.5, 1.1), DARK, 0, 1.45, -0.3, 1.06);
@@ -2587,6 +2844,8 @@ function buildCar(bodyId, paintHex, tune, neon, stance) {
     const wh = new THREE.Mesh(tyre(r, w, !LITE), DARK); wh.rotation.z = Math.PI / 2; wh.castShadow = true; outline(wh, 1.08); holder.add(wh);
     addRim(wh, W, r, w, LITE);
     if (!LITE) { const cal = new THREE.Mesh(rbox(0.1, r * 0.42, r * 0.34, 0.04), toon(W.cal || 0x8f8aa6)); cal.position.set(Math.sign(x) * Math.min(0.1, w * 0.2), r * 0.36, front ? -r * 0.2 : r * 0.2); holder.add(cal); }
+    // tyre compound: a coloured line on the sidewall
+    const Y = TYRE[tune.y]; if (Y && Y.ring && !LITE) { const ring = new THREE.Mesh(geo('tring' + r, () => new THREE.TorusGeometry(r * 0.86, 0.012, 5, 30)), toon(Y.ring)); ring.rotation.y = Math.PI / 2; ring.position.x = Math.sign(x) * (w / 2 + 0.003); holder.add(ring); }
     wheels.push({ mesh: wh, r }); if (front) steer.push(holder);
   }
   let hood = HOOD[bodyId] || HOOD.bubble;
@@ -2647,16 +2906,17 @@ player.gear = 1; player.manual = !!save.manual;
 let playerModel = null;
 function rebuildPlayerModel() {
   if (playerModel) scene.remove(playerModel.root);
-  playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance);
+  playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance, ac().plate);
   applyEngineSound();
   scene.add(playerModel.root);
   player.stats = statsFor(ac());
   player.nitro = Math.min(player.nitro, player.stats.nitroMax);
   try { syncFp(); } catch (e) { /* not set up yet */ }
+  try { updateClassHud(); } catch (e) { /* hud not ready */ }
 }
 rebuildPlayerModel();
 const playerBeep = makeBeep(); playerModel.root.add(playerBeep);
-const headlight = new THREE.SpotLight(0xffeccc, 3.2, 110, 0.45, 0.55, 1.2); scene.add(headlight, headlight.target);
+const headlight = new THREE.SpotLight(0xffeccc, 1.6, 80, 0.5, 0.9, 1.4); scene.add(headlight, headlight.target);
 
 // ---------- particles ----------
 const puffGeo = new THREE.SphereGeometry(1, 8, 6);
@@ -2691,6 +2951,7 @@ addEventListener('keydown', e => {
   if (k === 'm') openMap();
   if (k === 'f') toggleFoot();
   if (k === 'c') toggleCam();
+  if (k === 'v') openWardrobe();
   if (k === 't') { e.preventDefault(); keys.delete('t'); openChat(); }
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
@@ -3224,14 +3485,16 @@ function upsertPeer(p) {
   r.active = has;
   if (!has) { if (r.model) { scene.remove(r.model.root); r.model = null; } return; }
   const tn = tuneKey(parseTune(pr.tn)), ng = NEON[pr.ng] ? pr.ng : 'none', sk = STANCE[pr.sk] ? pr.sk : 'stock';
-  if (!r.model || r.body !== body || r.paint !== paint || r.tn !== tn || r.ng !== ng || r.sk !== sk) {
+  let pl = cleanPlate(pr.pl); if (nameIsBad(pl)) pl = '';
+  r.pc = clamp(Math.floor(num(pr.pc, 0)), 0, CLASSES.length - 1);
+  if (!r.model || r.body !== body || r.paint !== paint || r.tn !== tn || r.ng !== ng || r.sk !== sk || r.pl !== pl) {
     if (r.model) scene.remove(r.model.root);
-    r.model = buildCar(body, PAINT[paint].hex, parseTune(tn), ng, sk); r.body = body; r.paint = paint; r.tn = tn; r.ng = ng; r.sk = sk; scene.add(r.model.root);
+    r.model = buildCar(body, PAINT[paint].hex, parseTune(tn), ng, sk, pl); r.body = body; r.paint = paint; r.tn = tn; r.ng = ng; r.sk = sk; r.pl = pl; scene.add(r.model.root);
     r.beep = makeBeep(); r.model.root.add(r.beep); r.tag = null; r.nickShown = null;
     r.x = num(pr.x); r.z = num(pr.z); r.y = num(pr.y); r.yaw = num(pr.h);
   }
   const wl = clamp(Math.floor(num(pr.wl, 0)), 0, 5);
-  const label = displayName(r) + ' · LV ' + clamp(Math.floor(num(pr.lv, 1)), 1, MAX_PLAYER_LVL) + (wl ? ' ' + '★'.repeat(wl) : '');
+  const label = displayName(r) + ' · ' + className(r.pc) + ' · LV ' + clamp(Math.floor(num(pr.lv, 1)), 1, MAX_PLAYER_LVL) + (wl ? ' ' + '★'.repeat(wl) : '');
   if (r.nickShown !== label) { if (r.tag) r.model.root.remove(r.tag); r.tag = makeTag(label, PAINT[paint].hex); r.tag.position.y = body === 'truck' ? 5.2 : 4.0; r.model.root.add(r.tag); r.nickShown = label; }
   r.tx = clamp(num(pr.x), WMIN, WMAX); r.tz = clamp(num(pr.z), WMIN, WMAX); r.ty = clamp(num(pr.y), -5, 260); r.tyaw = num(pr.h);
   r.vx = clamp(num(pr.vx), -90, 90); r.vz = clamp(num(pr.vz), -90, 90);
@@ -3282,7 +3545,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -3382,7 +3645,7 @@ function openPanel(id) { closePanels(); $(id).hidden = false; panelOpen = true; 
 function closePanels() {
   if ($('meet')) $('meet').hidden = true;
   if ($('tutorial') && !$('tutorial').hidden && !save.tut) { save.tut = 1; persist(); }
-  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial']) $(id).hidden = true; panelOpen = !$('results').hidden;
+  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe']) $(id).hidden = true; panelOpen = !$('results').hidden;
   for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
 }
 $('bCloseGarage').addEventListener('click', closePanels);
@@ -3428,6 +3691,16 @@ function statBar(parent, label, frac, value, cls) {
 }
 let garageTab = 'perf';
 for (const b of $('gTabs').children) b.addEventListener('click', () => { garageTab = b.dataset.tab; renderGarage(); });
+function classBadge(pi) { const k = classOf(pi), b = el('span', 'cbadge', className(k)); b.style.background = CLASS_COL[k]; const sm = el('small', '', 'PI ' + pi); b.append(sm); b.title = 'Performance class ' + className(k) + ' (PI ' + pi + ')'; return b; }
+$('bPlate').addEventListener('click', () => {
+  const text = cleanPlate($('plateIn').value);
+  if (!text) { toast('Type a plate first'); return; }
+  if (nameIsBad(text)) { toast('That plate is not allowed'); return; }
+  if (text === ac().plate) { toast('That is already your plate'); return; }
+  if (save.money < 250) { toast('A new plate costs $250'); return; }
+  save.money -= 250; ac().plate = text; persist(); renderMoney(true); sfx('buy');
+  rebuildPlayerModel(); playerModel.root.add(playerBeep); toast('Plate registered: ' + text, true); renderGarage();
+});
 function pctFx(m, what) { const v = Math.round((m - 1) * 100); return (v >= 0 ? '+' : '') + v + '% ' + what; }
 function renderOptions(container, list, slot, fx) {
   container.textContent = '';
@@ -3457,6 +3730,9 @@ function renderOptions(container, list, slot, fx) {
 function renderGarage() {
   const st = statsFor(ac());
   $('carLabel').textContent = 'Your ' + BODY[ac().m].name + ' · ' + { rwd: 'rear-wheel drive', fwd: 'front-wheel drive', awd: 'all-wheel drive' }[st.drive];
+  { const ci = $('carInfo'); ci.textContent = ''; const pi = perfIndex(st), pw = carPower(ac());
+    ci.append(classBadge(pi), el('span', '', pw.hp + ' hp · ' + pw.kg + ' kg · ' + (pw.hp / pw.kg * 1000).toFixed(0) + ' hp/t'), el('span', '', 'Fuel ' + Math.round((ac().fuel ?? 1) * 100) + '% · ' + Math.round(ac().oct || 95) + ' octane')); }
+  if (document.activeElement !== $('plateIn')) $('plateIn').value = ac().plate || '';
   const sb = $('statBars'); sb.textContent = '';
   statBar(sb, 'Top speed', st.top / STAT_MAX.top, Math.round(st.top * SPEED_UNIT) + '');
   statBar(sb, 'Acceleration', st.accel * (1 + st.boostAcc) / STAT_MAX.accel, (st.accel * (1 + st.boostAcc)).toFixed(0));
@@ -3485,6 +3761,7 @@ function renderGarage() {
   renderOptions($('engList'), ENGINES, 'e', o => !o.cost ? 'The engine it came with' : pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') + (o.turn < 0.98 ? ' · heavier nose' : ''));
   renderOptions($('indList'), INDUCTIONS, 'i', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · ' + (o.lag ? (o.lag < 0.2 ? 'little lag' : o.lag < 0.45 ? 'some lag' : 'big lag, huge top end') : 'instant boost') : 'No boost');
   renderOptions($('intakeList'), INTAKES, 'a', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') : 'Factory airbox');
+  renderOptions($('tyreList'), TYRES, 'y', o => !o.cost ? 'Everyday road tyres' : pctFx(o.grip, 'grip') + ' · ' + pctFx(o.drift, 'slide') + (o.off < -0.05 ? ' · bad on dirt' : ''));
   renderOptions($('wheelList'), WHEELS, 'w', o => !o.cost ? 'Plain steel wheels' : (o.grip !== 1 ? pctFx(o.grip, 'grip') : 'Same grip') + (o.off ? ' · ' + (o.off > 0 ? 'faster' : 'slower') + ' off-road' : ''));
   for (const b of $('gTabs').children) b.setAttribute('aria-selected', String(b.dataset.tab === garageTab));
   for (const pane of document.querySelectorAll('[data-pane]')) pane.hidden = pane.dataset.pane !== garageTab;
@@ -3726,10 +4003,24 @@ let queued = false, lobbyEndsAt = 0, myLob = null, startNow = false;
 let race = null;
 const bots = [];
 
+// ---------- class matching: you only race cars of your own performance class ----------
+function myClass() { return classOf(perfIndex(player.stats)); }
+const sameClass = r => (r.pc || 0) === myClass();
+// opponents are built for the class, not copied from your car: PI spread over the upper part of the class band
+function classTargets(n, lo, hi) {
+  const k = myClass(), cap = CLASSES[k] === Infinity ? Math.max(1000, perfIndex(player.stats) * 1.05) : CLASSES[k], base = k ? CLASSES[k - 1] : 60;
+  const out = []; for (let i = 0; i < n; i++) out.push(base + (cap - base) * lerp(lo, hi, n > 1 ? i / (n - 1) : 0.5)); return out;
+}
+function classBotStats(targetPI) {
+  const st = player.stats, s = Math.sqrt(targetPI / Math.max(60, perfIndex(st)));
+  return botStats(Math.max(20, st.top * s), Math.max(12, st.accel * (1 + st.boostAcc * 0.6) * s));
+}
+const CLASS_CARS = [['mini', 'bubble', 'kitsune'], ['kaze', 'hatch', 'hikari'], ['falcon', 'tempest', 'sakura'], ['coupe', 'yoru', 'arashi'], ['raijin', 'gt', 'vento'], ['super', 'rocket', 'raijin'], ['super', 'rocket', 'vento']];
+function updateClassHud() { const pi = perfIndex(player.stats), k = classOf(pi), b = $('hudClass'); b.textContent = className(k); b.style.background = CLASS_COL[k]; b.title = 'Class ' + className(k) + ' · PI ' + pi; }
 function queuedList() {
   const list = [];
   if (queued && myPeer) list.push({ peer: myPeer, name: save.nick || 'You', me: true });
-  for (const r of remotes.values()) if (r.active && r.pres && r.pres.q && !r.pres.race) list.push({ peer: r.peer, name: displayName(r), r });
+  for (const r of remotes.values()) if (r.active && r.pres && r.pres.q && !r.pres.race && sameClass(r)) list.push({ peer: r.peer, name: displayName(r), r });
   return list;
 }
 function joinLobby() {
@@ -3741,9 +4032,10 @@ function joinLobby() {
 $('raceInvite').addEventListener('click', joinLobby);
 function lobbyTick() {
   const lob = $('lobby'), inv = $('raceInvite');
-  const hosting = !queued && !race && !mission && playing && room && roomUp ? [...remotes.values()].filter(r => r.active && r.pres && r.pres.q && !r.pres.race) : [];
+  const hosting = !queued && !race && !mission && playing && room && roomUp ? [...remotes.values()].filter(r => r.active && r.pres && r.pres.q && !r.pres.race && sameClass(r)) : [];
   inv.hidden = !hosting.length;
-  if (hosting.length) inv.textContent = displayName(hosting[0]) + (hosting.length > 1 ? ' and ' + (hosting.length - 1) + ' more are' : ' is') + ' waiting for a race · Join';
+  if (hosting.length) inv.textContent = displayName(hosting[0]) + (hosting.length > 1 ? ' and ' + (hosting.length - 1) + ' more are' : ' is') + ' waiting for a class ' + className(myClass()) + ' race · Join';
+  $('lobbyTitle').textContent = 'Class ' + className(myClass()) + ' race lobby';
   if (!queued || race) { lob.hidden = true; lobbyEndsAt = 0; myLob = null; return; }
   lob.hidden = false;
   const now = performance.now();
@@ -3805,14 +4097,14 @@ function startRace({ id, peers, solo, laps, duel }) {
   bots.length = 0;
   if (duel) {
     const paint = ac().paint === 'midnight' ? '#ffd23f' : PAINT.midnight.hex;
-    addBot(1, 'Ace', 'vento', paint, botStats(Math.max(33, player.stats.top * 0.98), 21 + ac().up.accel), 0);
+    addBot(1, 'Ace', CLASS_CARS[myClass()][2], paint, classBotStats(classTargets(1, 0.85, 0.85)[0]), 0);
     bots[0].aggr = 1;
   } else if (solo) {
     const used = new Set([ac().paint]);
-    const avg = (ac().up.engine + ac().up.accel + ac().up.grip) / 3;
+    const tg = classTargets(3, 0.55, 0.9);
     for (let k = 0; k < 3; k++) {
       const paint = PAINTS.find(p => !used.has(p.id) && p.id !== 'snow'); used.add(paint.id);
-      addBot(k + 1, BOT_NAMES[k], ['kaze', 'muscle', 'falcon'][k], paint.hex, botStats(player.stats.top * (0.9 + k * 0.035) + avg * 0.2, player.stats.accel * (1 + player.stats.boostAcc) * 0.95), [-2.5, 2.5, 0][k]);
+      addBot(k + 1, BOT_NAMES[k], CLASS_CARS[myClass()][k], paint.hex, classBotStats(tg[k]), [-2.5, 2.5, 0][k]);
     }
   }
   race = { id, peers, solo, laps: laps || LAPS, duel: !!duel, phase: 'countdown', goAt: performance.now() + 3600, t0: 0, lastBeep: 4, rewarded: false, finishedAt: 0 };
@@ -4069,6 +4361,10 @@ function openBriefing(def) {
 function renderMissions() {
   const list = $('mList'); list.textContent = '';
   let total = 0;
+  { const got = save.finds || [], card = el('div', 'propcard');
+    card.append(el('div', 'phead')); card.firstChild.append(el('b', '', 'Barn find rumours'), el('span', 'tagk', got.length + ' / ' + FINDS.length));
+    for (const f of FINDS) card.append(el('div', 'fx', got.includes(f.id) ? '✓ Found: ' + BODY[f.id].name : '• ' + f.rumor));
+    list.append(card); }
   for (const m of MISSIONS) {
     const rec = missionRec(m.id); total += rec.medal;
     const c = document.createElement('div'); c.className = 'mcard';
@@ -4311,7 +4607,7 @@ function showBig(text) { const cd = $('countdown'); cd.textContent = text; cd.hi
 function startWanted(msg) { police.lastX = player.x; police.lastZ = player.z; police.stars = 1; police.heat = 0; police.lostT = 0; police.spawnT = 0; police.speedT = 0; toast(msg); sfx('beep'); }
 function setStarsFromHeat() { const s2 = Math.min(5, 1 + Math.floor(police.heat / 100)); if (s2 > police.stars) { police.stars = s2; toast(s2 + ' stars! Backup is on the way'); sfx('beep'); } }
 function addHeat(v, why) { if (!police.stars) return; police.heat += v; setStarsFromHeat(); if (why) toast(why); }
-function clearWanted() { police.stars = 0; police.heat = 0; police.seen = false; police.lostT = 0; police.bustT = 0; police.cool = 8; for (const c of cops) c.leaving = true; }
+function clearWanted() { police.driveOff = false; if (fuelDebt && fuelDebt.fled) fuelDebt = null; police.stars = 0; police.heat = 0; police.seen = false; police.lostT = 0; police.bustT = 0; police.cool = 8; for (const c of cops) c.leaving = true; }
 // police are a little slower than you: a clean run lets you pull away, crashes and corners let them catch up
 function copStats() { const st = police.stars; return { top: clamp(player.stats.top * (0.8 + 0.03 * st), 26, 46), accel: 17 + 2 * st, brake: 34, grip: 9, latMax: 75, turn: 2.6, drift: 1, driftScore: 1, nitroMax: 2, offroad: 0.95, drive: 'awd' }; }
 function spawnCop() {
@@ -4329,6 +4625,12 @@ function spawnCop() {
 }
 function removeCop(k) { const c = cops[k]; c.slot.used = false; c.model.root.visible = false; cops.splice(k, 1); }
 function busted() {
+  if (police.driveOff) {
+    const owed = fuelDebt ? fuelDebt.amount : 0, fine2 = Math.min(save.money, Math.round(1000 + owed));
+    save.money -= fine2; persist(); renderMoney(true); fuelDebt = null;
+    clearWanted(); showBig('BUSTED!'); toast('Fuel drive-off: $1,000 fine plus the fuel ($' + fine2 + ')'); sfx('bump');
+    return;
+  }
   const fine = Math.min(save.money, 150 * police.stars);
   save.money -= fine; persist(); renderMoney(true);
   clearWanted(); showBig('BUSTED!'); toast('You paid a $' + fine + ' fine'); sfx('bump');
@@ -4339,7 +4641,7 @@ function policeStep(dt) {
   if ((race || mission || street) && police.stars) clearWanted();
   if (police.cool > 0) police.cool -= dt;
   // going over 150 km/h can get you noticed: instantly by a nearby patrol, or by a speed camera after a while
-  const inCity = cityMask(p.x, p.z) > 0.5;
+  const inCity = cityMask(p.x, p.z) > 0.5 || police.driveOff;
   if (!police.stars && !race && !mission && !street && police.cool <= 0) {
     if (kmh > 150 && p.grounded && inCity) {
       police.speedT += dt;
@@ -4360,7 +4662,7 @@ function policeStep(dt) {
     } else {
       police.lostT += dt;
       if (police.lostT > escapeTime()) {
-        const st = police.stars, cash = 75 * st;
+        const st = police.stars, cash = police.driveOff ? 0 : 75 * st;
         clearWanted(); addMoney(cash); addXp(60 * st); showBig('ESCAPED!'); toast('You lost them! +$' + cash, true); sfx('go');
       }
     }
@@ -4452,6 +4754,15 @@ function drawArrow(ctx, x, y, yaw, size) {
   ctx.fillStyle = PAINT[ac().paint].hex; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(0, 13 * size); ctx.lineTo(9 * size, -9 * size); ctx.lineTo(0, -4 * size); ctx.lineTo(-9 * size, -9 * size); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
 }
+// fuel stations: a green pump square on both maps
+function fuelIcons(g, P, sc, inView) {
+  for (const st of STATIONS) {
+    if (!inView(st.pos.x, st.pos.z)) continue;
+    const [px, py] = P(st.pos.x, st.pos.z), r = 8 * sc;
+    g.fillStyle = '#3ddc97'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3; g.beginPath(); g.rect(px - r, py - r, r * 2, r * 2); g.fill(); g.stroke();
+    g.fillStyle = '#1d1a2e'; g.fillRect(px - r * 0.45, py - r * 0.55, r * 0.6, r * 1.1); g.fillRect(px + r * 0.2, py - r * 0.2, r * 0.3, r * 0.15);
+  }
+}
 function drawMinimap() {
   mg.fillStyle = '#43b9ee'; mg.fillRect(0, 0, MMS, MMS);
   const sw = MM_VIEW / WCELL * WM_PX;
@@ -4460,7 +4771,7 @@ function drawMinimap() {
   const P = (x, z) => [MMC + (x - player.x) * S, MMC + (z - player.z) * S];
   const inView = (x, z) => Math.abs(x - player.x) < MM_VIEW * 0.62 && Math.abs(z - player.z) < MM_VIEW * 0.62;
   const dot = (x, z, col, r) => { if (!inView(x, z)) return; const [px, py] = P(x, z); mg.fillStyle = col; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, py, r, 0, TAU); mg.fill(); mg.stroke(); };
-  mapIcons(mg, P, 1.1, inView);
+  mapIcons(mg, P, 1.1, inView); fuelIcons(mg, P, 1.1, inView);
   if (race && race.phase !== 'done' && !player.fin) { const q = TP[CP_IDX[player.nextCp]], [px, py] = P(q.x, q.z); mg.strokeStyle = '#3fa7ff'; mg.lineWidth = 4; mg.beginPath(); mg.arc(px, py, 11, 0, TAU); mg.stroke(); }
   if (mission && mission.gates && mission.gateI < mission.gates.length) {
     mg.strokeStyle = '#ffc93c'; mg.lineWidth = 4;
@@ -4505,7 +4816,7 @@ function openMap() {
   const c = $('bigMap'), g = c.getContext('2d'), W = c.width;
   g.drawImage(worldMap, 0, 0, W, W);
   const S = W / (WMAX - WMIN), P = (x, z) => [(x - WMIN) * S, (z - WMIN) * S];
-  mapIcons(g, P, 1.3, () => true);
+  mapIcons(g, P, 1.3, () => true); fuelIcons(g, P, 1.3, () => true);
   g.font = '700 20px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round';
   for (const [t, x, z] of [['Pebble Isle', 0, 470], ['Pebble City', 1020, -470], ['Pebble Peak', 0, -1420], ['Farm roads', -1000, 120]]) { const [px, py] = P(x, z); g.lineWidth = 6; g.strokeStyle = '#1d1a2e'; g.strokeText(t, px, py); g.fillStyle = '#ffffff'; g.fillText(t, px, py); }
   for (const r of remotes.values()) if (r.model) { const [px, py] = P(r.x, r.z); g.fillStyle = PAINT[r.paint] ? PAINT[r.paint].hex : '#fff'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3; g.beginPath(); g.arc(px, py, 7, 0, TAU); g.fill(); g.stroke(); }
@@ -4513,6 +4824,7 @@ function openMap() {
   const list = $('travelList'); list.textContent = '';
   const dp = PROPS.dealer.pad, ds = DEALER.site, dyaw = Math.atan2(ds.x - dp.x, ds.z - dp.z);
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
+  for (const st of STATIONS) { const q = s2w(st.s, 7.5, 20); spots.push({ name: '⛽ ' + st.name.replace('Pebble Fuel ', ''), x: q.x, z: q.z, yaw: st.s.yaw + Math.PI }); }
   for (const t of spots) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small alt'; b.textContent = t.name; b.addEventListener('click', () => travelTo(t)); list.append(b); }
   for (const id of [...save.homes, ...BIZ.filter(d => save.biz[d.id]).map(d => d.id)]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = (HOME_BY[id] || BIZ_BY[id]).name; b.addEventListener('click', () => propTravel(id)); list.append(b); }
   openPanel('mapPanel');
@@ -4521,26 +4833,98 @@ function openMap() {
 // =====================================================================
 // on foot: get out of the car, walk around and into buildings
 // =====================================================================
-function buildPerson(shirtHex, lite) {
+// prints on the chest: drawn once per design and ink colour
+function printTex(id, ink) {
+  return geo('print:' + id + ink, () => canvasTex(128, 128, (c, w, h) => {
+    c.clearRect(0, 0, w, h); c.fillStyle = ink; c.strokeStyle = ink; c.lineWidth = 7; c.lineJoin = 'round'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    if (id === 'tag') { c.font = '44px "Lilita One", "Arial Black", sans-serif'; c.fillText('PBL', 64, 56); c.font = '18px "Lilita One", "Arial Black", sans-serif'; c.fillText('ISLE CLUB', 64, 92); }
+    else if (id === 'star') { c.beginPath(); for (let k = 0; k < 10; k++) { const r = k % 2 ? 22 : 52, a = -Math.PI / 2 + k * Math.PI / 5; c.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); } c.closePath(); c.fill(); }
+    else if (id === 'koi') { c.fillStyle = '#ff9a3c'; c.beginPath(); c.ellipse(60, 64, 38, 20, -0.4, 0, TAU); c.fill(); c.beginPath(); c.moveTo(92, 44); c.lineTo(118, 30); c.lineTo(112, 64); c.closePath(); c.fill(); c.fillStyle = ink; c.beginPath(); c.arc(38, 70, 5, 0, TAU); c.fill(); c.beginPath(); c.arc(64, 56, 7, 0, TAU); c.fill(); }
+    else if (id === 'kanji') { c.font = 'bold 96px "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif'; c.fillText('走', 64, 66); }
+    else if (id === 'flame') { c.fillStyle = '#ff9a3c'; for (let k = 0; k < 4; k++) { const x = 18 + k * 30; c.beginPath(); c.moveTo(x, 118); c.quadraticCurveTo(x - 14, 70, x + 6, 22 + k * 8); c.quadraticCurveTo(x + 22, 70, x + 24, 118); c.fill(); } c.fillStyle = '#ffd23f'; for (let k = 0; k < 4; k++) { const x = 24 + k * 30; c.beginPath(); c.moveTo(x, 118); c.quadraticCurveTo(x - 4, 86, x + 6, 62 + k * 4); c.quadraticCurveTo(x + 14, 90, x + 14, 118); c.fill(); } }
+    else if (id === 'wave') { c.fillStyle = '#3fa7ff'; c.beginPath(); c.moveTo(6, 116); c.quadraticCurveTo(10, 30, 70, 26); c.quadraticCurveTo(118, 26, 104, 62); c.quadraticCurveTo(80, 44, 70, 70); c.quadraticCurveTo(64, 100, 122, 116); c.closePath(); c.fill(); c.strokeStyle = '#f4f2fa'; c.lineWidth = 5; c.beginPath(); c.moveTo(20, 104); c.quadraticCurveTo(26, 46, 74, 40); c.stroke(); }
+    else if (id === 'check') { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) if ((x + y) % 2) c.fillRect(16 + x * 24, 16 + y * 24, 24, 24); c.lineWidth = 4; c.strokeRect(16, 16, 96, 96); }
+  }));
+}
+function buildPerson(fit, lite) {
+  const F = typeof fit === 'string' ? Object.assign(sanitizeFit(null), { tcHex: fit }) : sanitizeFit(fit);
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  const skin = toon(0xffd3b0), shirt = freshToon(new THREE.Color(shirtHex).getHex()), pants = toon(0x3b3f6b), shoe = toon(0x2b2d42), hair = toon(0x4a2f22);
+  const topHex = F.tcHex || FIT_COLS[F.tc], tc = new THREE.Color(topHex);
+  const dark = c => '#' + new THREE.Color(c).multiplyScalar(0.72).getHexString();
+  const skin = toon(SKINS[F.skin]), top = toon(topHex), topD = toon(dark(topHex)), bot = toon(FIT_COLS[F.bc]), botD = toon(dark(FIT_COLS[F.bc])), shoe = toon(FIT_COLS[F.sc]), hair = toon(HAIRS[F.hair]);
+  const WHITE = toon(0xf4f2fa), INK = toon(0x1d1a2e), GOLD = toon(0xffc93c, { emissive: 0x5a3a00 }), CREAM = toon(0xf1e7d0);
   const ol = lite ? 0 : 0.03;
   const add = (parent, g, m, x, y, z, o) => { const mesh = new THREE.Mesh(g, m); mesh.position.set(x, y, z); mesh.castShadow = true; if (o) outlineShell(mesh, o); parent.add(mesh); return mesh; };
-  add(body, rbox(0.66, 0.74, 0.4, 0.17), shirt, 0, 1.27, 0, ol);
-  add(body, rbox(0.62, 0.22, 0.38, 0.1), pants, 0, 0.93, 0, 0);
+  const T = F.top, puffy = T === 'puffer', jacket = T === 'track' || T === 'coach' || T === 'varsity';
+  // torso
+  const tw = puffy ? 0.84 : jacket ? 0.74 : 0.7, td = puffy ? 0.54 : jacket ? 0.46 : 0.42;
+  add(body, rbox(tw, 0.8, td, puffy ? 0.24 : 0.18), top, 0, 1.26, 0, ol);
+  if (puffy) { for (const y of [1.08, 1.32]) add(body, rbox(tw + 0.02, 0.05, td + 0.02, 0.02), topD, 0, y, 0, 0); add(body, rbox(0.5, 0.16, 0.42, 0.08), top, 0, 1.66, 0, 0); }
+  if (T === 'hoodie') { add(body, rbox(0.5, 0.34, 0.26, 0.12), top, 0, 1.6, -0.24, 0); add(body, rbox(0.44, 0.2, 0.04, 0.05), topD, 0, 1.04, td / 2, 0); for (const x of [-0.07, 0.07]) add(body, cyl(0.012, 0.012, 0.22, 5), WHITE, x, 1.5, td / 2 + 0.01); }
+  if (jacket) { add(body, rbox(0.42, 0.1, 0.38, 0.05), T === 'varsity' ? topD : top, 0, 1.66, 0, 0); if (T === 'track') add(body, rbox(0.025, 0.74, 0.02, 0.01), toon(0xcfcbe0), 0, 1.27, td / 2 + 0.005, 0); else for (const y of [1.08, 1.26, 1.44]) add(body, geo('snap', () => new THREE.SphereGeometry(0.022, 6, 5)), WHITE, 0, y, td / 2 + 0.01, 0); }
+  if (T === 'varsity') { add(body, rbox(tw + 0.02, 0.08, td + 0.02, 0.03), INK, 0, 0.9, 0, 0); add(body, rbox(tw + 0.03, 0.025, td + 0.03, 0.01), WHITE, 0, 0.9, 0, 0); }
+  if (F.print !== 'none' && !puffy) {
+    const ink = (tc.r * 0.3 + tc.g * 0.59 + tc.b * 0.11) > 0.55 ? '#1d1a2e' : '#f4f2fa';
+    const pm = geo('printM:' + F.print + ink, () => new THREE.MeshBasicMaterial({ map: printTex(F.print, ink), transparent: true, depthWrite: false }));
+    const pr = new THREE.Mesh(geo('printG', () => new THREE.PlaneGeometry(0.34, 0.34)), pm); pr.position.set(T === 'hoodie' ? 0 : jacket ? 0.17 : 0, T === 'hoodie' ? 1.38 : 1.36, td / 2 + 0.006); if (jacket) pr.scale.setScalar(0.45); body.add(pr);
+  }
+  // bottoms
+  add(body, rbox(0.64, 0.22, 0.4, 0.1), bot, 0, 0.93, 0, 0);
+  // head, hair, hat
   const head = add(body, geo('headG', () => new THREE.SphereGeometry(0.28, 18, 14)), skin, 0, 1.9, 0, 0); if (!lite) outline(head, 1.1);
-  add(body, geo('hairG', () => new THREE.SphereGeometry(0.295, 18, 10, 0, TAU, 0, Math.PI * 0.45)), hair, 0, 1.93, -0.02, 0);
-  for (const s of [-1, 1]) add(body, geo('eyeG', () => new THREE.SphereGeometry(0.045, 8, 6)), shoe, s * 0.1, 1.93, 0.25, 0);
-  const limb = (x, y, w, h, d, m, foot) => {
-    const piv = new THREE.Group(); piv.position.set(x, y, 0); body.add(piv);
-    add(piv, rbox(w, h, d, Math.min(w, d) * 0.45), m, 0, -h / 2, 0, ol);
-    if (foot) add(piv, rbox(0.24, 0.14, 0.36, 0.06), shoe, 0, -h - 0.02, 0.06, 0);
-    else add(piv, geo('handG', () => new THREE.SphereGeometry(0.09, 10, 8)), skin, 0, -h - 0.04, 0, 0);
+  for (const s of [-1, 1]) add(body, geo('eyeG', () => new THREE.SphereGeometry(0.045, 8, 6)), INK, s * 0.1, 1.93, 0.25, 0);
+  const hat = toon(FIT_COLS[F.hc]);
+  if (F.hat === 'none' || F.hat === 'back') add(body, geo('hairG', () => new THREE.SphereGeometry(0.295, 18, 10, 0, TAU, 0, Math.PI * 0.45)), hair, 0, 1.93, -0.02, 0);
+  if (F.hat === 'cap' || F.hat === 'back') {
+    add(body, geo('capG', () => new THREE.SphereGeometry(0.305, 18, 10, 0, TAU, 0, Math.PI * 0.5)), hat, 0, 1.93, 0, 0);
+    const br = add(body, rbox(0.36, 0.03, 0.28, 0.012), hat, 0, 1.98, F.hat === 'back' ? -0.32 : 0.32, 0); br.rotation.x = F.hat === 'back' ? -0.12 : 0.12;
+    add(body, geo('btnG', () => new THREE.SphereGeometry(0.03, 6, 5)), hat, 0, 2.23, 0, 0);
+  } else if (F.hat === 'beanie') {
+    const b = add(body, geo('beanG', () => new THREE.SphereGeometry(0.305, 18, 10, 0, TAU, 0, Math.PI * 0.5)), hat, 0, 1.96, 0, 0); b.scale.y = 1.18;
+    add(body, cyl(0.31, 0.31, 0.11, 18), toon(dark(FIT_COLS[F.hc])), 0, 2.0, 0);
+  } else if (F.hat === 'bucket') {
+    add(body, cyl(0.25, 0.3, 0.24, 18), hat, 0, 2.1, 0); add(body, cyl(0.44, 0.44, 0.03, 20), hat, 0, 1.98, 0);
+  }
+  // accessories
+  if (F.acc.includes('shades')) { add(body, rbox(0.46, 0.1, 0.05, 0.03), INK, 0, 1.95, 0.265, 0); add(body, rbox(0.14, 0.03, 0.01, 0.01), toon(0x7fb6ff), -0.11, 1.97, 0.293, 0); }
+  if (F.acc.includes('chain')) { const ch = add(body, geo('chainG', () => new THREE.TorusGeometry(0.17, 0.022, 6, 22)), GOLD, 0, 1.56, 0.14, 0); ch.rotation.x = 1.25; add(body, rbox(0.07, 0.09, 0.03, 0.01), GOLD, 0, 1.42, td / 2 + 0.02, 0); }
+  if (F.acc.includes('phones')) { const hp = add(body, geo('phonesG', () => new THREE.TorusGeometry(0.2, 0.03, 6, 20, Math.PI)), INK, 0, 1.64, 0.02, 0); hp.rotation.x = Math.PI / 2 + 0.4; for (const s of [-1, 1]) { const cup = add(body, cyl(0.085, 0.085, 0.07, 12), toon(0x3b3f6b), s * 0.2, 1.64, 0.02); cup.rotation.z = Math.PI / 2; } }
+  if (F.acc.includes('bag')) { const st = add(body, rbox(0.06, 0.95, 0.03, 0.01), INK, 0.02, 1.28, td / 2 + 0.02, 0); st.rotation.z = 0.72; add(body, rbox(0.34, 0.2, 0.13, 0.05), toon(0x2b2d42), 0.24, 1.0, td / 2 + 0.05, 0); add(body, rbox(0.26, 0.03, 0.01, 0.01), toon(0xff4f5e), 0.24, 1.06, td / 2 + 0.12, 0); }
+  // arms
+  const arm = x => {
+    const piv = new THREE.Group(); piv.position.set(x, 1.58, 0); body.add(piv);
+    const sx = Math.sign(x);
+    if (T === 'tee') { add(piv, rbox(0.24, 0.3, 0.24, 0.1), top, 0, -0.13, 0, ol); add(piv, rbox(0.16, 0.38, 0.16, 0.07), skin, 0, -0.44, 0, ol); }
+    else {
+      const w = puffy ? 0.26 : 0.2, sl = T === 'varsity' ? CREAM : top;
+      add(piv, rbox(w, 0.62, w, w * 0.45), sl, 0, -0.31, 0, ol);
+      if (T === 'track') add(piv, rbox(0.03, 0.6, 0.06, 0.01), WHITE, sx * (w / 2 + 0.004), -0.31, 0, 0);
+      if (T === 'varsity' || T === 'hoodie' || puffy) add(piv, rbox(w + 0.02, 0.07, w + 0.02, 0.03), T === 'varsity' ? INK : topD, 0, -0.6, 0, 0);
+    }
+    add(piv, geo('handG', () => new THREE.SphereGeometry(0.09, 10, 8)), skin, 0, -0.68, 0, 0);
     return piv;
   };
-  const armL = limb(-0.44, 1.58, 0.18, 0.62, 0.18, shirt), armR = limb(0.44, 1.58, 0.18, 0.62, 0.18, shirt);
-  const legL = limb(-0.16, 0.86, 0.23, 0.74, 0.25, pants, true), legR = limb(0.16, 0.86, 0.23, 0.74, 0.25, pants, true);
-  return { root, body, armL, armR, legL, legR, phase: 0, shirt };
+  // legs
+  const leg = x => {
+    const piv = new THREE.Group(); piv.position.set(x, 0.86, 0); body.add(piv);
+    const B = F.bottom, sx = Math.sign(x);
+    if (B === 'shorts') { add(piv, rbox(0.27, 0.34, 0.28, 0.1), bot, 0, -0.17, 0, ol); add(piv, rbox(0.17, 0.3, 0.17, 0.07), skin, 0, -0.48, 0, 0); add(piv, rbox(0.19, 0.2, 0.2, 0.07), WHITE, 0, -0.64, 0, 0); }
+    else {
+      const w = B === 'denim' ? 0.29 : B === 'cargo' ? 0.26 : 0.22;
+      add(piv, rbox(w, 0.74, w + 0.01, w * 0.42), bot, 0, -0.37, 0, ol);
+      if (B === 'cargo') add(piv, rbox(0.06, 0.17, 0.17, 0.03), botD, sx * (w / 2 + 0.02), -0.38, 0, 0);
+      if (B === 'jogger') add(piv, rbox(0.21, 0.08, 0.23, 0.03), botD, 0, -0.69, 0, 0);
+      if (B === 'denim') add(piv, rbox(w + 0.02, 0.06, w + 0.03, 0.02), botD, 0, -0.7, 0, 0);
+    }
+    const S2 = F.shoes;
+    if (S2 === 'slides') { add(piv, rbox(0.2, 0.12, 0.3, 0.05), WHITE, 0, -0.77, 0.04, 0); add(piv, rbox(0.25, 0.06, 0.18, 0.02), shoe, 0, -0.78, 0.1, 0); add(piv, rbox(0.26, 0.04, 0.38, 0.02), INK, 0, -0.84, 0.05, 0); }
+    else if (S2 === 'high') { add(piv, rbox(0.25, 0.24, 0.36, 0.07), shoe, 0, -0.72, 0.05, 0); add(piv, rbox(0.27, 0.05, 0.4, 0.02), WHITE, 0, -0.84, 0.06, 0); add(piv, rbox(0.27, 0.04, 0.12, 0.02), WHITE, 0, -0.63, -0.08, 0); }
+    else if (S2 === 'chunky') { add(piv, rbox(0.27, 0.14, 0.4, 0.06), shoe, 0, -0.74, 0.06, 0); add(piv, rbox(0.3, 0.1, 0.44, 0.04), WHITE, 0, -0.83, 0.07, 0); add(piv, rbox(0.31, 0.03, 0.3, 0.01), toon(FIT_COLS[(F.sc + 3) % FIT_COLS.length]), 0, -0.8, 0.07, 0); }
+    else { add(piv, rbox(0.24, 0.13, 0.36, 0.06), shoe, 0, -0.76, 0.06, 0); add(piv, rbox(0.26, 0.05, 0.38, 0.02), WHITE, 0, -0.835, 0.06, 0); }
+    return piv;
+  };
+  const armL = arm(-0.44 - (puffy ? 0.04 : 0)), armR = arm(0.44 + (puffy ? 0.04 : 0)), legL = leg(-0.16), legR = leg(0.16);
+  return { root, body, armL, armR, legL, legR, phase: 0 };
 }
 function animatePerson(m, speed, grounded, dt) {
   const k = clamp(speed / 6, 0, 1), ease = 1 - Math.exp(-14 * dt);
@@ -4553,7 +4937,7 @@ function animatePerson(m, speed, grounded, dt) {
 }
 let onFoot = false;
 const parked = { x: 0, y: 0, z: 0, yaw: 0 };
-const walker = buildPerson(PAINT[ac().paint].hex); walker.root.visible = false; scene.add(walker.root);
+let walker = buildPerson(save.fit); walker.root.visible = false; scene.add(walker.root);
 function blockedAt(x, z, y) { const t = { x, z, y, vx: 0, vz: 0 }; collideWorld(t, 0.5); return Math.hypot(t.x - x, t.z - z) > 0.01 || (gridH(x, z) < -0.8 && !roadAt(x, z)); }
 function exitCar() {
   if (onFoot || !playing || panelOpen) return;
@@ -4569,7 +4953,6 @@ function exitCar() {
   if (!ok) { toast('No room to get out here'); return; }
   Object.assign(player, { vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, boosting: false, drifting: false, sliding: false, grounded: true, padBoost: 0 });
   player.y = surfaceHeight(player.x, player.z);
-  walker.shirt.color.set(PAINT[ac().paint].hex);
   onFoot = true; walker.root.visible = true; walker.root.position.set(player.x, player.y, player.z); syncFp();
 }
 function enterCar() {
@@ -4626,7 +5009,7 @@ function walkStep(inp, dt) {
 // =====================================================================
 // Pebble Motors: display cars, the lot and the sales desk
 // =====================================================================
-const DISPLAY_CARS = ['raijin', 'super', 'yoru', 'hikari', 'sakura', 'kitsune'];
+const DISPLAY_CARS = ['raijin', 'super', 'yoru', 'hikari', 'arashi', 'kitsune'];
 BEAMS = false;
 const displayModels = DISPLAY_CARS.map((id, k) => {
   const m = buildCar(id, PAINTS[[0, 8, 5, 4, 7, 1][k] % PAINTS.length].hex, { e: 'i4', i: 'na', a: 'stock', w: ['y5', 'aero', 'split', 'star', 'stock', 'mesh'][k], has: [] });
@@ -4647,7 +5030,7 @@ for (const [x, z] of PROPS.taxi.spots) {
   m.root.position.set(p.x, s.y, p.z); m.root.rotation.y = s.yaw; scene.add(m.root);
   circles.push({ x: p.x, z: p.z, r: 2.1, h: 2, y0: s.y });
 }
-LITE = false; BEAMS = true;
+LITE = false; BEAMS = false;
 {
   const clerk = buildPerson('#3fa7ff'); const [dx, dz] = DEALER.desk, p = s2w(DEALER.site, dx, dz - 0.2);
   clerk.root.position.set(p.x, DEALER.site.y, p.z); clerk.root.rotation.y = DEALER.site.yaw; scene.add(clerk.root); DEALER.clerk = clerk;
@@ -4770,8 +5153,306 @@ function tycoonStep(dt) {
 // =====================================================================
 // what's nearby: prompts and the E key
 // =====================================================================
+// =====================================================================
+// fuel: Pebble Fuel stations, 95 / 98 octane, pay inside or the police come for you
+// =====================================================================
+const TANK = { tanuki: 30, mini: 32, kitsune: 42, hakone: 50, van: 70, pickup: 80, truck: 120, suv: 72, cruiser: 70 };
+const tankOf = m => TANK[m] || 55;
+const STATIONS = [];
+let fuelDebt = null;     // { st, amount, litres } while you owe money at a station
+const fuelPeriod = () => Math.floor(Date.now() / 600000);   // prices move a little every 10 minutes
+function fuelNoise(p, k) { let h = Math.imul(p * 374761393 + k * 668265263, 1274126177) >>> 0; h = Math.imul(h ^ (h >>> 13), 1103515245) >>> 0; return ((h >>> 8) / 16777216) * 2 - 1; }
+function fuelPrice(st, oct) {
+  const p = fuelPeriod(), n = fuelNoise(p, st.k * 3 + 1) * 0.06 + fuelNoise(p - 1, st.k * 3 + 1) * 0.02;
+  return Math.round((1.68 + st.off + n + (oct === 98 ? 0.15 + fuelNoise(p, st.k * 3 + 2) * 0.015 : 0)) * 100) / 100;
+}
+function priceBoard(st) {
+  return canvasTex(256, 320, (c, w, h) => {
+    c.fillStyle = '#120e24'; c.fillRect(0, 0, w, h); c.strokeStyle = '#3ddc97'; c.lineWidth = 8; c.strokeRect(6, 6, w - 12, h - 12);
+    c.fillStyle = '#3ddc97'; c.font = '38px "Lilita One", "Arial Black", sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('PEBBLE FUEL', w / 2, 46);
+    for (const [k, oct, col] of [[0, 95, '#ffd23f'], [1, 98, '#ff7ac8']]) {
+      const y = 130 + k * 110;
+      c.fillStyle = col; c.fillRect(22, y - 34, 74, 68); c.fillStyle = '#120e24'; c.font = '46px "Lilita One", "Arial Black", sans-serif'; c.fillText(String(oct), 59, y + 2);
+      c.fillStyle = '#ff9a3c'; c.shadowColor = '#ff9a3c'; c.shadowBlur = 12; c.font = '62px "Lilita One", "Arial Black", sans-serif'; c.fillText(fuelPrice(st, oct).toFixed(2), 170, y + 4); c.shadowBlur = 0;
+    }
+  });
+}
+function buildStation(id, name, k, off) {
+  const s = SITES[id]; if (!s) return;
+  if (s.y < 0.6 && !CITY_SITES[id]) s.mainland = true;
+  const g = siteGroup(s, 30, 30);
+  const st = { id, name, k, off, s, g, pumps: [[-4.5, 8], [4.5, 8]], counter: [0, -7.4], period: -1 };
+  // forecourt, pump islands, canopy
+  const slab = new THREE.Mesh(new THREE.PlaneGeometry(30, 24), toon(0x5f5a70)); slab.rotation.x = -Math.PI / 2; slab.position.set(0, 0.06, 8); slab.receiveShadow = true; g.add(slab);
+  for (const [x, z] of st.pumps) {
+    part(g, rbox(1.4, 0.3, 4.6, 0.1), toon(0xd9d5e8), x, 0.15, z, 0.03);
+    const pump = part(g, rbox(0.95, 1.9, 0.7, 0.12), toon(0xf4f2fa), x, 1.2, z, 0.04);
+    for (const sd of [-1, 1]) { const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), toon(0x3ddc97, { emissive: 0x1d8a5a })); scr.position.set(sd * 0.48, 0.45, 0); scr.rotation.y = sd * Math.PI / 2; pump.add(scr); }
+    part(g, rbox(1.0, 0.3, 0.75, 0.08), toon(0x3ddc97), x, 2.25, z, 0);
+    for (const dz of [-1.9, 1.9]) part(g, cyl(0.22, 0.22, 5.2, 10), toon(0xcfcbe0), x, 2.7, z + dz, 0);
+    solid(s, x - 0.75, z - 2.35, x + 0.75, z + 2.35, 1.4);
+  }
+  part(g, rbox(20, 0.7, 10, 0.25), toon(0xf4f2fa), 0, 5.55, 8, 0.06);
+  part(g, rbox(20.3, 0.5, 10.3, 0.2), toon(0x3ddc97), 0, 5.2, 8, 0);
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(19, 9), new THREE.MeshBasicMaterial({ color: 0xfff6dc })); under.rotation.x = Math.PI / 2; under.position.set(0, 4.94, 8); g.add(under);
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(24, 15), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xfff0c8, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending })); pool.rotation.x = -Math.PI / 2; pool.position.set(0, 0.09, 8); g.add(pool);
+  // the shop: walk in through the door to pay at the counter
+  const wallM = toon(0xe8e2d4), W = 14, D = 8, H = 4.2, zc = -6;
+  part(g, rbox(W, 0.3, D, 0.1), toon(0xbdb4a2), 0, 0.05, zc, 0);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.8, D - 0.8), toon(0xdcd8ea)); floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.22, zc); g.add(floor);
+  part(g, rbox(W, H, 0.4, 0.15), wallM, 0, H / 2, zc - D / 2 + 0.2, 0.05);
+  for (const sx of [-1, 1]) part(g, rbox(0.4, H, D, 0.15), wallM, sx * (W / 2 - 0.2), H / 2, zc, 0.05);
+  const door = 2.2, fw = (W - door) / 2;
+  for (const sx of [-1, 1]) {
+    part(g, rbox(fw, 1.0, 0.4, 0.1), wallM, sx * (door / 2 + fw / 2), 0.5, zc + D / 2 - 0.2, 0.05);
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(fw - 0.3, 2.4, 0.12), GLASS_M); gl.position.set(sx * (door / 2 + fw / 2), 2.25, zc + D / 2 - 0.2); g.add(gl);
+    part(g, rbox(fw, 0.7, 0.4, 0.1), wallM, sx * (door / 2 + fw / 2), H - 0.35, zc + D / 2 - 0.2, 0);
+  }
+  part(g, rbox(door, 1.0, 0.4, 0.1), wallM, 0, H - 0.5, zc + D / 2 - 0.2, 0);
+  part(g, rbox(W + 0.8, 0.5, D + 0.8, 0.2), toon(0x2b2d42), 0, H + 0.25, zc, 0.05);
+  const lamp = new THREE.Mesh(new THREE.PlaneGeometry(W - 3, D - 3), new THREE.MeshBasicMaterial({ color: 0xfff3d6 })); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, H - 0.05, zc); g.add(lamp);
+  for (let k = 0; k < 3; k++) part(g, rbox(3.2, 2.0, 0.5, 0.08), toon([0xffd23f, 0x3fa7ff, 0xff7ac8][k]), -4 + k * 4, 1.2, zc - D / 2 + 0.7, 0);
+  signBoard(g, name.toUpperCase(), '#3ddc97', '#120e24', 0, H + 1.4, zc + D / 2 - 0.3, 8, 1.4);
+  part(g, rbox(4.2, 1.1, 0.9, 0.12), toon(0x3b3f6b), 0, 0.75, -8.6, 0.04);
+  part(g, rbox(4.4, 0.1, 1.0, 0.04), toon(0x3ddc97), 0, 1.33, -8.6, 0);
+  for (const [x, c] of [[-5, 0xff7ac8], [5, 0x3fa7ff], [-5, 0xffd23f]]) part(g, rbox(1.4, 1.8, 0.6, 0.1), toon(c), x, 1.1, x < 0 && c === 0xffd23f ? -3.8 : -8.9, 0);
+  const clerk = buildPerson('#3ddc97'); const cp = s2w(s, 0, -9.4); clerk.root.position.set(cp.x, s.y + 0.2, cp.z); clerk.root.rotation.y = s.yaw; scene.add(clerk.root);
+  solid(s, -W / 2, zc - D / 2, W / 2, zc - D / 2 + 0.4, H);
+  solid(s, -W / 2, zc - D / 2, -W / 2 + 0.4, zc + D / 2, H);
+  solid(s, W / 2 - 0.4, zc - D / 2, W / 2, zc + D / 2, H);
+  solid(s, -W / 2, zc + D / 2 - 0.4, -door / 2, zc + D / 2, H);
+  solid(s, door / 2, zc + D / 2 - 0.4, W / 2, zc + D / 2, H);
+  solid(s, -2.1, -9.1, 2.1, -8.1, 1.2);
+  // price pylon by the road
+  part(g, rbox(0.5, 6, 0.5, 0.1), toon(0x2b2d42), 12.5, 3, 18, 0);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 4), new THREE.MeshBasicMaterial({ map: priceBoard(st) })); board.position.set(12.5, 6.4, 18.3); g.add(board);
+  const back = board.clone(); back.rotation.y = Math.PI; back.position.z = 17.7; g.add(back);
+  part(g, rbox(3.5, 4.3, 0.5, 0.12), toon(0x1d1a2e), 12.5, 6.4, 18, 0);
+  circles.push(Object.assign(s2w(s, 12.5, 18), { r: 0.6, h: 9, y0: s.y }));
+  st.board = [board, back];
+  st.inside = (x, z) => { const dx = x - s.x, dz = z - s.z, lx = dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw), lz = dx * Math.sin(s.yaw) + dz * Math.cos(s.yaw); return Math.abs(lx) < W / 2 - 0.5 && lz > zc - D / 2 + 0.4 && lz < zc + D / 2 ? { lx, lz } : null; };
+  st.local = (x, z) => { const dx = x - s.x, dz = z - s.z; return { lx: dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw), lz: dx * Math.sin(s.yaw) + dz * Math.cos(s.yaw) }; };
+  st.pos = s2w(s, 0, 8);
+  STATIONS.push(st);
+}
+buildStation('gas1', 'Pebble Fuel City', 0, 0.04);
+buildStation('gas2', 'Pebble Fuel Country', 1, -0.03);
+buildStation('gas3', 'Pebble Fuel Island', 2, 0.0);
+setInterval(() => { const p = fuelPeriod(); for (const st of STATIONS) if (st.period !== p) { const first = st.period < 0; st.period = p; const t = priceBoard(st); for (const b of st.board) { b.material.map = t; b.material.needsUpdate = true; } if (!first && playing && Math.hypot(player.x - st.pos.x, player.z - st.pos.z) < 300) toast('Fuel prices changed at ' + st.name); } if (!$('fuelPanel').hidden) renderFuel(); }, 2000);
+function pumpAt() {
+  if (onFoot) return null;
+  for (const st of STATIONS) {
+    const L = st.local(player.x, player.z);
+    for (const [x, z] of st.pumps) if (Math.abs(L.lz - z) < 3.4 && Math.abs(L.lx - x) < 4.2) return st;
+  }
+  return null;
+}
+function counterAt() {
+  if (!onFoot) return null;
+  for (const st of STATIONS) { const i = st.inside(player.x, player.z); if (i && Math.hypot(i.lx - st.counter[0], i.lz - st.counter[1]) < 2.8) return st; }
+  return null;
+}
+let fuelSt = null, fuelOct = 95;
+function openFuel(st) {
+  if (fuelDebt && fuelDebt.st !== st) { toast('Pay at ' + fuelDebt.st.name + ' first'); return; }
+  if (Math.hypot(player.vx, player.vz) > 1.5) { toast('Stop at the pump first'); return; }
+  fuelSt = st; renderFuel(); openPanel('fuelPanel');
+}
+function renderFuel() {
+  const st = fuelSt; if (!st) return;
+  const car = ac(), tank = tankOf(car.m), have = (car.fuel ?? 1) * tank, room2 = Math.max(0, tank - have);
+  $('fuelTitle').textContent = st.name;
+  $('fuelLede').textContent = 'Tank ' + have.toFixed(1) + ' of ' + tank + ' L · ' + Math.round(car.oct || 95) + ' octane in it now. Prices change every 10 minutes. Fill up, then walk into the shop and pay at the counter.';
+  const orow = $('octRow'); orow.textContent = '';
+  for (const oct of [95, 98]) {
+    const b = btn(oct + ' octane · $' + fuelPrice(st, oct).toFixed(2) + '/L', oct === fuelOct ? '' : 'alt', () => { fuelOct = oct; renderFuel(); });
+    b.setAttribute('aria-pressed', String(oct === fuelOct)); orow.append(b);
+  }
+  $('octNote').textContent = fuelOct === 98 ? '98: a little more power, most of all with a turbo or supercharger.' : '95: the everyday fuel. Boosted engines lose a touch of power on it.';
+  const arow = $('amtRow'); arow.textContent = '';
+  for (const [label, L] of [['+10 L', 10], ['+25 L', 25], ['Fill up', room2]]) {
+    const l = Math.min(L, room2), cost = l * fuelPrice(st, fuelOct);
+    arow.append(btn(label + (l > 0.05 ? ' · $' + cost.toFixed(2) : ''), label === 'Fill up' ? '' : 'alt', () => pumpFuel(st, l), l < 0.05));
+  }
+  $('fuelOwe').textContent = fuelDebt ? 'You owe $' + fuelDebt.amount.toFixed(2) + ' for ' + fuelDebt.litres.toFixed(1) + ' L. Pay inside before you drive off, or the police will come after you.' : 'Nothing owed.';
+}
+function pumpFuel(st, litres) {
+  const car = ac(), tank = tankOf(car.m), have = (car.fuel ?? 1) * tank; litres = Math.min(litres, tank - have); if (litres < 0.05) return;
+  const price = fuelPrice(st, fuelOct);
+  car.oct = (have * (car.oct || 95) + litres * fuelOct) / (have + litres);
+  car.fuel = (have + litres) / tank;
+  if (!fuelDebt) fuelDebt = { st, amount: 0, litres: 0 };
+  fuelDebt.amount += litres * price; fuelDebt.litres += litres;
+  persist(); player.stats = statsFor(car); updateClassHud(); sfx('buy');
+  toast('Pumped ' + litres.toFixed(1) + ' L of ' + fuelOct + '. Now pay inside ($' + fuelDebt.amount.toFixed(2) + ')', true);
+  renderFuel();
+}
+function payFuel(st) {
+  if (!fuelDebt) { toast('You don\'t owe anything here'); return; }
+  if (fuelDebt.st !== st) { toast('You owe money at ' + fuelDebt.st.name); return; }
+  const amt = Math.ceil(fuelDebt.amount);
+  if (save.money < amt) { toast('You need $' + amt.toFixed(2)); return; }
+  save.money -= amt; persist(); renderMoney(true); sfx('buy');
+  toast('Paid $' + amt + ' for ' + fuelDebt.litres.toFixed(1) + ' L. Thanks, drive safe!', true);
+  fuelDebt = null;
+}
+let fuelSaveT = 0, lowFuelWarned = false;
+// called every physics step while you drive
+function fuelStep(inp, dt) {
+  const car = ac();
+  if (race || mission || street) return;
+  const E = ENGINE[car.tune.e] || ENGINE.i4, sp = Math.min(1, Math.abs(player.fs) / 40);
+  const burn = (0.1 + 0.9 * Math.abs(inp.throttle)) * (0.55 + 0.45 * sp) * (1 + (E.acc - 1) * 2.2) * (IND[car.tune.i].turbo ? 1.08 : 1);
+  const before = car.fuel ?? 1;
+  car.fuel = Math.max(0, before - burn * dt / 600 * (55 / tankOf(car.m)) ** 0.3);
+  if (car.fuel < 0.15 && !lowFuelWarned) { lowFuelWarned = true; toast('Low fuel! Find a Pebble Fuel station (map)'); sfx('beep'); }
+  if (car.fuel > 0.2) lowFuelWarned = false;
+  if (before > 0 && car.fuel <= 0) { toast('Out of fuel! Press E to call roadside fuel'); sfx('bump'); }
+  if ((fuelSaveT += dt) > 8) { fuelSaveT = 0; persist(); }
+  // driving away from the pumps without paying
+  if (fuelDebt && !fuelDebt.fled && Math.hypot(player.x - fuelDebt.st.pos.x, player.z - fuelDebt.st.pos.z) > 60) {
+    fuelDebt.fled = true;
+    if (police.stars < 2) { startWanted('Drive-off at ' + fuelDebt.st.name + '! The police are on their way'); police.stars = 2; }
+    police.driveOff = true;
+  }
+}
+$('bCloseFuel').addEventListener('click', closePanels);
+$('fuelPanel').addEventListener('pointerdown', e => { if (e.target.id === 'fuelPanel') closePanels(); });
+
+// =====================================================================
+// barn finds: rare cars left to rot in hidden corners of the map
+// =====================================================================
+const FINDS = [
+  { id: 'oni', near: [70, -1290], rumor: 'A rally car was left behind the summit of the mountain pass after its last stage.', tune: { e: 'i5', i: 't52', a: 'cai', w: 'kagerow', y: 'semi' } },
+  { id: 'kaminari', near: [1335, 470], rumor: 'Somebody saw a twin-turbo coupe under a tarp at the far corner of Pebble City.', tune: { e: 'i6', i: 't68', a: 'itb', w: 'split', y: 'sport' } },
+  { id: 'hakone', near: [-1120, 380], rumor: 'An old farmer on the country road never sold his 70s coupe. It still sits in the field.', tune: { e: 'i6', i: 'na', a: 'itb', w: 'kagero', y: 'drift' } },
+  { id: 'shogun', near: [430, 960], rumor: 'Down by the coast road there is a wedge-shaped supercar half buried in the dunes.', tune: { e: 'v8', i: 't52', a: 'ram', w: 'y5', y: 'semi' } },
+  { id: 'tanuki', near: [-255, -200], rumor: 'Deep in the island woods a tiny kei car with a huge engine is hiding between the pines.', tune: { e: 'i4', i: 'c30', a: 'cai', w: 'star', y: 'sport' } },
+];
+function hideSpot(x0, z0) {
+  for (let k = 0; k < 900; k++) {
+    const a = k * 2.39996, d = Math.sqrt(k) * 2.4, x = x0 + Math.cos(a) * d, z = z0 + Math.sin(a) * d;
+    const h = gridH(x, z); if (h < 0.4) continue;
+    let ok = true;
+    for (let t = 0; t < 8 && ok; t++) { const xx = x + Math.cos(t * TAU / 8) * 5, zz = z + Math.sin(t * TAU / 8) * 5; if (roadAt(xx, zz) || Math.abs(gridH(xx, zz) - h) > 1.2) ok = false; }
+    if (!ok || roadAt(x, z)) continue;
+    if (circles.some(c => Math.hypot(c.x - x, c.z - z) < c.r + 3.2)) continue;
+    if (boxes.some(b => x > b.x0 - 3 && x < b.x1 + 3 && z > b.z0 - 3 && z < b.z1 + 3)) continue;
+    return { x, z };
+  }
+  return { x: x0, z: z0 };
+}
+const RUST = ['#8a6f5a', '#7a7466', '#9a7b54', '#6f6a5e', '#80705e'];
+for (const [k, f] of FINDS.entries()) {
+  const p = hideSpot(f.near[0], f.near[1]); f.x = p.x; f.z = p.z; f.y = surfaceHeight(p.x, p.z);
+  const m = buildCar(f.id, RUST[k], Object.assign({ has: [] }, DEFAULT_TUNE), 'none', 'low', '');
+  m.root.position.set(f.x, f.y - 0.05, f.z); m.root.rotation.y = k * 1.9 + 0.4; m.tilt.rotation.z = 0.04; scene.add(m.root);
+  // a faded tarp over the back and a few weeds
+  // a faded cover thrown over the cabin
+  { const S = CAR_SPECS[f.id], cw = S.cabW * 0.92 + 0.12, len = S.roofF - S.roofR + 0.5, zc = (S.roofF + S.roofR) / 2 - 0.1, cov = toon(0x55607a);
+    const top = new THREE.Mesh(rbox(cw, 0.06, len, 0.03), cov); top.position.set(0, S.roof + 0.02, zc); m.tilt.add(top);
+    for (const sd of [-1, 1]) { const flap = new THREE.Mesh(rbox(0.05, 0.42, len - 0.2, 0.02), cov); flap.position.set(sd * (cw / 2), S.roof - 0.2, zc); flap.rotation.z = sd * 0.12; m.tilt.add(flap); } }
+  for (let w = 0; w < 6; w++) { const wd = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.9, 5), toon(0x4f6a3a)); const a = w * 1.05; wd.position.set(Math.cos(a) * 1.4, 0.4, Math.sin(a) * 2.4); m.root.add(wd); }
+  f.model = m;
+  circles.push({ x: f.x, z: f.z, r: 2.1, h: 2, y0: f.y });
+  f.col = circles[circles.length - 1];
+}
+function refreshFinds() { for (const f of FINDS) { const got = (save.finds || []).includes(f.id); f.model.root.visible = !got; f.col.r = got ? 0 : 2.1; } }
+refreshFinds();
+function findAt() { for (const f of FINDS) if (!(save.finds || []).includes(f.id) && Math.hypot(player.x - f.x, player.z - f.z) < (onFoot ? 4.2 : 6.5)) return f; return null; }
+function claimFind(f) {
+  if ((save.finds || []).includes(f.id)) return;
+  if (save.cars.length >= 80) { toast('Your garage is full'); return; }
+  const car = newCarObj(f.id, 'snow');
+  car.tune = Object.assign({}, f.tune, { has: Object.entries(f.tune).map(([sl, v]) => sl + ':' + v) });
+  save.cars.push(car); save.finds = (save.finds || []).concat(f.id);
+  persist(); refreshFinds(); sfx('levelup'); showBig('BARN FIND!'); addXp(400);
+  toast('You found the ' + BODY[f.id].name + '! Restored and in your garage (' + save.finds.length + '/' + FINDS.length + ')', true);
+}
+function roadsideFuel() {
+  if (save.money < 120) { toast('Roadside fuel costs $120'); return; }
+  const car = ac(); save.money -= 120; car.fuel = Math.min(1, (car.fuel || 0) + 10 / tankOf(car.m)); persist(); renderMoney(true); sfx('buy');
+  toast('A van brought you 10 L. Drive to a Pebble Fuel station!', true);
+}
+// =====================================================================
+// wardrobe (V): buy and wear streetwear, with a live 3D preview
+// =====================================================================
+let fitTab = 'top', fitPrev = null;
+const FIT_TABS = [['top', 'Tops'], ['print', 'Prints'], ['bottom', 'Bottoms'], ['shoes', 'Shoes'], ['hat', 'Hats'], ['acc', 'Extras'], ['look', 'Look']];
+const FIT_COLKEY = { top: 'tc', bottom: 'bc', shoes: 'sc', hat: 'hc' };
+const fitOwned = (slot, id) => { const it = FIT[slot].find(x => x.id === id); return !!it && (it.cost === 0 || save.fitOwn.includes(slot + ':' + id)); };
+function rebuildWalker() {
+  const vis = walker.root.visible, pos = walker.root.position.clone(), ry = walker.root.rotation.y;
+  scene.remove(walker.root); walker = buildPerson(save.fit); walker.root.visible = vis; walker.root.position.copy(pos); walker.root.rotation.y = ry; scene.add(walker.root);
+  try { syncFp(); } catch (e) { /* camera not ready */ }
+}
+function fitChanged() { persist(); rebuildWalker(); renderWardrobe(); }
+function openWardrobe() { if (!playing || race || street || mission) return; renderWardrobe(); openPanel('wardrobe'); startFitPreview(); }
+function renderWardrobe() {
+  const tabs = $('fitTabs'); tabs.textContent = '';
+  for (const [id, name] of FIT_TABS) { const b = el('button', 'tab', name); b.type = 'button'; b.setAttribute('aria-selected', String(id === fitTab)); b.addEventListener('click', () => { fitTab = id; renderWardrobe(); }); tabs.append(b); }
+  const L = $('fitList'); L.textContent = '';
+  const F = save.fit;
+  if (fitTab === 'look') {
+    L.append(el('div', 'label', 'Skin tone'));
+    const sw = el('div', 'swatches'); SKINS.forEach((c, k) => { const b = el('button', 'swatch'); b.type = 'button'; b.style.background = c; b.setAttribute('aria-pressed', String(F.skin === k)); b.setAttribute('aria-label', 'Skin tone ' + (k + 1)); b.addEventListener('click', () => { F.skin = k; fitChanged(); }); sw.append(b); }); L.append(sw);
+    L.append(el('div', 'label', 'Hair colour'));
+    const hw = el('div', 'swatches'); HAIRS.forEach((c, k) => { const b = el('button', 'swatch'); b.type = 'button'; b.style.background = c; b.setAttribute('aria-pressed', String(F.hair === k)); b.setAttribute('aria-label', 'Hair colour ' + (k + 1)); b.addEventListener('click', () => { F.hair = k; fitChanged(); }); hw.append(b); }); L.append(hw);
+    return;
+  }
+  const list = el('div', 'opts');
+  for (const it of FIT[fitTab]) {
+    const own = fitTab === 'acc' ? save.fitOwn.includes('acc:' + it.id) : fitOwned(fitTab, it.id);
+    const worn = fitTab === 'acc' ? F.acc.includes(it.id) : F[fitTab] === it.id;
+    const row = el('div', 'opt' + (worn ? ' sel' : '')), txt = el('div', 'txt');
+    txt.append(el('b', '', it.name), el('div', 'fx', it.cost ? (own ? 'In your wardrobe' : fmt$(it.cost)) : 'Free'));
+    let b;
+    if (fitTab === 'acc') {
+      if (!own) b = btn('Buy · ' + fmt$(it.cost), '', () => { if (save.money < it.cost) return; save.money -= it.cost; save.fitOwn.push('acc:' + it.id); F.acc.push(it.id); renderMoney(true); sfx('buy'); fitChanged(); }, save.money < it.cost);
+      else b = btn(worn ? 'Take off' : 'Wear', worn ? 'alt' : '', () => { F.acc = worn ? F.acc.filter(x => x !== it.id) : F.acc.concat(it.id); fitChanged(); });
+    } else if (worn) b = btn('Wearing', '', null, true);
+    else if (own) b = btn('Wear', 'alt', () => { F[fitTab] = it.id; fitChanged(); });
+    else b = btn('Buy · ' + fmt$(it.cost), '', () => { if (save.money < it.cost) return; save.money -= it.cost; save.fitOwn.push(fitTab + ':' + it.id); F[fitTab] = it.id; renderMoney(true); sfx('buy'); toast(it.name + ' bought', true); fitChanged(); }, save.money < it.cost);
+    row.append(txt, b); list.append(row);
+  }
+  L.append(list);
+  const ck = FIT_COLKEY[fitTab];
+  if (ck) {
+    L.append(el('div', 'label', 'Colour'));
+    const sw = el('div', 'swatches'); FIT_COLS.forEach((c, k) => { const b = el('button', 'swatch'); b.type = 'button'; b.style.background = c; b.setAttribute('aria-pressed', String(F[ck] === k)); b.setAttribute('aria-label', 'Colour ' + (k + 1)); b.addEventListener('click', () => { F[ck] = k; fitChanged(); }); sw.append(b); }); L.append(sw);
+  }
+}
+// small second renderer just for the preview, only running while the wardrobe is open
+function startFitPreview() {
+  const cv = $('fitCanvas');
+  if (!fitPrev) {
+    try {
+      const r = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x6a6488, 0.9)); const dl = new THREE.DirectionalLight(0xffffff, 0.6); dl.position.set(2, 4, 3); sc.add(dl);
+      const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50); cam.position.set(0, 1.5, 6.2); cam.lookAt(0, 1.15, 0);
+      const ped = new THREE.Mesh(cyl(0.9, 0.95, 0.12, 32), toon(0x3b3f6b)); ped.position.y = -0.06; sc.add(ped);
+      fitPrev = { r, sc, cam, person: null, code: '', spin: 0.5 };
+    } catch (e) { cv.hidden = true; return; }
+  }
+  const tick = () => {
+    if ($('wardrobe').hidden || !fitPrev) return;
+    const P = fitPrev, w = cv.clientWidth || 220, h = cv.clientHeight || 280;
+    if (cv.width !== Math.round(w * P.r.getPixelRatio())) { P.r.setSize(w, h, false); P.cam.aspect = w / h; P.cam.updateProjectionMatrix(); }
+    const code = fitCode(save.fit);
+    if (code !== P.code) { if (P.person) P.sc.remove(P.person.root); P.person = buildPerson(save.fit); P.sc.add(P.person.root); P.code = code; }
+    P.spin += 0.012; P.person.root.rotation.y = Math.sin(P.spin) * 0.9;
+    P.r.render(P.sc, P.cam); requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+$('bWardrobe').addEventListener('click', () => { setMenu(false); openWardrobe(); });
+$('bCloseWardrobe').addEventListener('click', closePanels);
+$('wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardrobe') closePanels(); });
 function nearProp() {
   const p = player;
+  { const fd = findAt(); if (fd) return { kind: 'find', f: fd, text: 'to restore this abandoned ' + BODY[fd.id].name };
+    if (onFoot) { const cs = counterAt(); if (cs) return { kind: 'pay', st: cs, text: fuelDebt && fuelDebt.st === cs ? 'to pay $' + fuelDebt.amount.toFixed(2) + ' for your fuel' : 'to talk to the cashier' }; }
+    else if (!police.stars) { const ps = pumpAt(); if (ps) return { kind: 'pump', st: ps, text: 'to fill up at ' + ps.name }; if ((ac().fuel ?? 1) <= 0.001) return { kind: 'tow', text: 'to call roadside fuel · $120 for 10 L' }; } }
   if (onFoot) {
     const inn = DEALER.inside(p.x, p.z);
     if (inn) {
@@ -4789,6 +5470,10 @@ function nearProp() {
   return null;
 }
 function openProp(pr) {
+  if (pr.kind === 'find') { claimFind(pr.f); return; }
+  if (pr.kind === 'pump') { openFuel(pr.st); return; }
+  if (pr.kind === 'pay') { payFuel(pr.st); return; }
+  if (pr.kind === 'tow') { roadsideFuel(); return; }
   if (pr.kind === 'display' || pr.kind === 'desk') { openDealer(pr.kind === 'display' ? pr.id : null); return; }
   if (pr.kind === 'meet') { openMeet(STREET_BY[pr.id]); return; }
   propFocus = { kind: pr.kind, id: pr.id, here: true }; renderProps(); openPanel('props');
@@ -4800,7 +5485,7 @@ function openProp(pr) {
 let dealerFocus = 'super', dealerPaint = 'cherry';
 function openDealer(id) { if (id) dealerFocus = id; dealerPaint = ac().paint; renderDealer(); openPanel('dealer'); }
 function buyCar(id) {
-  const bd = BODY[id]; if (!bd) return;
+  const bd = BODY[id]; if (!bd || bd.find) return;
   if (levelOf(save.xp) < reqLevel('car', id)) return;
   if (save.cars.length >= 80) { toast('Your garage is full'); return; }
   if (save.money < bd.cost) return;
@@ -4824,6 +5509,7 @@ function renderDealer() {
   const cls = document.createElement('span'); cls.className = 'cls'; cls.textContent = bd.cls + ' · ' + { rwd: 'Rear-wheel drive', fwd: 'Front-wheel drive', awd: 'All-wheel drive' }[st.drive];
   const price = document.createElement('span'); price.className = 'price'; price.textContent = bd.cost ? fmt$(bd.cost) : 'Free';
   h.append(b, cls, price); f.append(h);
+  { const ci = el('div', 'carinfo'), dc = newCarObj(bd.id, dealerPaint), pw = carPower(dc); ci.append(classBadge(perfIndex(st)), el('span', '', pw.hp + ' hp · ' + pw.kg + ' kg')); f.append(ci); }
   const sb = document.createElement('div'); sb.className = 'stats';
   statBar(sb, 'Top speed', st.top / STAT_MAX.top, Math.round(st.top * SPEED_UNIT) + '');
   statBar(sb, 'Acceleration', st.accel / STAT_MAX.accel, st.accel.toFixed(0));
@@ -4843,12 +5529,12 @@ function renderDealer() {
   if (own) { const o = document.createElement('span'); o.className = 'hint'; o.textContent = 'You own ' + own; row.append(o); }
   f.append(row);
   const list = $('dlList'); list.textContent = '';
-  for (const c of [...BODIES].sort((a, b2) => a.cost - b2.cost)) {
+  for (const c of BODIES.filter(b => !b.find).sort((a, b2) => a.cost - b2.cost)) {
     const card = document.createElement('div'); card.className = 'car' + (c.id === bd.id ? ' sel' : '') + (levelOf(save.xp) < reqLevel('car', c.id) ? ' locked' : '');
     const top = document.createElement('div'); top.className = 'top';
     const n = document.createElement('b'); n.textContent = c.name;
     const k = document.createElement('span'); k.className = 'cls'; k.textContent = c.cls;
-    top.append(n, k);
+    top.append(n, k, classBadge(carPI(newCarObj(c.id))));
     const mini = document.createElement('div'); mini.className = 'mini';
     statBar(mini, 'Speed', (c.s.top - 0.8) / 0.55); statBar(mini, 'Grip', (c.s.grip - 0.7) / 0.65); statBar(mini, 'Drift', (c.s.drift - 0.7) / 0.6, null, 'dr');
     const v = document.createElement('button'); v.type = 'button'; v.className = 'btn small alt';
@@ -5070,6 +5756,8 @@ const TUT = [
   { icon: '💼', title: 'Businesses and homes', text: 'Buy businesses that earn money even while you are offline. Legit ones pay out by themselves. Shady ones pay more, but you drive the goods to buyers yourself. Homes are garages and fast travel spots.', hl: 'bMenu',
     keys: [['Menu → Property', 'See everything you can buy']] },
   { icon: '🚨', title: 'Watch out for the police', text: 'Go over 150 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
+  { icon: '⛽', title: 'Fuel, classes and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Every car has a class from 150 to Unlimited: races only put you against cars of your class. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
+    keys: [['E', 'Pump fuel or pay'], ['V', 'Wardrobe']] },
   { icon: '💬', title: 'Play together', text: 'Chat with everyone on the island, sell cars to other players on the Market and set lap records. Everything else lives in the Menu at the top left. Have fun!', hl: 'bMenu',
     keys: [['T', 'Chat'], ['H', 'Honk']] },
 ];
@@ -5119,7 +5807,7 @@ const STREET = [
 ];
 const STREET_BY = Object.fromEntries(STREET.map(s => [s.id, s]));
 const CREW = ['Kaito', 'Ryo', 'Mika', 'Shin', 'Yuki', 'Daichi', 'Haru', 'Ren', 'Sora'];
-const CREW_CARS = ['hikari', 'kitsune', 'yoru', 'raijin', 'sakura', 'kaze', 'coupe', 'tempest', 'hikari'];
+const CREW_CARS = ['hikari', 'kitsune', 'yoru', 'raijin', 'arashi', 'kaze', 'coupe', 'sakura', 'hikari'];
 for (const R of STREET) {
   const P = R.pts;
   for (let i = 0; i < P.length; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)]; P[i].yaw = Math.atan2(b.x - a.x, b.z - a.z); }
@@ -5162,9 +5850,10 @@ function startStreet(R, opts) {
   streetPlace(player, R.slot(mySlot)); camSnap = true;
   if (!multi) {
     // the three crew cars line up and race you
+    const tg = classTargets(R.crew.length, 0.6, 0.92);
     R.crew.forEach((cr, k) => {
       const b = newCarState(0, 0, 0); streetPlace(b, R.slot(k + 1));
-      b.stats = botStats(player.stats.top * (0.93 + k * 0.025), Math.max(16, player.stats.accel * 0.95));
+      b.stats = classBotStats(tg[k]);
       Object.assign(b, { name: cr.name, model: cr.model, ri: 0, fin: 0, stuck: 0, cr });
       street.bots.push(b);
     });
@@ -5269,12 +5958,12 @@ function streetHud(now) {
 }
 // ---------- meet panel ----------
 let meetDef = null;
-function nearbyRiders(R) { return [...remotes.values()].filter(r => r.active && !r.foot && Math.hypot(r.x - R.pad.x, r.z - R.pad.z) < 45 && !(r.pres && (r.pres.race || r.pres.sr))); }
+function nearbyRiders(R) { return [...remotes.values()].filter(r => r.active && !r.foot && sameClass(r) && Math.hypot(r.x - R.pad.x, r.z - R.pad.z) < 45 && !(r.pres && (r.pres.race || r.pres.sr))); }
 function openMeet(R) { meetDef = R; renderMeet(); openPanel('meet'); }
 function renderMeet() {
   const R = meetDef; if (!R) return;
   $('meetTitle').textContent = R.name;
-  $('meetLede').textContent = R.blurb + ' ' + R.where + ' · ' + (R.len * 6 / 1000).toFixed(1) + ' km.';
+  $('meetLede').textContent = R.blurb + ' ' + R.where + ' · ' + (R.len * 6 / 1000).toFixed(1) + ' km. Your car runs in class ' + className(myClass()) + ': the crew and any challengers are matched to it.';
   const L = $('meetBody'); L.textContent = '';
   const solo = el('div', 'propcard');
   solo.append(el('div', 'phead'), el('div', 'fx', 'Race the crew: ' + R.crew.map(c => c.name).join(', ') + '. Entry $' + R.fee + ', the winner takes $' + R.prize.toLocaleString('en-US') + ', second gets $' + Math.round(R.fee * 1.5) + '.'));
@@ -5299,7 +5988,7 @@ function renderMeet() {
 function hostStreet(R) {
   const riders = nearbyRiders(R); if (!riders.length) return;
   streetHost = { R, id: 's' + rid(), joined: new Set(), until: performance.now() + 15000 };
-  room.emit('street', { act: 'invite', id: streetHost.id, route: R.id, host: myPeer, n: save.nick || '', peers: riders.map(r => r.peer) }).catch(() => { });
+  room.emit('street', { act: 'invite', id: streetHost.id, route: R.id, host: myPeer, n: save.nick || '', pc: myClass(), peers: riders.map(r => r.peer) }).catch(() => { });
   toast('Challenge sent'); renderMeet();
 }
 function launchHosted() {
@@ -5313,10 +6002,10 @@ setInterval(() => { if (streetHost && performance.now() > streetHost.until) { if
 function onStreetMsg(msg) {
   const d = msg && msg.data; if (!d || typeof d !== 'object' || msg.isMe || msg.sameTab) return;
   const R = STREET_BY[d.route];
-  if (d.act === 'invite' && R && Array.isArray(d.peers) && d.peers.includes(myPeer) && !street && !race && !mission) {
+  if (d.act === 'invite' && R && Array.isArray(d.peers) && d.peers.includes(myPeer) && !street && !race && !mission && num(d.pc, -1) === myClass()) {
     const r = remotes.get(msg.peer); let name = r ? displayName(r) : cleanName(d.n); if (!name || nameIsBad(name)) name = 'A racer';
     streetInvite = { id: String(d.id).slice(0, 20), R, host: msg.peer, name, until: performance.now() + 15000, joined: false };
-    $('siText').textContent = name + ' challenges you: ' + R.name + ' · $' + R.fee + ' each, winner takes all';
+    $('siText').textContent = name + ' challenges you (class ' + className(myClass()) + '): ' + R.name + ' · $' + R.fee + ' each, winner takes all';
     $('streetInvite').hidden = false;
   } else if (d.act === 'join' && streetHost && d.id === streetHost.id) { streetHost.joined.add(msg.peer); if (!$('meet').hidden) renderMeet(); toast((remotes.get(msg.peer) ? displayName(remotes.get(msg.peer)) : 'A racer') + ' is in!'); }
   else if (d.act === 'go' && R && streetInvite && streetInvite.joined && d.id === streetInvite.id && Array.isArray(d.peers) && d.peers.includes(myPeer)) {
@@ -5371,7 +6060,12 @@ function simStep(now, dt) {
   if (onFoot) walkStep(inp, dt);
   else {
     updateSurface(player);
-    stepCar(player, inp, dt);
+    let pin = inp;
+    if (playing && !frozen) {
+      fuelStep(inp, dt);
+      if ((ac().fuel ?? 1) <= 0 && !race && !mission && !street) pin = Object.assign({}, inp, { throttle: player.fs > 1 ? Math.min(0, inp.throttle) : 0, nitro: false });
+    }
+    stepCar(player, pin, dt);
     hit = collideWorld(player, 1.7);
     for (const r of remotes.values()) if (r.model && !r.foot) hit = Math.max(hit, collideCars(player, r, 1.7, false));
   }
@@ -5437,7 +6131,8 @@ function updateVisuals(dt, now) {
     r.x = lerp(r.x, px, k); r.z = lerp(r.z, pz, k); r.y = lerp(r.y, r.ty, k); r.yaw += angDiff(r.yaw, r.tyaw) * k;
     if (r.foot) {
       r.model.root.position.set(r.pk[0], r.pk[1], r.pk[2]); r.model.root.rotation.y = r.pk[3];
-      if (!r.person) { r.person = buildPerson(PAINT[r.paint] ? PAINT[r.paint].hex : '#ffffff', true); scene.add(r.person.root); }
+      const ft = r.pres && typeof r.pres.ft === 'string' ? r.pres.ft.slice(0, 60) : '';
+      if (!r.person || r.ft !== ft) { if (r.person) scene.remove(r.person.root); r.person = buildPerson(fitDecode(ft), true); r.ft = ft; scene.add(r.person.root); }
       r.person.root.visible = true; r.person.root.position.set(r.x, r.y, r.z); r.person.root.rotation.y = r.yaw;
       animatePerson(r.person, Math.hypot(r.vx, r.vz), true, dt);
       if (r.tag) r.tag.visible = false;
@@ -5566,6 +6261,8 @@ function updateHud(now) {
   $('gearTxt').textContent = p.manual ? (p.fs < -0.5 ? 'R' : 'M' + (p.gear || 1)) : eng && eng.ready ? (p.fs < -0.5 ? 'R' : 'G' + eng.gear) : 'G1';
   $('speedo').classList.toggle('limiter', !!(p.manual && p.limiter));
   $('nitroFill').style.width = Math.round(100 * p.nitro / p.stats.nitroMax) + '%';
+  { const fu = ac().fuel ?? 1; $('fuelFill').style.width = Math.round(100 * fu) + '%'; $('fuelBar').classList.toggle('low', fu < 0.15);
+    const ow = $('oweTxt'); ow.hidden = !fuelDebt; if (fuelDebt) ow.textContent = fuelDebt.fled ? 'DRIVE-OFF!' : 'UNPAID FUEL $' + fuelDebt.amount.toFixed(2); }
   // prompt
   let prompt = '', fKey = false;
   if (!race && !mission && !panelOpen) {

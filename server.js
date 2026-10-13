@@ -14,11 +14,12 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 // ---------- what a valid car looks like (mirrors the game) ----------
 const PAINTS = ['cherry', 'tangerine', 'lemon', 'mint', 'sky', 'grape', 'bubblegum', 'snow', 'midnight'];
-const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin'];
+const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki'];
 const ENGINES = ['i4', 'i5', 'v6', 'i6', 'v8', 'v10', 'v12'];
 const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
 const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5', 'kagero', 'kagerow'];
+const TYRES = ['street', 'sport', 'drift', 'semi', 'slick'];
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
 // ---------- word filter for usernames and chat (German + English) ----------
@@ -69,15 +70,18 @@ function censorText(text) {
 }
 const safeName = s => { const n = cleanName(s); return n && !nameIsBad(n) ? n : 'Racer'; };
 
+// licence plates: A-Z, 0-9, space and dash, up to 8, and nothing rude
+function cleanPlate(p) { const t = String(p == null ? '' : p).toUpperCase().replace(/[^A-Z0-9 \-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 8); return t && !nameIsBad(t) ? t : ''; }
 function cleanCar(c) {
   if (!c || typeof c !== 'object' || !BODIES.includes(c.m)) return null;
   const up = {};
   for (const k of UPGRADES) up[k] = Math.max(0, Math.min(5, Math.floor(Number(c.up && c.up[k]) || 0)));
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiaw]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawy]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   return {
     m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none', stance: ['stock', 'low', 'slammed'].includes(c.stance) ? c.stance : 'stock',
-    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', has },
+    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', has },
+    plate: cleanPlate(c.plate),
   };
 }
 
@@ -143,6 +147,8 @@ wss.on('connection', ws => {
     if (m.t === 'presence' && m.presence && typeof m.presence === 'object' && !Array.isArray(m.presence)) {
       if (JSON.stringify(m.presence).length > 4096) return;
       if (typeof m.presence.n === 'string' && nameIsBad(m.presence.n)) m.presence.n = 'Racer';
+      if (m.presence.pl != null) m.presence.pl = cleanPlate(m.presence.pl) || null;
+      if (m.presence.ft != null && (typeof m.presence.ft !== 'string' || !/^[0-9.]{1,60}$/.test(m.presence.ft))) m.presence.ft = null;
       me.presence = m.presence;
       broadcast({ t: 'presence', peer: me.peer, presence: me.presence }, ws);
     } else if (m.t === 'emit' && m.topic === 'chat' && m.data && typeof m.data.text === 'string') {
