@@ -9,7 +9,7 @@
 <title>Pebble Isle Rally</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&family=VT323&display=swap">
 <style>
 /* Layout: full-bleed 3D canvas, sticker-style HUD pinned to the corners, modal cards for garage / race / records. */
 :root {
@@ -61,6 +61,13 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 #game canvas { filter: saturate(1.15) contrast(1.06); }
 #grain { position: fixed; inset: -60px; pointer-events: none; opacity: .14; mix-blend-mode: overlay; background-size: 220px 220px; animation: grain .45s steps(5) infinite; }
 @keyframes grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-31px, 17px); } 40% { transform: translate(23px, -29px); } 60% { transform: translate(-13px, 37px); } 80% { transform: translate(41px, 9px); } 100% { transform: translate(-7px, -21px); } }
+#osd { position: fixed; inset: 0; pointer-events: none; font-family: 'VT323', ui-monospace, monospace; color: #f4f2fa; text-shadow: 2px 0 rgba(255,40,80,.55), -2px 0 rgba(40,200,255,.55); }
+#osd .play { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-size: 1.9rem; letter-spacing: .08em; }
+#osd .stamp { white-space: pre; line-height: 1; position: absolute; left: 18px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 1.6rem; letter-spacing: .06em; }
+body:not(.retro) #osd { display: none; }
+body.retro #vhs { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(4,2,20,.6) 100%); }
+body.retro #game canvas { filter: none; }
+@media (max-width: 700px) { #osd .stamp { display: none; } }
 #vhs { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(4,2,20,.55) 100%), repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 1px, rgba(0,0,0,0) 1px 3px); }
 @media (prefers-reduced-motion: reduce) { #grain { animation: none; } }
 #streetInvite { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 12px 16px; width: min(380px, calc(100vw - 32px)); font-weight: 800; background: #ffe0f1; }
@@ -323,7 +330,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
 </style>
 
 <div id="game"></div>
-<div id="grain" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div><div id="osd" aria-hidden="true"><div class="play" id="osdPlay">PLAY ▶</div><div class="stamp" id="osdStamp"></div></div>
 <div id="sirenGlow"></div>
 
 <div id="hud" hidden>
@@ -347,6 +354,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
         <button class="mbtn" id="bMute" type="button">Sound on</button>
         <button class="mbtn" id="bGearbox" type="button">Gearbox: auto</button>
         <button class="mbtn" id="bWardrobe" type="button">Wardrobe<kbd>V</kbd></button>
+        <button class="mbtn" id="bRetro" type="button">Look: VHS</button>
         <button class="mbtn" id="bTut" type="button">Tutorial</button>
       </div>
     </div>
@@ -1018,13 +1026,80 @@ function carSummary(c) {
 // renderer / scene
 // =====================================================================
 const host = $('game');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+// ---------- retro mode: 90s console look on a worn VHS tape ----------
+// low-res render, wobbly snapped vertices, per-vertex (Gouraud) lighting, no outlines, 15-bit colour with dither, tape noise
+let RETRO = true;
+try { RETRO = localStorage.getItem(SAVE_KEY + '-retro') !== '0'; } catch (e) { /* storage blocked */ }
+const RETRO_H = 240;
+if (RETRO) {
+  document.body.classList.add('retro');
+  THREE.ShaderChunk.project_vertex = THREE.ShaderChunk.project_vertex.replace('gl_Position = projectionMatrix * mvPosition;', `gl_Position = projectionMatrix * mvPosition;
+#if !defined( DEPTH_PACKING ) && !defined( DISTANCE )
+	if ( gl_Position.w > 0.0 ) { vec2 psxGrid = vec2( 160.0, 120.0 ); gl_Position.xy = floor( gl_Position.xy / gl_Position.w * psxGrid + 0.5 ) / psxGrid * gl_Position.w; }
+#endif`);
+  const Lambert = THREE.MeshLambertMaterial;
+  THREE.MeshToonMaterial = function (p) { p = Object.assign({}, p); delete p.gradientMap; return new Lambert(p); };
+}
+const renderer = new THREE.WebGLRenderer({ antialias: !RETRO, powerPreference: 'high-performance' });
 const isTouch = matchMedia('(pointer: coarse)').matches;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
 renderer.setSize(host.clientWidth || innerWidth, host.clientHeight || innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = RETRO ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
 host.appendChild(renderer.domElement);
+// the scene is drawn into a small target, then blown up with the tape effects on top
+const retroRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
+const retroU = { tDiffuse: { value: retroRT.texture }, res: { value: new THREE.Vector2(4, 4) }, time: { value: 0 }, outH: { value: 800 } };
+const retroScene = new THREE.Scene(), retroCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+retroScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  uniforms: retroU, depthTest: false, depthWrite: false,
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+  fragmentShader: `    uniform sampler2D tDiffuse; uniform vec2 res; uniform float time; uniform float outH; varying vec2 vUv;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    float bayer4(vec2 p) {
+      vec2 q = mod(p, 4.0);
+      float a = mod(q.x, 2.0), b = mod(q.y, 2.0), c2 = floor(q.x / 2.0), d = floor(q.y / 2.0);
+      float inner = 2.0 * a * (1.0 - b) + 3.0 * a * b + 1.0 * (1.0 - a) * b;
+      float outer = 2.0 * c2 * (1.0 - d) + 3.0 * c2 * d + 1.0 * (1.0 - c2) * d;
+      return (4.0 * inner + outer) / 16.0;
+    }
+    void main() {
+      vec2 uv = vUv;
+      float line = floor(uv.y * res.y);
+      // tape wobble and a tracking band that rolls slowly up the screen
+      float bandY = fract(time * 0.045), band = smoothstep(0.035, 0.0, abs(uv.y - bandY));
+      uv.x += sin(line * 0.9 + time * 2.3) * 0.0007 + band * (hash(vec2(line, floor(time * 30.0))) - 0.5) * 0.02;
+      // colour bleed: red and blue smear sideways
+      float ca = 1.2 / res.x;
+      vec3 c = vec3(texture2D(tDiffuse, uv + vec2(ca, 0.0)).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - vec2(ca, 0.0)).b);
+      vec3 cl = texture2D(tDiffuse, uv - vec2(2.0 / res.x, 0.0)).rgb;
+      c = mix(c, (c + cl) * 0.5, 0.35);
+      // 15-bit colour with ordered dither, like the old consoles
+      vec2 px = floor(vUv * res);
+      c = floor(c * 31.0 + bayer4(px)) / 31.0;
+      // scanlines, band noise and a little snow
+      c *= 0.9 + 0.1 * sin(vUv.y * outH * 3.14159);
+      c += band * 0.12 * hash(vec2(floor(uv.x * res.x), line + time));
+      c += (hash(vUv * 900.0 + time) - 0.5) * 0.035;
+      gl_FragColor = vec4(c, 1.0);
+    }
+`,
+})));
+function retroResize() {
+  const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
+  const rh = RETRO_H, rw = Math.max(160, Math.round(rh * w / h));
+  retroRT.setSize(rw, rh); retroU.res.value.set(rw, rh); retroU.outH.value = h;
+}
+retroResize();
+// draw a frame: straight to the screen, or through the tape in retro mode
+function present() {
+  if (!RETRO) { renderer.render(scene, camera); return; }
+  renderer.setRenderTarget(retroRT);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  retroU.time.value = performance.now() / 1000;
+  renderer.render(retroScene, retroCam);
+}
 
 const scene = new THREE.Scene();
 {
@@ -1034,7 +1109,7 @@ const scene = new THREE.Scene();
   g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   scene.background = new THREE.CanvasTexture(c);
 }
-scene.fog = new THREE.Fog(0x1a1438, 260, 1500);
+scene.fog = RETRO ? new THREE.Fog(0x1a1438, 140, 900) : new THREE.Fog(0x1a1438, 260, 1500);
 const camera = new THREE.PerspectiveCamera(62, (host.clientWidth || innerWidth) / (host.clientHeight || innerHeight), 0.5, 3200);
 camera.position.set(0, 30, -40);
 
@@ -1053,14 +1128,14 @@ const skyDome = new THREE.Group(); scene.add(skyDome);
   const n = 1400, pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, y = Math.abs(u) * 0.9 + 0.08, r = Math.sqrt(1 - y * y); pos[i * 3] = Math.cos(a) * r * 2600; pos[i * 3 + 1] = y * 2600; pos[i * 3 + 2] = Math.sin(a) * r * 2600; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  skyDome.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 })));
+  skyDome.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: RETRO ? 1.2 : 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 })));
   const moon = new THREE.Mesh(new THREE.CircleGeometry(70, 40), new THREE.MeshBasicMaterial({ color: 0xfff6dc, fog: false })); moon.position.set(-1300, 1500, -1700); moon.lookAt(0, 0, 0); skyDome.add(moon);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(128, 128, (c, w, h) => { const gr = c.createRadialGradient(64, 64, 10, 64, 64, 64); gr.addColorStop(0, 'rgba(255,240,210,.55)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); }), transparent: true, depthWrite: false, fog: false }));
   halo.position.copy(moon.position).multiplyScalar(0.99); halo.scale.set(520, 520, 1); skyDome.add(halo);
 }
 addEventListener('resize', () => {
   const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
-  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); retroResize();
 });
 
 // ---------- toon materials ----------
@@ -1086,7 +1161,7 @@ const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1d1a2e, side: THREE.BackS
 const OUTLINE_I = new THREE.MeshBasicMaterial({ color: 0x1d1a2e, side: THREE.BackSide });
 const freshToon = c => new THREE.MeshToonMaterial({ color: c, gradientMap: gradTex });
 let LITE = false;   // traffic models skip outlines to keep draw calls down
-function outline(mesh, s) { if (LITE) return mesh; const o = new THREE.Mesh(mesh.geometry, OUTLINE); o.scale.setScalar(s || 1.06); mesh.add(o); return mesh; }
+function outline(mesh, s) { if (LITE || RETRO) return mesh; const o = new THREE.Mesh(mesh.geometry, OUTLINE); o.scale.setScalar(s || 1.06); mesh.add(o); return mesh; }
 const geoCache = new Map();
 function geo(key, make) { if (!geoCache.has(key)) geoCache.set(key, make()); return geoCache.get(key); }
 const box = (w, h, d) => geo('b' + w + ',' + h + ',' + d, () => new THREE.BoxGeometry(w, h, d));
@@ -1145,7 +1220,7 @@ function shellGeo(g, t) {
   return g.__shells[t];
 }
 function outlineShell(mesh, t) {
-  if (LITE) return mesh;
+  if (LITE || RETRO) return mesh;
   if (!mesh.geometry.__shellN) return outline(mesh, 1.05);
   mesh.add(new THREE.Mesh(shellGeo(mesh.geometry, t || 0.045), OUTLINE)); return mesh;
 }
@@ -1230,7 +1305,8 @@ function canvasTex(w, h, draw, repeat) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
-  t.anisotropy = 4; return t;
+  if (RETRO) { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.anisotropy = 1; } else t.anisotropy = 4;
+  return t;
 }
 
 // =====================================================================
@@ -5795,6 +5871,13 @@ $('tutNext').addEventListener('click', () => { if (tutI >= TUT.length - 1) endTu
 $('tutBack').addEventListener('click', () => { if (tutI > 0) { tutI--; renderTut(); } });
 $('tutSkip').addEventListener('click', endTutorial);
 $('bTut').addEventListener('click', () => openTutorial(0));
+// look switch: VHS / 90s console, or the clean cartoon look. Materials are made at load, so it reloads the page.
+$('bRetro').textContent = 'Look: ' + (RETRO ? 'VHS' : 'Clean');
+$('bRetro').addEventListener('click', () => { try { localStorage.setItem(SAVE_KEY + '-retro', RETRO ? '0' : '1'); } catch (e) { } persist(); location.reload(); });
+// the camcorder date in the corner
+{ const M = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const tick = () => { const d = new Date(), h = d.getHours(), p = h < 12 ? 'AM' : 'PM', hh = String(h % 12 || 12).padStart(2, ' '); $('osdStamp').textContent = p + ' ' + hh + ':' + String(d.getMinutes()).padStart(2, '0') + '\n' + M[d.getMonth()] + '. ' + String(d.getDate()).padStart(2, '0') + ' 1997'; $('osdPlay').style.visibility = d.getSeconds() % 2 || !playing ? 'visible' : 'hidden'; };
+  if (RETRO) { tick(); setInterval(tick, 1000); } }
 
 // =====================================================================
 // underground street races: meets around the map, NPC crews and player challenges
@@ -6369,7 +6452,7 @@ function frame(now) {
   updateCamera(dt);
   if (playing) { updateHud(now); drawMinimap(); sendPresence(now); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
-  renderer.render(scene, camera);
+  present();
 }
 
 // intro camera: slow orbit until play starts
@@ -6384,7 +6467,7 @@ requestAnimationFrame(function introLoop(now) {
   for (const cl of clouds) { cl.position.x += cl.userData.v / 60; if (cl.position.x > 1700) cl.position.x = -1700; }
   animateCar(playerModel, 0, 0, 0, 0, false, false, 1 / 60, player);
   playerModel.root.position.set(player.x, player.y, player.z);
-  renderer.render(scene, camera);
+  present();
 });
 
 renderMoney(); renderXp();
