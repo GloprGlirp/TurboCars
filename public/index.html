@@ -1318,8 +1318,11 @@ for (let x = 700; x <= 1300; x += 100) makeRoad('st', [[x, -400], [x, 0], [x, 40
 for (let z = -400; z <= 400; z += 100) makeRoad('av', [[700, z], [1000, z], [1300, z]], 14, { kind: 'city', flat: 0.45 });
 
 // fine mask of road surface for "am I on tarmac" checks (2-unit cells)
+const ROAD_LIFT = 0.12;   // the road ribbons are drawn this far above the flattened ground under them
 const RM_CELL = 2, RM_N = 1600, RMASK = new Uint8Array(RM_N * RM_N);
-function roadAt(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) / RM_CELL) | 0; return ix >= 0 && iz >= 0 && ix < RM_N && iz < RM_N && RMASK[iz * RM_N + ix] === 1; }
+function roadAt(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) / RM_CELL) | 0; return ix >= 0 && iz >= 0 && ix < RM_N && iz < RM_N && RMASK[iz * RM_N + ix] > 0; }
+// cells well inside a road ribbon (not the soft verge around it): these get the ribbon's lift
+function onRibbon(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) / RM_CELL) | 0; return ix >= 0 && iz >= 0 && ix < RM_N && iz < RM_N && RMASK[iz * RM_N + ix] === 2; }
 {
   const RD = new Float32Array(GN * GN).fill(1e9), RH = new Float32Array(GN * GN), RW = new Float32Array(GN * GN);
   for (const road of MAIN_ROADS) {
@@ -1337,7 +1340,7 @@ function roadAt(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) 
       const mx = ((q.x - WMIN) / RM_CELL) | 0, mz = ((q.z - WMIN) / RM_CELL) | 0;
       for (let iz = mz - mr; iz <= mz + mr; iz++) for (let ix = mx - mr; ix <= mx + mr; ix++) {
         if (ix < 0 || iz < 0 || ix >= RM_N || iz >= RM_N) continue;
-        if (Math.hypot(WMIN + (ix + 0.5) * RM_CELL - q.x, WMIN + (iz + 0.5) * RM_CELL - q.z) <= hw + 1) RMASK[iz * RM_N + ix] = 1;
+        { const d = Math.hypot(WMIN + (ix + 0.5) * RM_CELL - q.x, WMIN + (iz + 0.5) * RM_CELL - q.z), j = iz * RM_N + ix; if (d <= hw + 0.2) RMASK[j] = 2; else if (d <= hw + 1 && !RMASK[j]) RMASK[j] = 1; }
       }
     }
   }
@@ -1457,7 +1460,7 @@ function mainRibbon(road, lift) {
   g.setIndex(idx); g.computeVertexNormals();
   const m = new THREE.Mesh(g, mainRoadMat); m.receiveShadow = true; scene.add(m);
 }
-MAIN_ROADS.forEach(r => mainRibbon(r, r.name === 'av' ? 0.14 : 0.12));
+MAIN_ROADS.forEach(r => mainRibbon(r, r.name === 'av' ? ROAD_LIFT + 0.02 : ROAD_LIFT));
 // guard rails along the mountain pass
 {
   const pos = [], idx = [], pts = NORTH.pts, off = NORTH.w / 2 + 0.9;
@@ -1588,6 +1591,12 @@ addRamp(120, 95, 0.9, 8, 14, 4.2);
 
 function surfaceHeight(x, z) {
   let h = gridH(x, z);
+  if (onRibbon(x, z)) h += ROAD_LIFT;
+  else if (h < 0.2 && x * x + z * z < 395 * 395) {
+    // the island race track sits 6 cm up, the plaza spokes 3 cm
+    const r = Math.hypot(x, z), a = ((Math.atan2(z, x) % TAU) + TAU) % TAU;
+    if (Math.abs(r - trackR(a)) < ROAD_W / 2 + 1.6) h += 0.06; else if (onSpoke(x, z)) h += 0.03;
+  }
   for (let k = 0; k < ramps.length; k++) {
     const r = ramps[k]; const dx = x - r.x, dz = z - r.z;
     const s = Math.sin(r.yaw), c = Math.cos(r.yaw);
@@ -2530,13 +2539,14 @@ function sleekGeo(id, S, wheels) {
     const out = { body: warpX(extrudeX(pts, S.W, 0.24, 0.1, 3), (y, z) => pf(z) * vf(y)), top, surf, zF, zR, rn, rt, arches, pf, vf, kf: () => 1 };
     if (S.cabin !== 'none') {
       const base = S.sh - 0.1;
-      const cab = roundPoly([[S.hoodZ, base], [S.roofF, S.roof], [S.roofR, S.roof], [S.deckZ, base]], [0, 0.32, 0.3, 0], 5);
+      const cr = S.look === 'classic' ? [0.32, 0.3] : S.cabin === 'canopy' ? [0.14, 0.12] : [0.06, 0.06];
+      const cab = roundPoly([[S.hoodZ, base], [S.roofF, S.roof], [S.roofR, S.roof], [S.deckZ, base]], [0, cr[0], cr[1], 0], 5);
       out.cabPts = cab; out.cabTop = z => ylook(cab, z);
       // tumblehome: the glasshouse leans in towards the roof
       const TH = S.cabin === 'van' ? 0.04 : S.cabin === 'canopy' ? 0.1 : sport ? 0.15 : 0.1;
       const kf = y => 1 - TH * clamp((y - base) / (S.roof - base), 0, 1), cw = (y, z) => kf(y) * pf(z);
       out.kf = kf; out.cw = cw;
-      out.cab = warpX(extrudeX(cab, S.cabW, 0.18, 0.1, 3), cw);
+      out.cab = warpX(sport ? extrudeX(cab, S.cabW, 0.07, 0.04, 2) : extrudeX(cab, S.cabW, 0.18, 0.1, 3), cw);
       const tp = cab.filter(p => p[1] >= S.roof - 0.17);
       out.slab = warpX(extrudeX(tp.map(p => [p[0], p[1] + 0.035]).concat(tp.slice().reverse().map(p => [p[0], p[1] - 0.1])), S.cabW + 0.06, 0.1, 0.03, 2), cw);
       // side windows, split by a B-pillar when the cabin is long enough
@@ -2818,6 +2828,8 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   let def = BODY_DEF[bodyId] || BODY_DEF.bubble;
   const root = new THREE.Group();
   const tilt = new THREE.Group(); root.add(tilt);
+  // wheels live outside the body group: they follow the slope but not the body roll, so they never dig into the road
+  const wheelsG = new THREE.Group(); root.add(wheelsG);
   const P = toon(new THREE.Color(paintHex).getHex());
   const GLASS = toon(0x9be7ff), DARK = toon(0x2b2d42), GREY = toon(0xcfcbe0), LIGHT = toon(0xfff3b0, { emissive: 0xfff0b8 }), TAIL = toon(0xff4f5e, { emissive: 0xff2030 });
   const add = (g, m, x, y, z, ol) => { const mesh = new THREE.Mesh(g, m); mesh.position.set(x, y, z); mesh.castShadow = true; if (ol) outline(mesh, ol); tilt.add(mesh); return mesh; };
@@ -2839,7 +2851,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   const W = WHEEL[tune.w] || WHEEL.stock, I = IND[tune.i] || IND.na, A = INTAKE[tune.a] || INTAKE.stock, E = ENGINE[tune.e] || ENGINE.i4;
   for (const [x, z, r0, w0, front] of def.wheels) {
     const r = r0 + (W.dr || 0), w = w0 * (W.dw || 1);
-    const holder = new THREE.Group(); holder.position.set(x, r, z); holder.userData.wheel = true; tilt.add(holder);
+    const holder = new THREE.Group(); holder.position.set(x, r, z); holder.userData.wheel = true; wheelsG.add(holder);
     if (STANCE[stance] && STANCE[stance].camber) holder.rotation.z = Math.sign(x) * STANCE[stance].camber;
     const wh = new THREE.Mesh(tyre(r, w, !LITE), DARK); wh.rotation.z = Math.PI / 2; wh.castShadow = true; outline(wh, 1.08); holder.add(wh);
     addRim(wh, W, r, w, LITE);
@@ -2875,7 +2887,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   const len = SP ? SP.L : 4, wid = SP ? SP.W : 2.2;
   if (BEAMS) { const bm = new THREE.Mesh(geo('beamG', () => new THREE.PlaneGeometry(5, 16)), beamMat); bm.rotation.x = -Math.PI / 2; bm.position.set(0, 0.09, len / 2 + 8); root.add(bm); }
   if (neon && NEON[neon] && NEON[neon].hex) addUnderglow(root, NEON[neon].hex, len, wid);
-  return { root, tilt, wheels, steer, flames, def, spec: SP, bfs, bfT: 0 };
+  return { root, tilt, wheelsG, wheels, steer, flames, def, spec: SP, bfs, bfT: 0 };
 }
 
 function newCarState(x, z, yaw) {
@@ -6205,9 +6217,13 @@ function animateCar(m, fs, ls, steer, pitch, boost, drift, dt, st) {
   st.visRoll = lerp(st.visRoll || 0, clamp(ls * 0.012 + steer * fs * -0.0015, -0.18, 0.18), 1 - Math.exp(-8 * dt));
   m.tilt.rotation.x = st.visPitch; m.tilt.rotation.z = st.visRoll;
   if (st.squash > 0) { st.squash = Math.max(0, st.squash - dt * 3); }
-  const sq = (st.squash || 0) * 0.25;
-  m.tilt.scale.set(1 + sq * 0.5, 1 - sq, 1 + sq * 0.3);
-  if (st.bump > 0) { st.bump -= dt; m.tilt.position.y = Math.abs(Math.sin(st.bump * 40)) * 0.25; } else m.tilt.position.y = 0;
+  const sq = (st.squash || 0) * 0.12;
+  m.tilt.scale.set(1 + sq * 0.3, 1 - sq, 1 + sq * 0.2);
+  let by = 0; if (st.bump > 0) { st.bump -= dt; by = Math.abs(Math.sin(st.bump * 40)) * 0.25; }
+  // the body leans about a point 0.55 m up (roughly the axle line), not about the ground, so its low side stays clear of the road
+  const ph = 0.55, rr = st.visRoll;
+  m.tilt.position.set(ph * Math.sin(rr), by + ph * (1 - Math.cos(rr)), 0);
+  if (m.wheelsG) { m.wheelsG.rotation.x = st.visPitch; m.wheelsG.position.y = by; }
   for (const f of m.flames) { f.visible = !!boost; if (boost) { const s = 0.8 + Math.random() * 0.5; f.scale.set(1, s, 1); } }
   if (m.bfs) { const on = m.bfT > 0; if (on) m.bfT -= dt; for (const f of m.bfs) { f.visible = on; if (on) { const k = 0.6 + Math.random() * 0.9; f.scale.set(k, 0.7 + Math.random(), k); } } }
 }
