@@ -9,7 +9,7 @@
 <title>Pebble Isle Rally</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&family=VT323&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
 <style>
 /* Layout: full-bleed 3D canvas, sticker-style HUD pinned to the corners, modal cards for garage / race / records. */
 :root {
@@ -61,13 +61,11 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 #game canvas { filter: saturate(1.15) contrast(1.06); }
 #grain { position: fixed; inset: -60px; pointer-events: none; opacity: .14; mix-blend-mode: overlay; background-size: 220px 220px; animation: grain .45s steps(5) infinite; }
 @keyframes grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-31px, 17px); } 40% { transform: translate(23px, -29px); } 60% { transform: translate(-13px, 37px); } 80% { transform: translate(41px, 9px); } 100% { transform: translate(-7px, -21px); } }
-#osd { position: fixed; inset: 0; pointer-events: none; font-family: 'VT323', ui-monospace, monospace; color: #f4f2fa; text-shadow: 2px 0 rgba(255,40,80,.55), -2px 0 rgba(40,200,255,.55); }
-#osd .play { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); font-size: 1.9rem; letter-spacing: .08em; }
-#osd .stamp { white-space: pre; line-height: 1; position: absolute; left: 18px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); font-size: 1.6rem; letter-spacing: .06em; }
-body:not(.retro) #osd { display: none; }
-body.retro #vhs { background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(4,2,20,.6) 100%); }
-body.retro #game canvas { filter: none; }
-@media (max-width: 700px) { #osd .stamp { display: none; } }
+#wxFlash { position: fixed; inset: 0; pointer-events: none; background: #c8ccff; opacity: 0; mix-blend-mode: screen; }
+#meetHud { position: absolute; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); padding: 6px 14px; font-weight: 800; font-size: .9rem; text-align: center; max-width: min(560px, calc(100vw - 32px)); background: #ffe0f1; }
+#meetHud b { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; }
+#dynoCanvas { width: 100%; height: auto; border: 3px solid var(--ink); border-radius: 12px; display: block; background: #120e24; }
+.temp i { background: #3fa7ff !important; } .temp.hot i { background: #ff4f5e !important; }
 #vhs { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(4,2,20,.55) 100%), repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 1px, rgba(0,0,0,0) 1px 3px); }
 @media (prefers-reduced-motion: reduce) { #grain { animation: none; } }
 #streetInvite { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 12px 16px; width: min(380px, calc(100vw - 32px)); font-weight: 800; background: #ffe0f1; }
@@ -330,7 +328,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
 </style>
 
 <div id="game"></div>
-<div id="grain" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div><div id="osd" aria-hidden="true"><div class="play" id="osdPlay">PLAY ▶</div><div class="stamp" id="osdStamp"></div></div>
+<div id="grain" aria-hidden="true"></div><div id="wxFlash" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
 <div id="sirenGlow"></div>
 
 <div id="hud" hidden>
@@ -354,7 +352,6 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
         <button class="mbtn" id="bMute" type="button">Sound on</button>
         <button class="mbtn" id="bGearbox" type="button">Gearbox: auto</button>
         <button class="mbtn" id="bWardrobe" type="button">Wardrobe<kbd>V</kbd></button>
-        <button class="mbtn" id="bRetro" type="button">Look: VHS</button>
         <button class="mbtn" id="bTut" type="button">Tutorial</button>
       </div>
     </div>
@@ -390,9 +387,11 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="num" id="spd">0</div><div class="unit"><span id="gearTxt">N</span> · KM/H</div>
     <div class="nitro"><i id="nitroFill"></i></div><div class="nitro-l">NITRO</div>
     <div class="nitro-l" id="oweTxt" style="color:#ff4f5e" hidden></div>
+    <div class="fuelrow"><span class="nitro-l" style="margin:0" id="tempLbl">TEMP</span><div class="fuel temp" id="tempBar"><i id="tempFill"></i></div></div>
     <div class="fuelrow"><span class="cbadge" id="hudClass">150</span><span class="nitro-l" style="margin:0">FUEL</span><div class="fuel" id="fuelBar"><i id="fuelFill"></i></div></div>
   </div>
   <div id="prompt" class="sticker" hidden></div>
+  <div id="meetHud" class="sticker" hidden></div>
   <button id="raceInvite" class="sticker" type="button" hidden></button>
   <div id="lobby" class="sticker" hidden>
     <h3 id="lobbyTitle">Race lobby</h3>
@@ -454,11 +453,13 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <p class="lede">Build a collection. Every car keeps its own upgrades, engine bay parts, wheels and paint.</p>
     <div class="label" id="carLabel">Your car</div>
     <div class="carinfo" id="carInfo"></div>
+    <div class="carinfo" id="carCare"></div>
     <div class="stats" id="statBars"></div>
     <div class="tabs" role="tablist" id="gTabs">
       <button class="tab" type="button" role="tab" data-tab="perf">Performance</button>
       <button class="tab" type="button" role="tab" data-tab="engine">Engine bay</button>
       <button class="tab" type="button" role="tab" data-tab="wheels">Wheels</button>
+      <button class="tab" type="button" role="tab" data-tab="body">Body</button>
       <button class="tab" type="button" role="tab" data-tab="look">Paint</button>
       <button class="tab" type="button" role="tab" data-tab="mine">My cars</button>
       <button class="tab" type="button" role="tab" data-tab="cars">Dealership</button>
@@ -474,6 +475,24 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="opts" id="indList"></div>
       <div class="label">Air intake</div>
       <div class="opts" id="intakeList"></div>
+      <div class="label">Cooling: slows heat build-up</div>
+      <div class="opts" id="coolList"></div>
+      <div class="label">Engine internals: stronger engine, less wear and fewer blow-ups</div>
+      <div class="opts" id="pistList"></div>
+      <div class="label">Spark plugs</div>
+      <div class="opts" id="plugList"></div>
+      <div class="label">Gearing</div>
+      <div class="opts" id="gearList"></div>
+      <div class="label">Weight reduction</div>
+      <div class="opts" id="weightList"></div>
+    </div>
+    <div data-pane="body" hidden>
+      <div class="label">Body kit</div>
+      <div class="opts" id="kitList"></div>
+      <div class="label">Wing</div>
+      <div class="opts" id="wingList"></div>
+      <div class="label">Window stickers</div>
+      <div class="opts" id="stkList"></div>
     </div>
     <div data-pane="wheels" hidden>
       <div class="label">Wheels and tyres</div>
@@ -518,6 +537,24 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <h2>Wardrobe</h2>
     <p class="lede">Streetwear for when you get out of the car. Buy a piece once, wear it whenever, recolour it for free. Everyone online sees your fit.</p>
     <div class="fitwrap"><canvas id="fitCanvas"></canvas><div class="fitside"><div class="tabs" id="fitTabs"></div><div id="fitList"></div></div></div>
+  </div>
+</div>
+<div id="dynoPanel" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseDyno" type="button">Close</button>
+    <h2>Dyno</h2>
+    <p class="lede" id="dynoLede"></p>
+    <canvas id="dynoCanvas" width="560" height="300"></canvas>
+    <p class="hint" id="dynoPeak"></p>
+    <div class="row"><button class="btn small" id="bDynoAgain" type="button">Run again</button></div>
+  </div>
+</div>
+<div id="usedPanel" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseUsed" type="button">Close</button>
+    <h2>Shiro's Used Cars</h2>
+    <p class="lede" id="usedLede"></p>
+    <div class="mlist" id="usedList"></div>
   </div>
 </div>
 <div id="fuelPanel" class="overlay" hidden>
@@ -772,6 +809,10 @@ const BODIES = [
   { id: 'shogun', name: 'Shogun MR', cls: 'Barn find · midship wedge', cost: 24000, find: 1, s: { top: 1.46, accel: 1.44, grip: 1.38, turn: 1.12, drift: 0.96 } },
   { id: 'tanuki', name: 'Tanuki Kei-R', cls: 'Barn find · kei rocket', cost: 9000, find: 1, s: { top: 1.18, accel: 1.46, grip: 1.3, turn: 1.42, drift: 1.1, drive: 'fwd' } },
 ];
+// visual tuning: body kits, wings and window stickers (original designs)
+const KITS = [{ id: 'stock', name: 'Factory body', cost: 0 }, { id: 'street', name: 'Street kit: lip, skirts, rear spats', cost: 900 }, { id: 'wide', name: 'Wide body: bolt-on fender flares', cost: 2400 }];
+const WINGS = [{ id: 'none', name: 'No added wing', cost: 0 }, { id: 'duck', name: 'Ducktail spoiler', cost: 300 }, { id: 'gt', name: 'GT wing', cost: 750 }, { id: 'big', name: 'Big swan-neck wing', cost: 1300 }];
+const STICKERS = [{ id: 'none', name: 'No stickers', cost: 0 }, { id: 'banner', name: 'Windscreen banner', cost: 120 }, { id: 'hashiri', name: 'Hashiriya side decal', cost: 200 }, { id: 'num', name: 'Race number roundels', cost: 250 }, { id: 'kings', name: 'Neon Kings crew decal', cost: 0, crew: 'downtown' }, { id: 'devils', name: 'Dust Devils crew decal', cost: 0, crew: 'farm' }, { id: 'tengu', name: 'Tengu Club crew decal', cost: 0, crew: 'mountain' }];
 // kerb weight per car (kg): with acceleration this gives the power and power-to-weight shown in the garage
 const KG = { mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
 const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
@@ -854,13 +895,52 @@ const TYRES = [
 ];
 const TYRE = Object.fromEntries(TYRES.map(x => [x.id, x]));
 UNLOCK.y = { sport: 3, drift: 5, semi: 9, slick: 14 };
-const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE };
-const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', has: [] });
+// gearing and weight: speed against acceleration
+const GEARINGS = [
+  { id: 'stock', name: 'Stock gear ratios', brand: 'Stock', cost: 0, top: 1, acc: 1 },
+  { id: 'short', name: 'Short final drive', brand: 'Kagero Works', cost: 650, top: 0.94, acc: 1.08 },
+  { id: 'long', name: 'Long final drive', brand: 'Kagero Works', cost: 650, top: 1.06, acc: 0.94 },
+];
+const WEIGHTS = [
+  { id: 'stock', name: 'Full interior', brand: 'Stock', cost: 0, acc: 1, turn: 1, grip: 1, kg: 0 },
+  { id: 's1', name: 'Stage 1 weight reduction', brand: 'Featherline', cost: 600, acc: 1.03, turn: 1.02, grip: 1, kg: -60 },
+  { id: 's2', name: 'Stage 2 stripped shell', brand: 'Featherline', cost: 1500, acc: 1.07, turn: 1.04, grip: 0.98, kg: -140 },
+];
+// keeping the engine alive: cooling slows heat build-up, strength slows wear and stops blow-ups
+const COOLINGS = [
+  { id: 'stock', name: 'Stock radiator', brand: 'Stock', cost: 0, cool: 1, pow: 1 },
+  { id: 'rad', name: 'Aluminium radiator', brand: 'Frostline', cost: 450, cool: 1.25, pow: 1 },
+  { id: 'ic', name: 'Front-mount intercooler', brand: 'Frostline', cost: 700, cool: 1.2, pow: 1, boostPow: 1.04 },
+  { id: 'full', name: 'Race cooling package', brand: 'Frostline Racing', cost: 1600, cool: 1.55, pow: 1, boostPow: 1.04 },
+];
+const INTERNALS = [
+  { id: 'stock', name: 'Cast pistons', brand: 'Stock', cost: 0, str: 1, pow: 1 },
+  { id: 'pist', name: 'Forged pistons', brand: 'Ironcore', cost: 900, str: 1.35, pow: 1 },
+  { id: 'rods', name: 'Forged pistons and rods', brand: 'Ironcore', cost: 1600, str: 1.65, pow: 1.01 },
+  { id: 'built', name: 'Fully built bottom end', brand: 'Ironcore Race', cost: 2800, str: 2.0, pow: 1.02 },
+];
+const PLUGS = [
+  { id: 'stock', name: 'Stock spark plugs', brand: 'Stock', cost: 0, str: 1, cool: 1, pow: 1 },
+  { id: 'irid', name: 'Iridium spark plugs', brand: 'Sparkwell', cost: 180, str: 1.05, cool: 1, pow: 1.01 },
+  { id: 'cold', name: 'Colder racing plugs', brand: 'Sparkwell Racing', cost: 380, str: 1.1, cool: 1.05, pow: 1.02 },
+];
+const GEAR_BY = Object.fromEntries(GEARINGS.map(x => [x.id, x])), WEIGHT_BY = Object.fromEntries(WEIGHTS.map(x => [x.id, x]));
+const COOL_BY = Object.fromEntries(COOLINGS.map(x => [x.id, x])), INTERNAL_BY = Object.fromEntries(INTERNALS.map(x => [x.id, x])), PLUG_BY = Object.fromEntries(PLUGS.map(x => [x.id, x]));
+UNLOCK.g = { short: 4, long: 4 }; UNLOCK.k = { s1: 5, s2: 11 }; UNLOCK.c = { rad: 3, ic: 6, full: 12 }; UNLOCK.p = { pist: 6, rods: 10, built: 16 }; UNLOCK.z = { irid: 2, cold: 7 };
+const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE, g: GEAR_BY, k: WEIGHT_BY, c: COOL_BY, p: INTERNAL_BY, z: PLUG_BY };
+const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] });
+// how well this engine copes: cooling (heat) and strength (wear, blow-ups)
+function engineCare(car) {
+  const t = car.tune || DEFAULT_TUNE, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock, I = IND[t.i] || IND.na;
+  // boost makes heat; bigger turbos make more
+  const stress = 1 + (I.turbo || I.blower || I.id === 'c30' ? 0.25 + I.lag * 0.5 : 0) + ((ENGINE[t.e] || ENGINE.i4).acc - 1) * 1.5;
+  return { cool: C.cool * Z.cool, str: Pn.str * Z.str, stress };
+}
 const tuneKey = t => [t.e, t.i, t.a, t.w, t.y || 'street'].join('.');
 function parseTune(str) {
   const parts = typeof str === 'string' ? str.split('.') : [];
   const pick = (k, slot, def) => SLOT_MAP[slot][parts[k]] ? parts[k] : def;
-  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), has: [] };
+  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] };
 }
 const UP_COST = [150, 300, 550, 900, 1400];
 const MAX_LVL = 5;
@@ -876,17 +956,21 @@ const REWARD = [400, 250, 150, 80];
 function statsFor(car) {
   const b = (BODY[car.m] || BODY.bubble).s, up = car.up;
   const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
+  const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock;
+  // a worn engine loses power; past 30 % wear it gets noticeably weaker
+  const wearMul = 1 - Math.max(0, num(car.wear, 0) - 0.3) * 0.45;
+  const partPow = Pn.pow * Z.pow * ((I.turbo || I.blower || I.id === 'c30') && C.boostPow ? C.boostPow : 1);
   // fuel: 98 octane gives a little more, most of all to boosted engines; a tuned engine on 95 loses a bit
   const oct = clamp(num(car.oct, 95), 95, 98), boosted = I.turbo || I.blower || I.id === 'c30', ox = (oct - 95) / 3;
   const fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && oct < 96 ? 0.015 : 0);
   return {
-    top: (28 + 3.2 * up.engine) * b.top * E.top * I.top * A.top * (1 + (fuelMul - 1) * 0.5),
-    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul,
+    top: (28 + 3.2 * up.engine) * b.top * E.top * I.top * A.top * (1 + (fuelMul - 1) * 0.5) * G.top * (1 + (partPow - 1) * 0.5) * (1 + (wearMul - 1) * 0.5),
+    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul * G.acc * K.acc * partPow * wearMul,
     boostAcc: I.acc - 1, lag: I.lag, drive: b.drive || 'rwd',
     brake: 30,
     grip: 9,
-    latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip,
-    turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn,
+    latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip * K.grip,
+    turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn * K.turn,
     drift: b.drift * (1 + 0.06 * up.drift) * (E.drift || 1) * Y.drift,
     driftScore: b.drift * (1 + 0.12 * up.drift),
     nitroMax: 2 + 0.6 * up.nitro,
@@ -908,23 +992,27 @@ const className = k => CLASSES[k] === Infinity ? 'UNL' : String(CLASSES[k]);
 function carPI(car) { return perfIndex(statsFor(car)); }
 function carClass(car) { return classOf(carPI(car)); }
 // shown power and weight: power follows from acceleration and kerb weight
-function carPower(car) { const st = statsFor(car), kg = KG[car.m] || 1300; return { kg, hp: Math.round(st.accel * (1 + st.boostAcc * 0.6) * kg / 110) }; }
+function carPower(car) { const st = statsFor(car), kg = (KG[car.m] || 1300) + ((WEIGHT_BY[car.tune && car.tune.k] || WEIGHT_BY.stock).kg); return { kg, hp: Math.round(st.accel * (1 + st.boostAcc * 0.6) * kg / 110) }; }
 const STAT_MAX = { top: 44 * 1.34 * 1.21 * 1.14 * 1.04, accel: 30 * 1.3 * 1.2 * 1.16 * 1.06, latMax: 45 * 1.3 * 1.1, drift: 1.35 * 1.3 * 1.05, nitroMax: 5 };
 
 // ---------- save ----------
 const SAVE_KEY = 'pebble-isle-rally-save-v1';
 const GEAR_TQ = [1.45, 1.2, 1.02, 0.88, 0.77, 0.68];   // pull in each gear of the manual box
 const STARTER_UP = () => ({ engine: 0, accel: 0, grip: 0, drift: 0, nitro: 0, susp: 0 });
-function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', has: [] }, plate: '', fuel: 1, oct: 95 }; }
+function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] }, plate: '', fuel: 1, oct: 95, wear: 0, look: { kit: 'stock', wing: 'none', stk: 'none' }, lookOwn: [] }; }
 function sanitizeCar(o, keepId) {
   if (!o || typeof o !== 'object' || !BODY[o.m]) return null;
   const c = newCarObj(o.m, o.paint);
   if (keepId && typeof o.id === 'string' && /^c[a-z0-9]{2,24}$/.test(o.id)) c.id = o.id;
   if (o.up && typeof o.up === 'object') for (const u of UPGRADES) c.up[u.id] = clamp(Math.floor(num(o.up[u.id], 0)), 0, MAX_LVL);
   const t = o.tune && typeof o.tune === 'object' ? o.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawy]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpz]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
   const pick = (slot, def) => { const v = t[slot], m = SLOT_MAP[slot][v]; return m && (m.cost === 0 || has.includes(slot + ':' + v)) ? v : def; };
-  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), has };
+  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), has };
+  c.wear = clamp(num(o.wear, 0), 0, 1);
+  const lk = o.look && typeof o.look === 'object' ? o.look : {};
+  c.look = { kit: KITS.some(x => x.id === lk.kit) ? lk.kit : 'stock', wing: WINGS.some(x => x.id === lk.wing) ? lk.wing : 'none', stk: STICKERS.some(x => x.id === lk.stk) ? lk.stk : 'none' };
+  c.lookOwn = Array.isArray(o.lookOwn) ? o.lookOwn.filter(x => typeof x === 'string' && /^[a-z]{2,5}:[a-z0-9]{1,10}$/.test(x)).slice(0, 40) : [];
   const pl = cleanPlate(o.plate); c.plate = pl && !nameIsBad(pl) ? pl : '';
   c.fuel = clamp(num(o.fuel, 1), 0, 1); c.oct = clamp(num(o.oct, 95), 95, 98);
   c.neon = NEON[o.neon] ? o.neon : 'none';
@@ -957,7 +1045,7 @@ function fitDecode(str) {
   const it = (k, i) => (FIT[k][a[i]] || FIT[k][0]).id;
   return sanitizeFit({ top: it('top', 0), tc: a[1], print: it('print', 2), bottom: it('bottom', 3), bc: a[4], shoes: it('shoes', 5), sc: a[6], hat: it('hat', 7), hc: a[8], acc: FIT.acc.filter((x, k) => (a[9] || 0) & (1 << k)).map(x => x.id), skin: a[10], hair: a[11] });
 }
-function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0, finds: [], fit: sanitizeFit(null), fitOwn: [] }; }
+function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0, finds: [], fit: sanitizeFit(null), fitOwn: [], turf: { downtown: { w: 0, own: 0 }, farm: { w: 0, own: 0 }, mountain: { w: 0, own: 0 } }, meets: [], usedSold: null }; }
 function sanitizeSave(o) {
   const s = defaultSave(); if (!o || typeof o !== 'object') return s;
   s.money = clamp(Math.floor(num(o.money, s.money)), 0, MONEY_CAP);
@@ -998,6 +1086,9 @@ function sanitizeSave(o) {
   s.home = s.homes.includes(o.home) ? o.home : '';
   s.tut = o.tut ? 1 : 0;
   s.manual = o.manual ? 1 : 0;
+  if (o.turf && typeof o.turf === 'object') for (const k of ['downtown', 'farm', 'mountain']) { const t = o.turf[k]; if (t && typeof t === 'object') s.turf[k] = { w: clamp(Math.floor(num(t.w, 0)), 0, 3), own: t.own ? 1 : 0 }; }
+  s.meets = Array.isArray(o.meets) ? ['garage', 'roof', 'harbor'].filter(m => o.meets.includes(m)) : [];
+  s.usedSold = o.usedSold && typeof o.usedSold === 'object' && Number.isFinite(o.usedSold.p) && Array.isArray(o.usedSold.ids) ? { p: o.usedSold.p, ids: o.usedSold.ids.filter(x => typeof x === 'string').slice(0, 10) } : null;
   s.finds = Array.isArray(o.finds) ? BODIES.filter(b => b.find && o.finds.includes(b.id)).map(b => b.id) : [];
   s.fit = sanitizeFit(o.fit); s.fitOwn = Array.isArray(o.fitOwn) ? o.fitOwn.filter(x => typeof x === 'string' && /^[a-z]{1,6}:[a-z0-9]{1,10}$/.test(x)).slice(0, 80) : [];
   for (const k of FIT_SLOTS) { const it = FIT[k].find(x => x.id === s.fit[k]); if (it.cost && !s.fitOwn.includes(k + ':' + it.id)) s.fit[k] = FIT[k][0].id; }
@@ -1026,80 +1117,13 @@ function carSummary(c) {
 // renderer / scene
 // =====================================================================
 const host = $('game');
-// ---------- retro mode: 90s console look on a worn VHS tape ----------
-// low-res render, wobbly snapped vertices, per-vertex (Gouraud) lighting, no outlines, 15-bit colour with dither, tape noise
-let RETRO = true;
-try { RETRO = localStorage.getItem(SAVE_KEY + '-retro') !== '0'; } catch (e) { /* storage blocked */ }
-const RETRO_H = 240;
-if (RETRO) {
-  document.body.classList.add('retro');
-  THREE.ShaderChunk.project_vertex = THREE.ShaderChunk.project_vertex.replace('gl_Position = projectionMatrix * mvPosition;', `gl_Position = projectionMatrix * mvPosition;
-#if !defined( DEPTH_PACKING ) && !defined( DISTANCE )
-	if ( gl_Position.w > 0.0 ) { vec2 psxGrid = vec2( 160.0, 120.0 ); gl_Position.xy = floor( gl_Position.xy / gl_Position.w * psxGrid + 0.5 ) / psxGrid * gl_Position.w; }
-#endif`);
-  const Lambert = THREE.MeshLambertMaterial;
-  THREE.MeshToonMaterial = function (p) { p = Object.assign({}, p); delete p.gradientMap; return new Lambert(p); };
-}
-const renderer = new THREE.WebGLRenderer({ antialias: !RETRO, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const isTouch = matchMedia('(pointer: coarse)').matches;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
 renderer.setSize(host.clientWidth || innerWidth, host.clientHeight || innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = RETRO ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 host.appendChild(renderer.domElement);
-// the scene is drawn into a small target, then blown up with the tape effects on top
-const retroRT = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true });
-const retroU = { tDiffuse: { value: retroRT.texture }, res: { value: new THREE.Vector2(4, 4) }, time: { value: 0 }, outH: { value: 800 } };
-const retroScene = new THREE.Scene(), retroCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-retroScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
-  uniforms: retroU, depthTest: false, depthWrite: false,
-  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
-  fragmentShader: `    uniform sampler2D tDiffuse; uniform vec2 res; uniform float time; uniform float outH; varying vec2 vUv;
-    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-    float bayer4(vec2 p) {
-      vec2 q = mod(p, 4.0);
-      float a = mod(q.x, 2.0), b = mod(q.y, 2.0), c2 = floor(q.x / 2.0), d = floor(q.y / 2.0);
-      float inner = 2.0 * a * (1.0 - b) + 3.0 * a * b + 1.0 * (1.0 - a) * b;
-      float outer = 2.0 * c2 * (1.0 - d) + 3.0 * c2 * d + 1.0 * (1.0 - c2) * d;
-      return (4.0 * inner + outer) / 16.0;
-    }
-    void main() {
-      vec2 uv = vUv;
-      float line = floor(uv.y * res.y);
-      // tape wobble and a tracking band that rolls slowly up the screen
-      float bandY = fract(time * 0.045), band = smoothstep(0.035, 0.0, abs(uv.y - bandY));
-      uv.x += sin(line * 0.9 + time * 2.3) * 0.0007 + band * (hash(vec2(line, floor(time * 30.0))) - 0.5) * 0.02;
-      // colour bleed: red and blue smear sideways
-      float ca = 1.2 / res.x;
-      vec3 c = vec3(texture2D(tDiffuse, uv + vec2(ca, 0.0)).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - vec2(ca, 0.0)).b);
-      vec3 cl = texture2D(tDiffuse, uv - vec2(2.0 / res.x, 0.0)).rgb;
-      c = mix(c, (c + cl) * 0.5, 0.35);
-      // 15-bit colour with ordered dither, like the old consoles
-      vec2 px = floor(vUv * res);
-      c = floor(c * 31.0 + bayer4(px)) / 31.0;
-      // scanlines, band noise and a little snow
-      c *= 0.9 + 0.1 * sin(vUv.y * outH * 3.14159);
-      c += band * 0.12 * hash(vec2(floor(uv.x * res.x), line + time));
-      c += (hash(vUv * 900.0 + time) - 0.5) * 0.035;
-      gl_FragColor = vec4(c, 1.0);
-    }
-`,
-})));
-function retroResize() {
-  const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
-  const rh = RETRO_H, rw = Math.max(160, Math.round(rh * w / h));
-  retroRT.setSize(rw, rh); retroU.res.value.set(rw, rh); retroU.outH.value = h;
-}
-retroResize();
-// draw a frame: straight to the screen, or through the tape in retro mode
-function present() {
-  if (!RETRO) { renderer.render(scene, camera); return; }
-  renderer.setRenderTarget(retroRT);
-  renderer.render(scene, camera);
-  renderer.setRenderTarget(null);
-  retroU.time.value = performance.now() / 1000;
-  renderer.render(retroScene, retroCam);
-}
 
 const scene = new THREE.Scene();
 {
@@ -1109,7 +1133,7 @@ const scene = new THREE.Scene();
   g.fillStyle = gr; g.fillRect(0, 0, 4, 256);
   scene.background = new THREE.CanvasTexture(c);
 }
-scene.fog = RETRO ? new THREE.Fog(0x1a1438, 140, 900) : new THREE.Fog(0x1a1438, 260, 1500);
+scene.fog = new THREE.Fog(0x1a1438, 260, 1500);
 const camera = new THREE.PerspectiveCamera(62, (host.clientWidth || innerWidth) / (host.clientHeight || innerHeight), 0.5, 3200);
 camera.position.set(0, 30, -40);
 
@@ -1128,14 +1152,14 @@ const skyDome = new THREE.Group(); scene.add(skyDome);
   const n = 1400, pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, y = Math.abs(u) * 0.9 + 0.08, r = Math.sqrt(1 - y * y); pos[i * 3] = Math.cos(a) * r * 2600; pos[i * 3 + 1] = y * 2600; pos[i * 3 + 2] = Math.sin(a) * r * 2600; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  skyDome.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: RETRO ? 1.2 : 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 })));
+  skyDome.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.85 })));
   const moon = new THREE.Mesh(new THREE.CircleGeometry(70, 40), new THREE.MeshBasicMaterial({ color: 0xfff6dc, fog: false })); moon.position.set(-1300, 1500, -1700); moon.lookAt(0, 0, 0); skyDome.add(moon);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: canvasTex(128, 128, (c, w, h) => { const gr = c.createRadialGradient(64, 64, 10, 64, 64, 64); gr.addColorStop(0, 'rgba(255,240,210,.55)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h); }), transparent: true, depthWrite: false, fog: false }));
   halo.position.copy(moon.position).multiplyScalar(0.99); halo.scale.set(520, 520, 1); skyDome.add(halo);
 }
 addEventListener('resize', () => {
   const w = host.clientWidth || innerWidth, h = host.clientHeight || innerHeight;
-  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); retroResize();
+  renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
 });
 
 // ---------- toon materials ----------
@@ -1161,7 +1185,7 @@ const OUTLINE = new THREE.MeshBasicMaterial({ color: 0x1d1a2e, side: THREE.BackS
 const OUTLINE_I = new THREE.MeshBasicMaterial({ color: 0x1d1a2e, side: THREE.BackSide });
 const freshToon = c => new THREE.MeshToonMaterial({ color: c, gradientMap: gradTex });
 let LITE = false;   // traffic models skip outlines to keep draw calls down
-function outline(mesh, s) { if (LITE || RETRO) return mesh; const o = new THREE.Mesh(mesh.geometry, OUTLINE); o.scale.setScalar(s || 1.06); mesh.add(o); return mesh; }
+function outline(mesh, s) { if (LITE) return mesh; const o = new THREE.Mesh(mesh.geometry, OUTLINE); o.scale.setScalar(s || 1.06); mesh.add(o); return mesh; }
 const geoCache = new Map();
 function geo(key, make) { if (!geoCache.has(key)) geoCache.set(key, make()); return geoCache.get(key); }
 const box = (w, h, d) => geo('b' + w + ',' + h + ',' + d, () => new THREE.BoxGeometry(w, h, d));
@@ -1220,7 +1244,7 @@ function shellGeo(g, t) {
   return g.__shells[t];
 }
 function outlineShell(mesh, t) {
-  if (LITE || RETRO) return mesh;
+  if (LITE) return mesh;
   if (!mesh.geometry.__shellN) return outline(mesh, 1.05);
   mesh.add(new THREE.Mesh(shellGeo(mesh.geometry, t || 0.045), OUTLINE)); return mesh;
 }
@@ -1305,8 +1329,7 @@ function canvasTex(w, h, draw, repeat) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
-  if (RETRO) { t.magFilter = t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; t.anisotropy = 1; } else t.anisotropy = 4;
-  return t;
+  t.anisotropy = 4; return t;
 }
 
 // =====================================================================
@@ -1314,7 +1337,8 @@ function canvasTex(w, h, draw, repeat) {
 // =====================================================================
 const circles = [];   // {x,z,r,h}
 const boxes = [];     // {x0,z0,x1,z1,h}
-const ramps = [];     // {x,z,yaw,w,l,h}
+const ramps = [];     // {x,z,yaw,w,l,h,h0}
+let wetGrip = 1;      // drops a little when the roads are wet
 const boostPads = []; // {x,z,yaw}
 
 // --- track curve ---
@@ -1399,6 +1423,13 @@ const RM_CELL = 2, RM_N = 1600, RMASK = new Uint8Array(RM_N * RM_N);
 function roadAt(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) / RM_CELL) | 0; return ix >= 0 && iz >= 0 && ix < RM_N && iz < RM_N && RMASK[iz * RM_N + ix] > 0; }
 // cells well inside a road ribbon (not the soft verge around it): these get the ribbon's lift
 function onRibbon(x, z) { const ix = ((x - WMIN) / RM_CELL) | 0, iz = ((z - WMIN) / RM_CELL) | 0; return ix >= 0 && iz >= 0 && ix < RM_N && iz < RM_N && RMASK[iz * RM_N + ix] === 2; }
+// 0..1, blended between cells so the road lift fades in smoothly instead of stepping 12 cm (that step made cars shake)
+function ribbonF(x, z) {
+  const gx = (x - WMIN) / RM_CELL - 0.5, gz = (z - WMIN) / RM_CELL - 0.5, ix = Math.floor(gx), iz = Math.floor(gz), fx = gx - ix, fz = gz - iz;
+  if (ix < 0 || iz < 0 || ix >= RM_N - 1 || iz >= RM_N - 1) return 0;
+  const v = (a, b) => RMASK[b * RM_N + a] === 2 ? 1 : 0;
+  return lerp(lerp(v(ix, iz), v(ix + 1, iz), fx), lerp(v(ix, iz + 1), v(ix + 1, iz + 1), fx), fz);
+}
 {
   const RD = new Float32Array(GN * GN).fill(1e9), RH = new Float32Array(GN * GN), RW = new Float32Array(GN * GN);
   for (const road of MAIN_ROADS) {
@@ -1665,20 +1696,25 @@ addRamp(0, 150, 0, 8, 12, 3.2);
 addRamp(0, -150, Math.PI, 8, 12, 3.2);
 addRamp(120, 95, 0.9, 8, 14, 4.2);
 
-function surfaceHeight(x, z) {
+// flat decks (parking garage levels): only count when you are already up near them, so you can drive underneath
+const DECKS = [];   // {x0,z0,x1,z1,h}
+function surfaceHeight(x, z, y) {
   let h = gridH(x, z);
-  if (onRibbon(x, z)) h += ROAD_LIFT;
+  const rf = ribbonF(x, z);
+  if (rf > 0) h += ROAD_LIFT * rf;
   else if (h < 0.2 && x * x + z * z < 395 * 395) {
-    // the island race track sits 6 cm up, the plaza spokes 3 cm
+    // the island race track sits 6 cm up, the plaza spokes 3 cm (faded in at the edges)
     const r = Math.hypot(x, z), a = ((Math.atan2(z, x) % TAU) + TAU) % TAU;
-    if (Math.abs(r - trackR(a)) < ROAD_W / 2 + 1.6) h += 0.06; else if (onSpoke(x, z)) h += 0.03;
+    const e = Math.abs(r - trackR(a)) - ROAD_W / 2 - 1.6;
+    if (e < 1) h += 0.06 * clamp(1 - e, 0, 1); else if (onSpoke(x, z)) h += 0.03;
   }
   for (let k = 0; k < ramps.length; k++) {
     const r = ramps[k]; const dx = x - r.x, dz = z - r.z;
     const s = Math.sin(r.yaw), c = Math.cos(r.yaw);
     const lz = dx * s + dz * c, lx = dx * c - dz * s;
-    if (Math.abs(lx) < r.w / 2 && Math.abs(lz) < r.l / 2) { const hh = r.h * (lz + r.l / 2) / r.l; if (hh > h) h = hh; }
+    if (Math.abs(lx) < r.w / 2 && Math.abs(lz) < r.l / 2) { const h0 = r.h0 || 0, hh = h0 + (r.h - h0) * (lz + r.l / 2) / r.l; if (hh > h && (r.h0 == null || y == null || y > h0 - 1.5)) h = hh; }
   }
+  if (y != null) for (let k = 0; k < DECKS.length; k++) { const d = DECKS[k]; if (x > d.x0 && x < d.x1 && z > d.z0 && z < d.z1 && y > d.h - 1.6 && d.h > h) h = d.h; }
   return h;
 }
 
@@ -1744,7 +1780,7 @@ const RESERVED = [];   // {x,z,r}: random trees, rocks and houses keep out
 const SITES = {};      // id -> {x, z, yaw, y}
 const snapYaw = a => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
 // city blocks are 100 m squares between the streets; a site takes a whole block
-const CITY_SITES = { gas1: [1150, -250, 0], dealer: [750, 50, Math.PI], taxi: [850, -150, Math.PI], chop: [1250, 350, Math.PI / 2], loft: [950, 150, 0] };
+const CITY_SITES = { garage: [1050, -350, 0], usedlot: [1150, 150, 0], gas1: [1150, -250, 0], dealer: [750, 50, Math.PI], taxi: [850, -150, Math.PI], chop: [1250, 350, Math.PI / 2], loft: [950, 150, 0] };
 for (const [id, [x, z, yaw]] of Object.entries(CITY_SITES)) SITES[id] = { x, z, yaw, y: gridH(x, z) };
 const citySite = (cx, cz) => Object.values(CITY_SITES).some(s => Math.abs(s[0] - cx) < 10 && Math.abs(s[1] - cz) < 10);
 // on the island: search outward from a preferred spot for open ground, facing the plaza
@@ -2321,11 +2357,12 @@ const lampSpots = [];
     dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.position.set(s.lx, surfaceHeight(s.lx, s.lz) + 0.1, s.lz); dummy.updateMatrix(); pools.setMatrixAt(k, dummy.matrix);
   });
   poles.castShadow = true; scene.add(poles, heads, pools);
+  lampSpots.inst = { poles, heads, pools };
 }
 // neon signs with Japanese lettering for the city
 const NEON_TEXT = ['ラーメン', 'カラオケ', '居酒屋', 'ホテル', '寿司', '焼肉', '駐車場', '喫茶', 'ゲーム', '電器', '24時間', 'ネオン', 'ドリフト', 'ターボ'];
 const NEON_COL = ['#ff3fa4', '#3ff4ff', '#ffe43f', '#7dff5a', '#b86bff', '#ff7b3f'];
-const neonMats = [];
+const neonMats = [], NEON_SPOTS = [], NEON_COLS = ['#ff3fa4', '#3ff4ff', '#ffe43f', '#7dff5a', '#ff7b3f', '#b86bff'];
 for (let k = 0; k < 12; k++) {
   const txt = NEON_TEXT[k % NEON_TEXT.length], col = NEON_COL[k % NEON_COL.length];
   const tex = canvasTex(64, 256, (c, w, h) => {
@@ -2349,6 +2386,7 @@ for (const b of CITY_BLD) {
   if (rr < 0.7) {
     const sign = new THREE.Mesh(geo('neonG', () => new THREE.PlaneGeometry(2.4, 9.6)), neonMats[Math.floor(rr * 1000) % neonMats.length]);
     sign.position.set(b.x + sx * (b.w / 2 + 0.7), b.y0 + 8 + rr * 10, b.z + (rr - 0.35) * (b.d - 6)); sign.rotation.y = Math.PI / 2; scene.add(sign);
+    NEON_SPOTS.push({ x: sign.position.x + sx * 2.5, z: sign.position.z, col: NEON_COLS[Math.floor(rr * 1000) % NEON_COLS.length] });
   }
   if (rr > 0.45 && b.h > 30) {
     const bd = new THREE.Mesh(geo('boardG', () => new THREE.PlaneGeometry(16, 4)), boardMats[Math.floor(rr * 997) % boardMats.length]);
@@ -2414,11 +2452,13 @@ function ledStep(dt, x, z) {
 // --- collider lookup grid ---
 const HCELL = 48, circHash = new Map(), boxHash = new Map(), NOLIST = [];
 const hk = (ix, iz) => (ix + 100) * 1000 + (iz + 100);
-{
+function indexColliders() {
+  circHash.clear(); boxHash.clear();
   const add = (map, o, x0, z0, x1, z1) => { for (let ix = Math.floor(x0 / HCELL); ix <= Math.floor(x1 / HCELL); ix++) for (let iz = Math.floor(z0 / HCELL); iz <= Math.floor(z1 / HCELL); iz++) { const k = hk(ix, iz); let l = map.get(k); if (!l) map.set(k, l = []); l.push(o); } };
   for (const o of circles) add(circHash, o, o.x - o.r - 3, o.z - o.r - 3, o.x + o.r + 3, o.z + o.r + 3);
   for (const b of boxes) add(boxHash, b, b.x0 - 3, b.z0 - 3, b.x1 + 3, b.z1 + 3);
 }
+indexColliders();
 
 // --- clouds ---
 const clouds = [];
@@ -2692,6 +2732,22 @@ function plateMat(text) {
     c.font = '48px "Lilita One", "Arial Black", sans-serif'; c.fillText(text, w / 2, 66, w - 26);
   }) }));
 }
+const lookCode = l => l ? [l.kit, l.wing, l.stk].join('.') : '';
+function lookDecode(str) { const a = String(str || '').split('.'); return { kit: KITS.some(x => x.id === a[0]) ? a[0] : 'stock', wing: WINGS.some(x => x.id === a[1]) ? a[1] : 'none', stk: STICKERS.some(x => x.id === a[2]) ? a[2] : 'none' }; }
+function stickerTex(id) {
+  return canvasTex(256, 172, (c, w, h) => {
+    c.clearRect(0, 0, w, h); c.textAlign = 'center'; c.textBaseline = 'middle';
+    const F = sz => sz + 'px "Lilita One", "Arial Black", sans-serif';
+    if (id === 'banner') { c.fillStyle = '#1d1a2e'; c.fillRect(0, 40, w, 90); c.fillStyle = '#ff7ac8'; c.font = F(56); c.fillText('PEBBLE ISLE', w / 2, 88, w - 16); }
+    else if (id === 'hashiri') { c.fillStyle = '#f4f2fa'; c.font = 'bold 78px "Hiragino Sans", "Noto Sans JP", sans-serif'; c.fillText('走り屋', w / 2, 70); c.font = F(30); c.fillText('HASHIRIYA', w / 2, 138); }
+    else if (id === 'num') { c.fillStyle = '#f4f2fa'; c.beginPath(); c.arc(w / 2, h / 2, 78, 0, TAU); c.fill(); c.fillStyle = '#1d1a2e'; c.font = F(96); c.fillText('77', w / 2, h / 2 + 6); }
+    else {
+      const crew = { kings: ['NEON KINGS', '#ff3fa4'], devils: ['DUST DEVILS', '#ff9a3c'], tengu: ['TENGU CLUB', '#3ddc97'] }[id] || ['CREW', '#fff'];
+      c.fillStyle = '#1d1a2e'; roundRect(c, 8, 26, w - 16, 120, 22); c.fill(); c.strokeStyle = crew[1]; c.lineWidth = 7; roundRect(c, 14, 32, w - 28, 108, 18); c.stroke();
+      c.fillStyle = crew[1]; c.font = F(46); c.fillText(crew[0], w / 2, 88, w - 40);
+    }
+  });
+}
 function buildSleek(bodyId, S, def, add, M) {
   const K = sleekGeo(bodyId, S, def.wheels), has = k => (S.x || []).includes(k);
   const { P, GLASS, DARK, GREY, LIGHT, TAIL } = M, WHITE = toon(0xffffff), TINT = toon(0x23263f);
@@ -2889,6 +2945,34 @@ function buildSleek(bodyId, S, def, add, M) {
   if (has('roofscoop')) addS(rbox(0.5, 0.1, 0.32, 0.05), P, 0, S.roof + 0.05, S.roofF - 0.25, 0.015);
   if (has('mudflaps')) for (const [x, z, r0, w0] of def.wheels) add(rbox(w0 * 0.9, 0.24, 0.025, 0.01), toon(0x16161f), x, 0.2, z - r0 - 0.12, 0);
   if (has('rails')) for (const s of [-0.68, 0.68]) { addS(rbox(0.07, 0.07, (S.roofF - S.roofR) * 0.85, 0.03), DARK, s, S.roof + 0.09, (S.roofF + S.roofR) / 2, 0.015); for (const z of [S.roofF - 0.2, S.roofR + 0.2]) add(rbox(0.08, 0.1, 0.12, 0.03), DARK, s, S.roof + 0.03, z, 0); }
+  // ---- visual tuning chosen in the garage: body kit, wing, stickers ----
+  const LK = M.look || {};
+  if (real && LK.kit && LK.kit !== 'stock') {
+    // painted lip, deeper side skirts and rear spats
+    addS(rbox(S.W * pz - 0.06, 0.07, 0.4, 0.03), P, 0, S.gc + 0.0, K.zF - 0.16, 0.015);
+    if (K.arches.length >= 2) { const zr = K.arches[0][0] + K.arches[0][2] + 0.02, zf = K.arches[K.arches.length - 1][0] - K.arches[K.arches.length - 1][2] - 0.02; if (zf - zr > 0.6) for (const sd of [-1, 1]) addS(rbox(0.12, 0.16, zf - zr, 0.05), P, sd * (S.W / 2 * K.vf(S.gc + 0.08) + 0.02), S.gc + 0.07, (zf + zr) / 2, 0.015); }
+    for (const sd of [-1, 1]) addS(rbox(0.36, 0.12, 0.3, 0.04), P, sd * (S.W / 2 * K.pf(K.zR + 0.2) - 0.25), S.gc + 0.04, K.zR + 0.18, 0.015);
+    if (LK.kit === 'wide' && !S.flares) for (const [x, z, r0, w0] of def.wheels) {
+      const fg = geo('flare' + r0 + ',' + w0, () => { const F = [], ro = r0 + 0.24, ri = r0 + 0.07; for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ro, Math.sin(a) * ro]); } for (let k = 10; k >= 0; k--) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ri, Math.sin(a) * ri]); } return extrudeX(F, w0 + 0.16, 0.08, 0.04, 2); });
+      addS(fg, P, x, r0, z, 0.03);
+    }
+    if (LK.kit === 'wide') for (const [x, z, r0] of def.wheels) for (let k = 0; k < 5; k++) { const a = 0.35 + k * 0.6; add(geo('boltG', () => new THREE.SphereGeometry(0.025, 6, 4)), GREY, x + Math.sign(x) * 0.09, r0 + Math.sin(a) * (r0 + 0.17), z + Math.cos(a) * (r0 + 0.17), 0); }
+  }
+  if (LK.wing === 'duck') { const d = addS(rbox(S.W - 0.4, 0.08, 0.35, 0.04), P, 0, S.tail + 0.07, K.zR + 0.32, 0.02); d.rotation.x = 0.25; }
+  else if (LK.wing === 'gt') wing(K.zR + 0.35, S.tail + 0.3, S.W - 0.2, 0.36);
+  else if (LK.wing === 'big') wing(K.zR + 0.3, S.tail + 0.5, S.W - 0.12, 0.42);
+  if (LK.stk && LK.stk !== 'none' && S.cabin !== 'none') {
+    const sm = geo('stk:' + LK.stk, () => new THREE.MeshBasicMaterial({ map: stickerTex(LK.stk), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    if (LK.stk === 'banner' && K.cabPts) {
+      // across the top of the windscreen
+      const cb = S.sh - 0.1, t = 0.86, zq = lerp(S.hoodZ, S.roofF, t), yq = lerp(cb, S.roof, t), ang = Math.atan2(S.roof - cb, S.hoodZ - S.roofF);
+      const b = add(geo('bannerG', () => new THREE.PlaneGeometry(1, 0.16)), sm, 0, yq + 0.035, zq + 0.02, 0); b.scale.x = (S.cabW - 0.4) * K.kf(yq); b.rotation.x = -(Math.PI / 2 - ang); b.castShadow = false;
+    } else {
+      // on both doors
+      const zc = K.zB != null ? K.zB + 0.25 : (S.hoodZ + (K.r0 || S.deckZ)) / 2, yc = (S.gc + S.sh) / 2 + 0.06;
+      for (const sd of [-1, 1]) { const p2 = add(geo('stkG', () => new THREE.PlaneGeometry(0.62, 0.42)), sm, sd * (S.W / 2 * K.vf(yc) * K.pf(zc) + 0.012), yc, zc, 0); p2.rotation.y = sd * Math.PI / 2; p2.castShadow = false; }
+    }
+  }
   return K;
 }
 const beamTex = canvasTex(64, 128, (c, w, h) => { const gr = c.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,236,190,.55)'); gr.addColorStop(1, 'rgba(255,236,190,0)'); c.fillStyle = gr; c.beginPath(); c.moveTo(w * 0.32, h); c.lineTo(w * 0.68, h); c.lineTo(w, 0); c.lineTo(0, 0); c.closePath(); c.fill(); });
@@ -2899,7 +2983,7 @@ function addUnderglow(root, hex, L, W) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.9, L * 1.35), new THREE.MeshBasicMaterial({ map: glowTex, color: hex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -3 }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.07; root.add(m); return m;
 }
-function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
+function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   tune = tune || DEFAULT_TUNE;
   let def = BODY_DEF[bodyId] || BODY_DEF.bubble;
   const root = new THREE.Group();
@@ -2913,7 +2997,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   let K = null;
   if (SP) {
     def = Object.assign({}, def, { back: -SP.L / 2 + 0.02, exhaustY: SP.gc + 0.12 });
-    K = buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText });
+    K = buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText, look });
   } else {
     add(rbox(2.0, 0.55, 3.7), P, 0, 0.95, 0, 1.05);
     add(rbox(1.4, 0.5, 1.1), DARK, 0, 1.45, -0.3, 1.06);
@@ -2963,7 +3047,10 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText) {
   const len = SP ? SP.L : 4, wid = SP ? SP.W : 2.2;
   if (BEAMS) { const bm = new THREE.Mesh(geo('beamG', () => new THREE.PlaneGeometry(5, 16)), beamMat); bm.rotation.x = -Math.PI / 2; bm.position.set(0, 0.09, len / 2 + 8); root.add(bm); }
   if (neon && NEON[neon] && NEON[neon].hex) addUnderglow(root, NEON[neon].hex, len, wid);
-  return { root, tilt, wheelsG, wheels, steer, flames, def, spec: SP, bfs, bfT: 0 };
+  const flash = new THREE.Group(); flash.visible = false; tilt.add(flash);
+  for (const sd of [-1, 1]) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff6dc, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); g.scale.set(2.6, 2.6, 1); g.position.set(sd * (wid / 2 - 0.4), SP ? SP.nose - 0.2 : 0.8, len / 2 + 0.25); flash.add(g); }
+  const smoke = [];
+  return { root, tilt, wheelsG, wheels, steer, flames, def, spec: SP, bfs, bfT: 0, flash, flashT: 0 };
 }
 
 function newCarState(x, z, yaw) {
@@ -2994,7 +3081,7 @@ player.gear = 1; player.manual = !!save.manual;
 let playerModel = null;
 function rebuildPlayerModel() {
   if (playerModel) scene.remove(playerModel.root);
-  playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance, ac().plate);
+  playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance, ac().plate, ac().look);
   applyEngineSound();
   scene.add(playerModel.root);
   player.stats = statsFor(ac());
@@ -3040,6 +3127,7 @@ addEventListener('keydown', e => {
   if (k === 'f') toggleFoot();
   if (k === 'c') toggleCam();
   if (k === 'v') openWardrobe();
+  if (k === 'l') flashLights();
   if (k === 't') { e.preventDefault(); keys.delete('t'); openChat(); }
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
@@ -3070,7 +3158,7 @@ const NO_INPUT = { throttle: 0, steer: 0, nitro: false, drift: false };
 // =====================================================================
 const STEP = 1 / 60;
 function stepCar(c, inp, dt, opts) {
-  const st = c.stats;
+  const st = c.stats, LM = st.latMax * (c === player ? wetGrip : 1);
   // f = forward, l = left (rotation.y = yaw turns the model's +z toward +x)
   const fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), lx = Math.cos(c.yaw), lz = -Math.sin(c.yaw);
   let fs = c.vx * fx + c.vz * fz;
@@ -3094,12 +3182,12 @@ function stepCar(c, inp, dt, opts) {
   const curve = sa < 0.14 ? 1 : Math.max(0.66, 1 - (sa - 0.14) * 0.5);
   const drive = st.drive || 'rwd';
   const power = st.accel * (1 + (st.boostAcc || 0) * (c.spool || 0)) * (c.boosting ? 1.7 : 1);
-  const demand = thr * clamp(power / st.latMax, 0, 1.3);        // how much grip the engine is asking for
+  const demand = thr * clamp(power / LM, 0, 1.3);        // how much grip the engine is asking for
   const rearUse = Math.min(1, drive === 'rwd' ? demand * 0.62 : drive === 'awd' ? demand * 0.4 : 0);
   const frontUse = Math.min(1, drive === 'fwd' ? demand : drive === 'awd' ? demand * 0.55 : 0);
   const braking = inp.throttle < 0 && fs > 2;
-  let rearGrip = st.latMax * (c.sliding ? curve : 1) * Math.sqrt(Math.max(0.04, 1 - rearUse * rearUse)) * (braking ? 0.8 : 1);
-  const frontGrip = st.latMax * Math.sqrt(Math.max(0.15, 1 - frontUse * frontUse)) * (braking ? 1.1 : 1);
+  let rearGrip = LM * (c.sliding ? curve : 1) * Math.sqrt(Math.max(0.04, 1 - rearUse * rearUse)) * (braking ? 0.8 : 1);
+  const frontGrip = LM * Math.sqrt(Math.max(0.15, 1 - frontUse * frontUse)) * (braking ? 1.1 : 1);
   rearGrip /= 1 + (st.drift - 1) * 0.6 * thr;                       // drift-tuned cars step out on the throttle more easily
   if (inp.drift) rearGrip *= 0.16;
   else if (c.sliding) rearGrip /= st.drift * (drive === 'rwd' ? 1 : 1 + 0.6 * thr);   // AWD/FWD keep a slide going on the throttle, rally style
@@ -3174,9 +3262,9 @@ function stepCar(c, inp, dt, opts) {
   c.px = c.x; c.pz = c.z;
   c.x += c.vx * dt; c.z += c.vz * dt;
   // vertical
-  let h = surfaceHeight(c.x, c.z);
+  let h = surfaceHeight(c.x, c.z, c.y);
   if (c.grounded && h - c.y > 0.25 && (h - c.y) / (Math.hypot(c.x - c.px, c.z - c.pz) + 1e-3) > 1.15) {
-    c.wallHit = Math.hypot(c.vx, c.vz); c.x = c.px; c.z = c.pz; c.vx *= -0.2; c.vz *= -0.2; h = surfaceHeight(c.x, c.z);
+    c.wallHit = Math.hypot(c.vx, c.vz); c.x = c.px; c.z = c.pz; c.vx *= -0.2; c.vz *= -0.2; h = surfaceHeight(c.x, c.z, c.y);
   }
   if (c.grounded) {
     if (h >= c.y - 0.35) { c.vy = clamp((h - c.y) / dt, -5, 18); c.y = h; }
@@ -3307,7 +3395,7 @@ let lastThr = 0;
 function updateEngineSound(speed, throttle, boost, dt) {
   if (!eng || !eng.ready) return;
   const t = AC.currentTime, p = player, tn = ac().tune, ch = ENGINE_SOUND[tn.e] || ENGINE_SOUND.i4, ind = IND[tn.i];
-  const live = playing && !panelOpen && !onFoot, thr = live ? Math.max(0, throttle) : 0;
+  const live = playing && !panelOpen && !onFoot, thr = live ? Math.max(revving ? 1 : 0, throttle) : 0;
   dt = Math.min(dt || 0.016, 0.05);
   // gearbox: revs come from road speed in the current gear, wheelspin and launches rev higher
   const top = Math.max(10, p.stats.top);
@@ -3315,6 +3403,7 @@ function updateEngineSound(speed, throttle, boost, dt) {
   if (eng.gear === 1) target = Math.max(target, thr * 0.4);
   if (p.sliding) target += Math.min(0.25, Math.abs(p.slip) * 0.45) * (thr > 0 ? 1 : 0.3);
   if (!p.grounded) target = thr > 0 ? 0.97 : target * 0.9;
+  if (revving) target = 0.78 + 0.14 * Math.sin(performance.now() / 110);
   target = clamp(target, 0.06, 1);
   if (eng.shiftT > 0) { eng.shiftT -= dt; target *= 0.85; }
   eng.rpm += (target - eng.rpm) * (1 - Math.exp(-(target > eng.rpm ? 7 : 4) * dt));
@@ -3574,10 +3663,11 @@ function upsertPeer(p) {
   if (!has) { if (r.model) { scene.remove(r.model.root); r.model = null; } return; }
   const tn = tuneKey(parseTune(pr.tn)), ng = NEON[pr.ng] ? pr.ng : 'none', sk = STANCE[pr.sk] ? pr.sk : 'stock';
   let pl = cleanPlate(pr.pl); if (nameIsBad(pl)) pl = '';
+  const vk = typeof pr.vk === 'string' ? pr.vk.slice(0, 40) : '', look = lookDecode(vk);
   r.pc = clamp(Math.floor(num(pr.pc, 0)), 0, CLASSES.length - 1);
-  if (!r.model || r.body !== body || r.paint !== paint || r.tn !== tn || r.ng !== ng || r.sk !== sk || r.pl !== pl) {
+  if (!r.model || r.body !== body || r.paint !== paint || r.tn !== tn || r.ng !== ng || r.sk !== sk || r.pl !== pl || r.vk !== vk) {
     if (r.model) scene.remove(r.model.root);
-    r.model = buildCar(body, PAINT[paint].hex, parseTune(tn), ng, sk, pl); r.body = body; r.paint = paint; r.tn = tn; r.ng = ng; r.sk = sk; r.pl = pl; scene.add(r.model.root);
+    r.model = buildCar(body, PAINT[paint].hex, parseTune(tn), ng, sk, pl, look); r.body = body; r.paint = paint; r.tn = tn; r.ng = ng; r.sk = sk; r.pl = pl; r.vk = vk; scene.add(r.model.root);
     r.beep = makeBeep(); r.model.root.add(r.beep); r.tag = null; r.nickShown = null;
     r.x = num(pr.x); r.z = num(pr.z); r.y = num(pr.y); r.yaw = num(pr.h);
   }
@@ -3590,6 +3680,8 @@ function upsertPeer(p) {
   r.foot = !!pr.f && Array.isArray(pr.pk) && pr.pk.length === 4 && pr.pk.every(v => typeof v === 'number' && Number.isFinite(v));
   if (r.foot) r.pk = [clamp(pr.pk[0], WMIN, WMAX), clamp(pr.pk[1], -5, 260), clamp(pr.pk[2], WMIN, WMAX), pr.pk[3]];
   if (Math.hypot(r.tx - r.x, r.tz - r.z) > 40) { r.x = r.tx; r.z = r.tz; r.y = r.ty; r.yaw = r.tyaw; }
+  const flN = num(pr.fl, 0); if (r.flN != null && flN !== r.flN && r.model) r.model.flashT = 0.6; r.flN = flN;
+  r.revving = !!pr.rv;
   const hn = num(pr.hn, 0);
   if (r.hn != null && hn !== r.hn) { r.beepT = 1.2; const d = Math.hypot(r.x - player.x, r.z - player.z); if (d < 90) sfx('horn', 1 - d / 100); }
   r.hn = hn;
@@ -3633,7 +3725,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -3733,7 +3825,7 @@ function openPanel(id) { closePanels(); $(id).hidden = false; panelOpen = true; 
 function closePanels() {
   if ($('meet')) $('meet').hidden = true;
   if ($('tutorial') && !$('tutorial').hidden && !save.tut) { save.tut = 1; persist(); }
-  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe']) $(id).hidden = true; panelOpen = !$('results').hidden;
+  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe', 'dynoPanel', 'usedPanel']) $(id).hidden = true; panelOpen = !$('results').hidden;
   for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
 }
 $('bCloseGarage').addEventListener('click', closePanels);
@@ -3849,6 +3941,16 @@ function renderGarage() {
   renderOptions($('engList'), ENGINES, 'e', o => !o.cost ? 'The engine it came with' : pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') + (o.turn < 0.98 ? ' · heavier nose' : ''));
   renderOptions($('indList'), INDUCTIONS, 'i', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · ' + (o.lag ? (o.lag < 0.2 ? 'little lag' : o.lag < 0.45 ? 'some lag' : 'big lag, huge top end') : 'instant boost') : 'No boost');
   renderOptions($('intakeList'), INTAKES, 'a', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') : 'Factory airbox');
+  renderOptions($('coolList'), COOLINGS, 'c', o => !o.cost ? 'Fine for a stock engine' : '+' + Math.round((o.cool - 1) * 100) + '% cooling' + (o.boostPow ? ' · +4% power with a turbo or supercharger' : ''));
+  renderOptions($('pistList'), INTERNALS, 'p', o => !o.cost ? 'Wears fast when pushed' : '+' + Math.round((o.str - 1) * 100) + '% engine strength' + (o.pow > 1 ? ' · ' + pctFx(o.pow, 'power') : ''));
+  renderOptions($('plugList'), PLUGS, 'z', o => !o.cost ? 'Factory plugs' : pctFx(o.pow, 'power') + ' · +' + Math.round((o.str - 1) * 100) + '% strength' + (o.cool > 1 ? ' · runs cooler' : ''));
+  renderOptions($('gearList'), GEARINGS, 'g', o => !o.cost ? 'Balanced' : pctFx(o.acc, 'acceleration') + ' · ' + pctFx(o.top, 'top speed'));
+  renderOptions($('weightList'), WEIGHTS, 'k', o => !o.cost ? 'Comfortable and heavy' : o.kg + ' kg · ' + pctFx(o.acc, 'acceleration') + (o.grip < 1 ? ' · a little twitchier' : ''));
+  renderLook();
+  { const cc = $('carCare'); cc.textContent = ''; const car = ac(), w = num(car.wear, 0), care = engineCare(car), cost = repairCost(car);
+    cc.append(el('span', '', 'Engine ' + Math.round((1 - w) * 100) + '%' + (w > 0.3 ? ' · losing power' : '')), el('span', '', 'Cooling ×' + care.cool.toFixed(2) + ' · Strength ×' + care.str.toFixed(2)));
+    cc.append(btn(w > 0.01 ? 'Repair · ' + fmt$(cost) : 'Engine is fine', w > 0.01 ? '' : 'alt', () => repairEngine(), w <= 0.01 || save.money < cost));
+    cc.append(btn('Dyno run', 'alt', () => openDyno())); }
   renderOptions($('tyreList'), TYRES, 'y', o => !o.cost ? 'Everyday road tyres' : pctFx(o.grip, 'grip') + ' · ' + pctFx(o.drift, 'slide') + (o.off < -0.05 ? ' · bad on dirt' : ''));
   renderOptions($('wheelList'), WHEELS, 'w', o => !o.cost ? 'Plain steel wheels' : (o.grip !== 1 ? pctFx(o.grip, 'grip') : 'Same grip') + (o.off ? ' · ' + (o.off > 0 ? 'faster' : 'slower') + ' off-road' : ''));
   for (const b of $('gTabs').children) b.setAttribute('aria-selected', String(b.dataset.tab === garageTab));
@@ -4449,6 +4551,13 @@ function openBriefing(def) {
 function renderMissions() {
   const list = $('mList'); list.textContent = '';
   let total = 0;
+  { const card = el('div', 'propcard'); card.append(el('div', 'phead')); card.firstChild.append(el('b', '', 'Rival crews'), el('span', 'tagk', Object.keys(DISTRICTS).filter(ownsDistrict).length + ' / 3 districts'));
+    for (const [id, D] of Object.entries(DISTRICTS)) { const t = save.turf[id]; card.append(el('div', 'fx', (t.own ? '✓ ' + D.name + ' is yours' : '• ' + D.name + ': ' + D.crew + ' · ' + (t.w < 3 ? t.w + '/3 beaten' : 'boss ' + D.boss + ' is waiting at the ' + STREET_BY[D.route].name + ' meet')))); }
+    card.append(el('div', 'fx', 'Tip: crew racers cruise their district. Sit right behind one and flash your lights (L) to race.'));
+    list.append(card); }
+  { const card = el('div', 'propcard'), seen = save.meets || []; card.append(el('div', 'phead')); card.firstChild.append(el('b', '', 'Secret meetups'), el('span', 'tagk', seen.length + ' / ' + MEETS.length));
+    for (const M of MEETS) card.append(el('div', 'fx', seen.includes(M.id) ? '✓ ' + M.name + ' (on your map)' : '• ' + M.rumor));
+    list.append(card); }
   { const got = save.finds || [], card = el('div', 'propcard');
     card.append(el('div', 'phead')); card.firstChild.append(el('b', '', 'Barn find rumours'), el('span', 'tagk', got.length + ' / ' + FINDS.length));
     for (const f of FINDS) card.append(el('div', 'fx', got.includes(f.id) ? '✓ Found: ' + BODY[f.id].name : '• ' + f.rumor));
@@ -4914,6 +5023,7 @@ function openMap() {
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
   for (const st of STATIONS) { const q = s2w(st.s, 7.5, 20); spots.push({ name: '⛽ ' + st.name.replace('Pebble Fuel ', ''), x: q.x, z: q.z, yaw: st.s.yaw + Math.PI }); }
   for (const t of spots) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small alt'; b.textContent = t.name; b.addEventListener('click', () => travelTo(t)); list.append(b); }
+  for (const M of MEETS) if ((save.meets || []).includes(M.id)) { const b = btn('🅿 ' + M.name, 'alt', () => travelTo({ name: M.name, x: M.x, z: M.z, yaw: M.s.yaw })); list.append(b); }
   for (const id of [...save.homes, ...BIZ.filter(d => save.biz[d.id]).map(d => d.id)]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = (HOME_BY[id] || BIZ_BY[id]).name; b.addEventListener('click', () => propTravel(id)); list.append(b); }
   openPanel('mapPanel');
 }
@@ -5082,10 +5192,10 @@ function walkStep(inp, dt) {
   p.vx += (fx * sp - p.vx) * k; p.vz += (fz * sp - p.vz) * k;
   p.px = p.x; p.pz = p.z;
   p.x += p.vx * dt; p.z += p.vz * dt;
-  if (p.grounded && surfaceHeight(p.x, p.z) - p.y > 0.6) { p.x = p.px; p.z = p.pz; p.vx = p.vz = 0; }
+  if (p.grounded && surfaceHeight(p.x, p.z, p.y) - p.y > 0.6) { p.x = p.px; p.z = p.pz; p.vx = p.vz = 0; }
   if (p.grounded && inp.drift && !p.jumpLatch) { p.vy = 7; p.grounded = false; }
   p.jumpLatch = inp.drift;
-  const gh = surfaceHeight(p.x, p.z);
+  const gh = surfaceHeight(p.x, p.z, p.y);
   if (!p.grounded) { p.vy -= 22 * dt; p.y += p.vy * dt; if (p.y <= gh) { p.y = gh; p.grounded = true; p.vy = 0; } }
   else if (gh < p.y - 0.8) { p.grounded = false; p.vy = 0; }
   else p.y = gh;
@@ -5457,6 +5567,510 @@ function claimFind(f) {
   persist(); refreshFinds(); sfx('levelup'); showBig('BARN FIND!'); addXp(400);
   toast('You found the ' + BODY[f.id].name + '! Restored and in your garage (' + save.finds.length + '/' + FINDS.length + ')', true);
 }
+// =====================================================================
+// weather: always night, but rain, storms and fog roll through. Wet roads mirror the city lights.
+// The forecast comes from the clock, so everyone online gets the same weather.
+// =====================================================================
+const WX_KINDS = ['clear', 'rain', 'clear', 'fog', 'storm', 'clear', 'rain', 'fog'], WX_SLOT = 300000;
+const WX_NAME = { clear: 'Clear night', rain: 'Rain', storm: 'Thunderstorm', fog: 'Fog' };
+const weatherKind = t => WX_KINDS[Math.floor(((fuelNoise(Math.floor(t / WX_SLOT), 97) + 1) / 2) * WX_KINDS.length) % WX_KINDS.length];
+const WX = { kind: weatherKind(Date.now()), rain: 0, fog: 0, wet: 0, flash: 0 };
+WX.rain = WX.kind === 'rain' ? 0.6 : WX.kind === 'storm' ? 1 : 0; WX.fog = WX.kind === 'fog' ? 1 : WX.kind === 'storm' ? 0.3 : 0; WX.wet = WX.rain > 0 ? 1 : 0;
+const RAIN_N = 1600;
+const rainGeo = new THREE.BufferGeometry(), rainPos = new Float32Array(RAIN_N * 6);
+for (let i = 0; i < RAIN_N; i++) { const x = rand(-40, 40), y = rand(-6, 30), z = rand(-40, 40); rainPos.set([x, y, z, x - 0.05, y - 0.9, z], i * 6); }
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rainLines = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xb8c4ff, transparent: true, opacity: 0.5, depthWrite: false }));
+rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
+// wet-road reflections: a soft streak under each light, stretched towards the camera
+const STREAK_N = 170;
+const streakTex = canvasTex(64, 256, (c, w, h) => { const g = c.createLinearGradient(0, h, 0, 0); g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.35, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); const m = c.createLinearGradient(0, 0, w, 0); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.5, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); c.globalCompositeOperation = 'destination-out'; c.fillStyle = m; c.fillRect(0, 0, w, h); });
+const streakMat = new THREE.MeshBasicMaterial({ map: streakTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -4, vertexColors: false });
+const streaks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), streakMat, STREAK_N);
+streaks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); streaks.frustumCulled = false; streaks.visible = false; scene.add(streaks);
+const REFL = [];
+function buildRefl() {
+  for (const sp of lampSpots) if (!sp.dead) REFL.push({ x: sp.lx, z: sp.lz, y: surfaceHeight(sp.lx, sp.lz) + 0.15, col: new THREE.Color(0xffd9a0), w: 1.3, l: 15 });
+  for (const n of NEON_SPOTS) REFL.push({ x: n.x, z: n.z, y: surfaceHeight(n.x, n.z) + 0.15, col: new THREE.Color(n.col), w: 1.1, l: 12 });
+}
+for (let i = 0; i < STREAK_N; i++) streaks.setColorAt(i, new THREE.Color(0xffffff));
+let rainAudio = null, wxShown = WX.kind;
+function rainSound(level) {
+  if (!AC) return;
+  if (!rainAudio) {
+    const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.6;
+    const g = AC.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(master); src.start();
+    rainAudio = { g };
+  }
+  rainAudio.g.gain.setTargetAtTime(level * 0.22, AC.currentTime, 0.5);
+}
+const _v3 = new THREE.Vector3(), _dum = new THREE.Object3D(); _dum.rotation.order = 'YXZ';
+function weatherStep(dt) {
+  const k = weatherKind(Date.now()); WX.kind = k;
+  if (k !== wxShown && playing) { wxShown = k; toast(k === 'clear' ? 'The rain stopped. Roads stay wet for a while' : k === 'fog' ? 'Fog is rolling in' : k === 'storm' ? 'Thunderstorm! Roads are slippery' : 'It started raining. Watch your grip'); }
+  const tr = k === 'rain' ? 0.6 : k === 'storm' ? 1 : 0, tf = k === 'fog' ? 1 : k === 'storm' ? 0.3 : 0;
+  WX.rain += (tr - WX.rain) * Math.min(1, dt / 8); WX.fog += (tf - WX.fog) * Math.min(1, dt / 10);
+  WX.wet = WX.rain > 0.15 ? Math.min(1, WX.wet + dt / 40) : Math.max(0, WX.wet - dt / 200);
+  wetGrip = 1 - 0.13 * WX.wet;
+  scene.fog.near = lerp(260, 40, WX.fog) * (1 - WX.rain * 0.35); scene.fog.far = lerp(1500, 300, WX.fog) * (1 - WX.rain * 0.4);
+  // rain falls in a box that follows the camera
+  rainLines.visible = WX.rain > 0.02;
+  if (rainLines.visible) {
+    rainLines.material.opacity = 0.25 + 0.4 * WX.rain; rainGeo.setDrawRange(0, Math.floor(RAIN_N * WX.rain) * 2);
+    const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, fall = 34 * dt, drift = 3 * dt;
+    for (let i = 0; i < RAIN_N; i++) {
+      const o = i * 6; let y = rainPos[o + 1] - fall, x = rainPos[o] - drift * 0.2;
+      if (y < -8) { y = rand(14, 30); x = rand(-40, 40); rainPos[o + 2] = rand(-40, 40); }
+      rainPos[o] = x; rainPos[o + 1] = y; rainPos[o + 3] = x - 0.05; rainPos[o + 4] = y - 0.9; rainPos[o + 5] = rainPos[o + 2];
+    }
+    rainGeo.attributes.position.needsUpdate = true; rainLines.position.set(cx, cy - 6, cz);
+  }
+  // lightning
+  if (k === 'storm' && Math.random() < dt * 0.08) { WX.flash = 0.25; setTimeout(() => sfx('bump', 0.35), 600 + Math.random() * 1500); }
+  if (WX.flash > 0) WX.flash -= dt;
+  $('wxFlash').style.opacity = WX.flash > 0 ? String(Math.min(0.55, WX.flash * 3) * (Math.random() < 0.7 ? 1 : 0.3)) : '0';
+  // wet look: darker, shinier tarmac and stretched light streaks
+  lampPool.opacity = 0.16 + 0.24 * WX.wet;
+  const rc = 1 - 0.3 * WX.wet; mainRoadMat.color.setScalar(rc); roadMat.color.setScalar(rc);
+  streaks.visible = WX.wet > 0.03; streakMat.opacity = 0.5 * WX.wet;
+  if (streaks.visible && !REFL.length) buildRefl();
+  if (streaks.visible) {
+    const cx = camera.position.x, cz = camera.position.z;
+    let n = 0;
+    for (const r of REFL) {
+      const dx = cx - r.x, dz = cz - r.z, d = Math.hypot(dx, dz);
+      if (d > 170 || d < 4 || n >= STREAK_N) continue;
+      const ux = dx / d, uz = dz / d, L = Math.min(r.l, d * 0.8);
+      _dum.position.set(r.x + ux * L / 2, r.y, r.z + uz * L / 2); _dum.rotation.set(-Math.PI / 2, Math.atan2(-ux, -uz), 0); _dum.scale.set(r.w, L, 1); _dum.updateMatrix();
+      streaks.setMatrixAt(n, _dum.matrix); streaks.setColorAt(n, r.col); n++;
+    }
+    streaks.count = n; streaks.instanceMatrix.needsUpdate = true; if (streaks.instanceColor) streaks.instanceColor.needsUpdate = true;
+  }
+  rainSound(playing ? WX.rain : 0);
+}
+
+// =====================================================================
+// engine heat and wear: nitro, the limiter and heat wear the engine; cooling and forged parts protect it
+// =====================================================================
+let engHeat = 0, lastWearStep = -1, heatWarned = false, wearWarned = 0;
+function repairCost(car) { return Math.round(num(car.wear, 0) * (700 + (BODY[car.m] ? BODY[car.m].cost : 1000) * 0.07)); }
+function repairEngine() {
+  const car = ac(), cost = repairCost(car); if (num(car.wear, 0) <= 0.01) return;
+  if (save.money < cost) { toast('A repair costs ' + fmt$(cost)); return; }
+  save.money -= cost; car.wear = 0; engHeat = 0; persist(); renderMoney(true); sfx('buy');
+  player.stats = statsFor(car); updateClassHud(); toast('Engine rebuilt. Good as new!', true);
+  if (!$('garage').hidden) renderGarage();
+}
+function engineStep(dt, inp, hit) {
+  const car = ac(), care = engineCare(car), thr = Math.max(0, inp.throttle);
+  const rpm = eng && eng.ready ? eng.rpm : clamp(Math.abs(player.fs) / Math.max(10, player.stats.top), 0, 1);
+  const load = thr * (0.3 + rpm) * care.stress + (player.boosting ? 1.5 * care.stress : 0) + (player.limiter ? 0.6 : 0) + (revving ? 0.6 * rpm : 0);
+  const air = 0.5 + Math.min(1, Math.abs(player.fs) / 30) * 0.7;
+  engHeat = clamp(engHeat + dt * (load * 0.045 / care.cool - 0.03 * care.cool * air), 0, 1.05);
+  let w = 0;
+  if (player.boosting) w += 0.0018 * care.stress;
+  if (engHeat > 0.78) w += (engHeat - 0.78) * 0.012;
+  if (player.limiter) w += 0.0005;
+  car.wear = clamp(num(car.wear, 0) + w * dt / care.str + (hit > 14 ? 0.015 * (hit - 14) / 20 / care.str : 0), 0, 1);
+  // a very hot, tired engine can let go
+  if (engHeat > 0.95 && Math.random() < dt * (engHeat - 0.93) * 0.5 * (0.2 + car.wear) / care.str) {
+    car.wear = Math.min(1, car.wear + 0.25); engHeat = 0.55; showBig('ENGINE DAMAGE!'); toast('Your engine blew a head gasket. Repair it in the garage'); sfx('bump');
+    for (let k = 0; k < 10; k++) puff(player.x + Math.sin(player.yaw) * 1.5, player.y + 1.2, player.z + Math.cos(player.yaw) * 1.5, 0x55525e, 1.6, 1.6, rand(-1, 1), rand(2, 4), rand(-1, 1));
+  }
+  const ws = Math.floor(car.wear * 20); if (ws !== lastWearStep) { lastWearStep = ws; player.stats = statsFor(car); updateClassHud(); persist(); }
+  if (engHeat > 0.85 && !heatWarned) { heatWarned = true; toast('Engine overheating! Ease off the nitro'); sfx('beep'); }
+  if (engHeat < 0.65) heatWarned = false;
+  if (car.wear > 0.5 && wearWarned < 1) { wearWarned = 1; toast('Your engine is getting tired. A repair brings the power back'); }
+  if (car.wear > 0.85 && wearWarned < 2) { wearWarned = 2; toast('Engine badly damaged! Repair it in the garage'); }
+  if (car.wear < 0.4) wearWarned = 0;
+  if ((car.wear > 0.7 || engHeat > 0.9) && Math.random() < dt * 5) puff(player.x + Math.sin(player.yaw) * 1.4, player.y + 1.1, player.z + Math.cos(player.yaw) * 1.4, 0x6a6676, 0.9, 1.1, rand(-0.5, 0.5), rand(1.5, 3), rand(-0.5, 0.5));
+}
+
+// =====================================================================
+// dyno: power and torque curves for the current build
+// =====================================================================
+const REDLINE = { i4: 7800, i5: 7200, v6: 7000, i6: 7600, v8: 6800, v10: 8300, v12: 8000 };
+function dynoCurve(car) {
+  const t = car.tune, I = IND[t.i] || IND.na, red = REDLINE[t.e] || 7500, pw = carPower(car), pts = [];
+  const shape = r => {
+    if (I.turbo) { const sp = 0.32 + I.lag * 0.6; return r < sp ? 0.42 + 0.4 * (r / sp) ** 2 : 1.02 - 0.2 * ((r - sp) / (1 - sp)) ** 1.6; }
+    if (I.id === 'c30') return 0.5 + 0.48 * r;
+    if (I.blower) return 0.95 - 0.14 * r * r;
+    return 0.62 + 0.38 * Math.sin(Math.PI * clamp((r - 0.1) / 1.05, 0, 1));
+  };
+  let maxHp = 0;
+  for (let k = 0; k <= 60; k++) { const r = 0.12 + 0.88 * k / 60, rpm = r * red, tq = shape(r), hp = tq * r; pts.push({ rpm, tq, hp }); maxHp = Math.max(maxHp, hp); }
+  const sc = pw.hp / maxHp;
+  for (const q of pts) { q.hp *= sc; q.nm = q.hp * 0.7457 * 9549 / q.rpm; }
+  return { pts, red, hp: pw.hp, nm: Math.max(...pts.map(q => q.nm)), kg: pw.kg };
+}
+let dynoT = 0, dynoRAF = 0;
+function openDyno() {
+  openPanel('dynoPanel'); dynoT = performance.now(); sfx('beep');
+  const car = ac(), D = dynoCurve(car), cv = $('dynoCanvas'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  $('dynoLede').textContent = BODY[car.m].name + ' · ' + ENGINE[car.tune.e].name + (car.tune.i !== 'na' ? ' + ' + IND[car.tune.i].name : '') + (num(car.wear, 0) > 0.3 ? ' · worn engine (' + Math.round((1 - car.wear) * 100) + '%)' : '');
+  const maxNm = D.nm * 1.15, maxHp = D.hp * 1.15, x0 = 46, y0 = H - 30, pw = W - 96, ph = H - 50;
+  const X = rpm => x0 + rpm / D.red * pw, Yh = hp => y0 - hp / maxHp * ph, Yt = nm => y0 - nm / maxNm * ph;
+  cancelAnimationFrame(dynoRAF);
+  const draw = () => {
+    if ($('dynoPanel').hidden) return;
+    const f = clamp((performance.now() - dynoT) / 3200, 0, 1), n = Math.max(1, Math.floor(f * D.pts.length));
+    g.fillStyle = '#120e24'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; g.font = '12px Nunito, sans-serif'; g.fillStyle = 'rgba(255,255,255,.55)';
+    for (let r = 1000; r <= D.red; r += 1000) { g.beginPath(); g.moveTo(X(r), y0); g.lineTo(X(r), y0 - ph); g.stroke(); g.fillText(r / 1000 + 'k', X(r) - 8, y0 + 16); }
+    for (let k = 1; k <= 4; k++) { const y = y0 - ph * k / 4; g.beginPath(); g.moveTo(x0, y); g.lineTo(x0 + pw, y); g.stroke(); }
+    const line = (key, Y, col) => { g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); for (let k = 0; k < n; k++) { const q = D.pts[k]; k ? g.lineTo(X(q.rpm), Y(q[key])) : g.moveTo(X(q.rpm), Y(q[key])); } g.stroke(); };
+    line('hp', Yh, '#ff7ac8'); line('nm', Yt, '#3ff4ff');
+    g.font = '800 15px Nunito, sans-serif'; g.fillStyle = '#ff7ac8'; g.fillText('Power ' + Math.round(D.pts[n - 1].hp) + ' hp', x0 + 4, 20); g.fillStyle = '#3ff4ff'; g.fillText('Torque ' + Math.round(D.pts[n - 1].nm) + ' Nm', x0 + 170, 20);
+    g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(Math.round(D.pts[n - 1].rpm) + ' rpm', x0 + pw - 70, 20);
+    if (f < 1) { if (Math.random() < 0.25) oneShot('limit', 0.05 + f * 0.1, 0.7 + f * 0.6); dynoRAF = requestAnimationFrame(draw); }
+    else { $('dynoPeak').textContent = 'Peak: ' + D.hp + ' hp · ' + Math.round(D.nm) + ' Nm · ' + D.kg + ' kg · ' + (D.hp / D.kg * 1000).toFixed(0) + ' hp per tonne'; oneShot('bf1', 0.3, 1); }
+  };
+  $('dynoPeak').textContent = 'Running…'; draw();
+}
+// =====================================================================
+// rival crews: each district belongs to a crew. Beat three of them, then their boss, and it's yours.
+// =====================================================================
+const DISTRICTS = {
+  downtown: { name: 'Downtown', crew: 'Neon Kings', col: '#ff3fa4', neon: 'pink', boss: 'Ryuji', bossCar: 'raijin', route: 'neon', cars: ['hikari', 'yoru', 'coupe'], members: ['Kaito', 'Ren', 'Sora'], stk: 'kings' },
+  farm: { name: 'Farmlands', crew: 'Dust Devils', col: '#ff9a3c', neon: 'orange', boss: 'Hana', bossCar: 'hakone', route: 'coast', cars: ['kitsune', 'kaze', 'sakura'], members: ['Mika', 'Daichi', 'Yuki'], stk: 'devils' },
+  mountain: { name: 'Mountain Pass', crew: 'Tengu Club', col: '#3ddc97', neon: 'green', boss: 'Kenta', bossCar: 'yoru', route: 'peak', cars: ['hikari', 'arashi', 'raijin'], members: ['Shin', 'Haru', 'Ryo'], stk: 'tengu' },
+};
+const ROUTE_DISTRICT = { neon: 'downtown', harbor: 'downtown', coast: 'farm', peak: 'mountain' };
+function districtAt(x, z) { if (cityMask(x, z) > 0.5) return 'downtown'; if (x * x + z * z < 400 * 400) return null; if (z < -560) return 'mountain'; return 'farm'; }
+const ownsDistrict = d => !!(save.turf && save.turf[d] && save.turf[d].own);
+function turfWin(d) {
+  const D = DISTRICTS[d]; if (!D || ownsDistrict(d)) return;
+  const t = save.turf[d]; t.w = Math.min(3, t.w + 1); persist();
+  if (t.w < 3) toast(D.crew + ': ' + t.w + ' of 3 beaten. Keep going', true);
+  else { showBig('BOSS UNLOCKED'); toast(D.boss + ', boss of the ' + D.crew + ', wants to race you. Find him at the ' + STREET_BY[D.route].name + ' meet', true); }
+}
+function bossBeaten(d) {
+  const D = DISTRICTS[d]; if (!D || ownsDistrict(d)) return;
+  save.turf[d].own = 1; save.turf[d].w = 3; persist();
+  addMoney(5000); addXp(1500); showBig(D.name.toUpperCase() + ' IS YOURS!');
+  toast('You beat ' + D.boss + '. ' + D.name + ' pays you turf money now, and the ' + D.crew + ' decal is unlocked in the garage', true);
+}
+// turf money from every district you own
+setInterval(() => { if (!playing) return; const n = Object.keys(DISTRICTS).filter(ownsDistrict).length; if (n) { addMoney(40 * n); if (Math.random() < 0.25) toast('Turf money +$' + 40 * n); } }, 60000);
+let bossModels = {};
+function bossModel(d) {
+  if (!bossModels[d]) { const D = DISTRICTS[d]; const m = buildCar(D.bossCar, '#1d1a2e', { e: 'i6', i: 't68', a: 'itb', w: 'kagero', y: 'semi', has: [] }, D.neon, 'low', 'BOSS', { kit: 'wide', wing: 'gt', stk: D.stk }); const t = makeTag('BOSS ' + D.boss, D.col); t.position.y = 3.1; t.scale.set(4.2, 1.05, 1); m.root.add(t); m.root.visible = false; scene.add(m.root); bossModels[d] = m; }
+  return bossModels[d];
+}
+function startBoss(R) {
+  const d = R.district, D = DISTRICTS[d]; if (!D) return;
+  const m = bossModel(d); m.root.visible = true;
+  startStreet(R, { crew: [{ name: 'BOSS ' + D.boss, model: m, home: null, release: () => { m.root.visible = false; } }], fee: R.fee * 2, prize: R.prize * 4, boss: d, lo: 0.97, hi: 0.97, botMul: 1.05 });
+}
+
+// =====================================================================
+// rev and flash: hold X to rev (pops on release), L flashes your lights. Flash someone to challenge them.
+// =====================================================================
+let revving = false, revHeld = 0, flashCount = 0;
+function revStep(dt) {
+  revving = playing && !onFoot && !panelOpen && keys.has('x') && Math.abs(player.fs) < 1.5 && !(street && street.phase === 'running');
+  if (revving) revHeld += dt;
+  else { if (revHeld > 0.5 && !onFoot) { const ch = ENGINE_SOUND[ac().tune.e] || ENGINE_SOUND.i4; popBurst(3, ch); if (playerModel) playerModel.bfT = 0.25; bfCount++; } revHeld = 0; }
+}
+function inFrontOf(x, z, maxD) { const p = player, dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz); if (d > maxD || d < 1) return false; return (dx * Math.sin(p.yaw) + dz * Math.cos(p.yaw)) / d > 0.8; }
+function flashLights() {
+  if (!playing || onFoot || panelOpen) return;
+  flashCount++; playerModel.flashT = 0.6; sfx('beep', 0.25);
+  if (race || mission || street || delivery || police.stars) return;
+  // who did you flash?
+  for (const r of remotes.values()) if (r.active && r.model && !r.foot && !(r.pres && (r.pres.race || r.pres.sr)) && inFrontOf(r.x, r.z, 40)) { challengePeer(r); return; }
+  for (const M of MEETS) for (const n of M.npcs) if (inFrontOf(n.home.x, n.home.z, 35) && Math.abs(n.home.y - player.y) < 3) { meetDuel(M, n); return; }
+  for (const n of npcs) if (n.racer && n.tail > 0.6) { startEncounter(n); return; }
+}
+function routeNear() { const m = atMeet(); if (m) return STREET_BY[m.route]; let best = STREET[0], bd = 1e18; for (const R of STREET) { const d = (R.pad.x - player.x) ** 2 + (R.pad.z - player.z) ** 2; if (d < bd) { bd = d; best = R; } } return best; }
+function challengePeer(r) {
+  if (!(room && roomUp)) return;
+  if (!sameClass(r)) { toast(displayName(r) + ' drives a class ' + className(r.pc || 0) + ' car. You can only race your own class'); return; }
+  const R = routeNear();
+  if (save.money < R.fee) { toast('You need $' + R.fee + ' for the ' + R.name); return; }
+  streetHost = { R, id: 's' + rid(), joined: new Set(), until: performance.now() + 15000 };
+  room.emit('street', { act: 'invite', id: streetHost.id, route: R.id, host: myPeer, n: save.nick || '', pc: myClass(), flash: 1, peers: [r.peer] }).catch(() => { });
+  toast('You flashed ' + displayName(r) + ': ' + R.name + ', $' + R.fee + ' each. Waiting for an answer…');
+}
+function meetDuel(M, n) {
+  const R = STREET_BY[M.route]; if (!R) return;
+  if (save.money < R.fee) { toast('You need $' + R.fee + ' to race ' + n.name); return; }
+  toast(n.name + ' flashes back. Race on the ' + R.name + '!');
+  startStreet(R, { crew: [n], lo: 0.75, hi: 0.75 });
+}
+
+// =====================================================================
+// street encounters: crew racers cruise the roads. Sit on their bumper and flash them to race.
+// =====================================================================
+const racerPool = [];
+for (const [d, D] of Object.entries(DISTRICTS)) for (let k = 0; k < 2; k++) {
+  const m = buildCar(D.cars[k], PAINTS[(k * 3 + d.length) % PAINTS.length].hex, { e: 'v6', i: 't52', a: 'cai', w: ['y5', 'kagero'][k], y: 'sport', has: [] }, D.neon, 'low', '', { kit: k ? 'street' : 'stock', wing: k ? 'gt' : 'duck', stk: D.stk });
+  const name = D.members[k], t = makeTag(name + ' · ' + D.crew, D.col); t.position.y = 2.9; t.scale.set(4.6, 1.15, 1); m.root.add(t);
+  m.root.visible = false; scene.add(m.root);
+  racerPool.push({ model: m, police: false, used: false, racer: { d, name } });
+}
+let racerT = 8;
+function spawnRacer() {
+  const d = districtAt(player.x, player.z); if (!d) return;
+  const slot = racerPool.find(q => !q.used && q.racer.d === d); if (!slot) return;
+  for (let t = 0; t < 40; t++) {
+    const { r, i, q } = spotOf(TRAFFIC_SPOTS[(Math.random() * TRAFFIC_SPOTS.length) | 0]);
+    if (r.kind === 'ring' || districtAt(q.x, q.z) !== d) continue;
+    const dd = Math.hypot(q.x - player.x, q.z - player.z);
+    if (dd < 110 || dd > 280 || npcs.some(n => Math.hypot(n.x - q.x, n.z - q.z) < 30)) continue;
+    slot.used = true; slot.model.root.visible = true;
+    const vmax = r.speed * 1.35;
+    const n = { slot, model: slot.model, police: false, racer: slot.racer, tail: 0, road: r, s: i, dir: Math.random() < 0.5 ? 1 : -1, v: vmax, vmax, stopT: 0, kx: 0, kz: 0, kvx: 0, kvz: 0, spin: 0, x: 0, y: 0, z: 0 };
+    npcs.push(n); placeNpc(n); return;
+  }
+}
+let encHintFor = null;
+function encounterStep(dt) {
+  racerT -= dt;
+  if (racerT <= 0) { racerT = 12; if (!race && !street && !mission && !delivery && !onFoot && !npcs.some(n => n.racer)) spawnRacer(); }
+  encHintFor = null;
+  for (const n of npcs) {
+    if (!n.racer) continue;
+    const rx = player.x - n.x, rz = player.z - n.z, along = rx * n.hx + rz * n.hz, lat = Math.abs(-rx * n.hz + rz * n.hx);
+    const ok = !onFoot && !street && !race && along < -3 && along > -20 && lat < 4 && Math.hypot(player.vx, player.vz) > 8;
+    n.tail = ok ? n.tail + dt : Math.max(0, n.tail - dt * 0.5);
+    if (n.tail > 0.6) encHintFor = n;
+  }
+}
+function startEncounter(n) {
+  const road = n.road, L = road.pts.length, i0 = clamp(Math.round(n.s), 3, L - 4);
+  let i1 = clamp(i0 + n.dir * 360, 3, L - 4);
+  if (Math.abs(i1 - i0) < 140) i1 = clamp(i0 - n.dir * 360, 3, L - 4);
+  if (Math.abs(i1 - i0) < 140) { toast(n.racer.name + ' shakes their head: not enough road here'); return; }
+  const d = n.racer.d, D = DISTRICTS[d];
+  const R = { id: 'enc', name: 'Street duel vs ' + n.racer.name, where: D.name, fee: 0, prize: 350 + 150 * myClass(), lvl: 1, pts: roadSlice(road, i0, i1, 6), district: ownsDistrict(d) ? null : d };
+  prepRoute(R);
+  const k = npcs.indexOf(n); if (k >= 0) npcs.splice(k, 1);
+  const slot = n.slot;
+  toast(n.racer.name + ' of the ' + D.crew + ' accepts! Race to the end of the road');
+  const ok = startStreet(R, { crew: [{ name: n.racer.name, model: n.model, home: null, release: () => { slot.used = false; slot.model.root.visible = false; } }], lo: 0.7, hi: 0.7 });
+  if (!ok) { slot.used = false; slot.model.root.visible = false; }
+}
+
+// =====================================================================
+// hidden meetups: a parking garage with a rooftop, and the harbor. Players and crews hang out there.
+// =====================================================================
+const MEETS = [];
+function solidY(s, lx0, lz0, lx1, lz1, h, y0) { const a = s2w(s, lx0, lz0), b = s2w(s, lx1, lz1); boxes.push({ x0: Math.min(a.x, b.x), z0: Math.min(a.z, b.z), x1: Math.max(a.x, b.x), z1: Math.max(a.z, b.z), h, y0 }); }
+function deckRect(s, lx0, lz0, lx1, lz1, h) { const a = s2w(s, lx0, lz0), b = s2w(s, lx1, lz1); DECKS.push({ x0: Math.min(a.x, b.x), z0: Math.min(a.z, b.z), x1: Math.max(a.x, b.x), z1: Math.max(a.z, b.z), h }); }
+function slopeMesh(g, mat, lx, lz, w, l, y0, y1, yaw) {
+  // a ramp from y0 (back, -z) to y1 (front, +z) in the group's frame
+  const geo2 = new THREE.BoxGeometry(w, 1, l), pa = geo2.attributes.position;
+  for (let k = 0; k < pa.count; k++) { const yy = pa.getY(k), zz = pa.getZ(k), top = lerp(y0, y1, (zz + l / 2) / l); pa.setY(k, yy > 0 ? top + 0.02 : top - 0.45); }
+  geo2.computeVertexNormals();
+  const m = new THREE.Mesh(geo2, mat); m.position.set(lx, 0, lz); m.rotation.y = yaw || 0; m.castShadow = m.receiveShadow = true; g.add(m); return m;
+}
+function meetNpcs(M, spots, d) {
+  const D = DISTRICTS[d];
+  M.npcs = spots.map(([lx, lz, yaw], k) => {
+    const body = D.cars[(k + 2) % D.cars.length], p = s2w(M.s, lx, lz), y = M.y;
+    const m = buildCar(body, PAINTS[(k * 4 + M.id.length) % PAINTS.length].hex, { e: 'i6', i: 't52', a: 'cai', w: ['y5', 'split', 'kagerow'][k % 3], y: 'sport', has: [] }, D.neon, 'slammed', '', { kit: k % 2 ? 'street' : 'stock', wing: ['duck', 'gt', 'none'][k % 3], stk: k === 0 ? D.stk : 'none' });
+    const name = ['Taro', 'Akira', 'Nao', 'Jin', 'Emi', 'Kou', 'Riku', 'Aya'][(k + M.id.length) % 8];
+    const t = makeTag(name + ' · ' + D.crew, D.col); t.position.y = 2.9; t.scale.set(4.4, 1.1, 1); m.root.add(t);
+    const home = { x: p.x, z: p.z, y, yaw: M.s.yaw + yaw };
+    m.root.position.set(home.x, y, home.z); m.root.rotation.y = home.yaw; scene.add(m.root);
+    circles.push({ x: home.x, z: home.z, r: 2.0, h: 2, y0: y });
+    return { name, body, model: m, home, revT: rand(2, 6) };
+  });
+}
+// street lamps standing where something new is built get taken down
+function clearLampsIn(s, lx0, lz0, lx1, lz1) {
+  const I = lampSpots.inst, zero = new THREE.Matrix4().makeScale(0, 0, 0), cs = Math.cos(s.yaw), sn = Math.sin(s.yaw);
+  lampSpots.forEach((sp, k) => {
+    const dx = sp.x - s.x, dz = sp.z - s.z, lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+    if (lx < lx0 || lx > lx1 || lz < lz0 || lz > lz1) return;
+    sp.dead = true; for (const m of [I.poles, I.heads, I.pools]) { m.setMatrixAt(k, zero); m.instanceMatrix.needsUpdate = true; }
+    const ci = circles.findIndex(c => c.x === sp.x && c.z === sp.z && c.r === 0.35); if (ci >= 0) circles.splice(ci, 1);
+  });
+}
+// --- the parking garage: two levels, the top one open to the sky ---
+{
+  const s = SITES.garage, g = siteGroup(s, 64, 54), y0 = s.y, h1 = 4.5, h2 = 9;
+  clearLampsIn(s, -8, 6, 8, 60);
+  const conc = toon(0x8f8aa6), concD = toon(0x6f6a86), stripe = toon(0xffd23f), neonM = new THREE.MeshBasicMaterial({ color: 0xff3fa4 }), neonC = new THREE.MeshBasicMaterial({ color: 0x3ff4ff });
+  // ground floor walls (you can't drive underneath)
+  part(g, rbox(60, h1 - 0.3, 50, 0.2), concD, 0, (h1 - 0.3) / 2, -13, 0.04);
+  for (let k = -2; k <= 2; k++) part(g, rbox(4, 2.2, 0.2, 0.05), toon(0x2b2d42), k * 11, 1.6, 12.12, 0);
+  solidY(s, -30, -38, 30, 12, h1 - 0.5, y0);
+  // level 1 deck
+  part(g, rbox(60, 0.5, 50, 0.1), conc, 0, h1 - 0.25, -13, 0.04); deckRect(s, -30, -38, 30, 12, y0 + h1);
+  // roof deck with a hole where the inner ramp comes up
+  part(g, rbox(48, 0.5, 50, 0.1), conc, -6, h2 - 0.25, -13, 0.04); part(g, rbox(12, 0.5, 14, 0.1), conc, 24, h2 - 0.25, 5, 0.04);
+  deckRect(s, -30, -38, 18, 12, y0 + h2); deckRect(s, 18, -2, 30, 12, y0 + h2);
+  // pillars between the levels
+  for (const [lx, lz] of [[-26, -32], [-13, -32], [0, -32], [13, -32], [-26, -14], [-13, -14], [0, -14], [13, -14], [-26, 4], [13, 4]]) { part(g, rbox(1.1, h2 - h1, 1.1, 0.1), concD, lx, h1 + (h2 - h1) / 2, lz, 0); circles.push(Object.assign(s2w(s, lx, lz), { r: 0.8, h: h2 - h1 - 0.3, y0: y0 + h1 })); }
+  // parapets with neon strips
+  const wall = (lx0, lz0, lx1, lz1, hy, m) => { const w = Math.abs(lx1 - lx0) || 0.5, d = Math.abs(lz1 - lz0) || 0.5; part(g, rbox(w, 1.0, d, 0.08), concD, (lx0 + lx1) / 2, hy + 0.5, (lz0 + lz1) / 2, 0); const n2 = new THREE.Mesh(box(w + 0.02, 0.12, d + 0.02), m); n2.position.set((lx0 + lx1) / 2, hy + 0.2, (lz0 + lz1) / 2); g.add(n2); solidY(s, Math.min(lx0, lx1) - (w < 1 ? 0.25 : 0), Math.min(lz0, lz1) - (d < 1 ? 0.25 : 0), Math.max(lx0, lx1) + (w < 1 ? 0.25 : 0), Math.max(lz0, lz1) + (d < 1 ? 0.25 : 0), 1.0, y0 + hy); };
+  wall(-30, -38, 30, -38, h1, neonM); wall(-30, -38, -30, 12, h1, neonM); wall(30, -38, 30, 12, h1, neonM); wall(-30, 12, -4, 12, h1, neonM); wall(4, 12, 30, 12, h1, neonM);
+  wall(-30, -38, 18, -38, h2, neonC); wall(-30, -38, -30, 12, h2, neonC); wall(30, -2, 30, 12, h2, neonC); wall(-30, 12, 30, 12, h2, neonC); wall(18, -38, 18, -2, h2, neonC);
+  // outside ramp up to level 1, inside ramp up to the roof
+  slopeMesh(g, conc, 0, 28, 8, 32, h1, 0.05, 0); ramps.push(Object.assign(s2w(s, 0, 28), { yaw: s.yaw + Math.PI, w: 8, l: 32, h: y0 + h1, h0: y0 }));
+  slopeMesh(g, conc, 23, -18, 8, 32, h1, h2, 0); ramps.push(Object.assign(s2w(s, 23, -18), { yaw: s.yaw, w: 8, l: 32, h: y0 + h2, h0: y0 + h1 }));
+  // parking lines, lamps and a big P
+  for (const [hy, xs] of [[h1, [-24, -16, -8, 8, 16]], [h2, [-24, -16, -8, 0, 8]]]) for (const lx of xs) { const ln = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 5), toon(0xf4f2fa)); ln.rotation.x = -Math.PI / 2; ln.position.set(lx, hy + 0.02, -33); g.add(ln); }
+  for (const [lx, lz] of [[-24, -30], [6, -30], [-24, 6], [6, 6]]) { part(g, cyl(0.12, 0.15, 5, 6), toon(0x3a3d52), lx, h2 + 2.5, lz, 0); const hd = new THREE.Mesh(rbox(1.2, 0.25, 0.5, 0.08), GLOW_WARM); hd.position.set(lx, h2 + 5, lz); g.add(hd); const pool = new THREE.Mesh(new THREE.CircleGeometry(6, 20), lampPool); pool.rotation.x = -Math.PI / 2; pool.position.set(lx, h2 + 0.05, lz); g.add(pool); }
+  signBoard(g, 'P', '#3fa7ff', '#ffffff', -24, h2 + 3.5, 12.6, 3, 3);
+  const pyl = new THREE.Mesh(box(0.3, 0.3, 50), stripe); pyl.position.set(-30.2, h1 - 0.6, -13); g.add(pyl);
+  const pz2 = s2w(s, -4, -12), pz3 = s2w(s, -2, -12);
+  MEETS.push({ id: 'garage', name: 'Parking Garage', x: pz2.x, z: pz2.z, y: y0 + h1, r: 32, route: 'neon', s, rumor: 'On some nights the second floor of the parking garage in Pebble City fills up with tuned cars.' });
+  MEETS.push({ id: 'roof', name: 'Rooftop', x: pz3.x, z: pz3.z, y: y0 + h2, r: 32, route: 'neon', s, rumor: 'Keep driving up the ramps of that garage. The best view of the city is on the roof.' });
+  meetNpcs(MEETS[0], [[-20, -28, 0.4], [-8, -29, -0.3], [-24, -6, 1.5]], 'downtown');
+  meetNpcs(MEETS[1], [[-18, -28, 0.3], [-4, -30, -0.5]], 'downtown');
+}
+// --- the harbor: a quay at the edge of the city, by the water ---
+function harborSite() {
+  for (let k = 0; k < 1400; k++) {
+    const a = k * 2.39996, dd = Math.sqrt(k) * 4, x = 640 + Math.cos(a) * dd, z = -250 + Math.sin(a) * dd;
+    const h = gridH(x, z); if (h < 0.25 || h > 4) continue;
+    let flat = true; for (let t = 0; t < 8 && flat; t++) { const xx = x + Math.cos(t * TAU / 8) * 16, zz = z + Math.sin(t * TAU / 8) * 16; if (Math.abs(gridH(xx, zz) - h) > 0.9 || roadAt(xx, zz)) flat = false; }
+    if (!flat || roadAt(x, z) || boxes.some(b => x > b.x0 - 20 && x < b.x1 + 20 && z > b.z0 - 20 && z < b.z1 + 20)) continue;
+    for (let t = 0; t < 16; t++) { const wa = t * TAU / 16, wx = x + Math.cos(wa) * 34, wz = z + Math.sin(wa) * 34; if (gridH(wx, wz) < -1.2) return { x, z, y: h, yaw: Math.atan2(wx - x, wz - z) }; }
+  }
+  return { x: 630, z: -250, y: gridH(630, -250), yaw: -Math.PI / 2 };
+}
+{
+  const s = harborSite(); SITES.harbor = s;
+  const g = siteGroup(s, 46, 34);
+  const quay = new THREE.Mesh(new THREE.PlaneGeometry(46, 34), toon(0x6c6880)); quay.rotation.x = -Math.PI / 2; quay.position.y = 0.06; quay.receiveShadow = true; g.add(quay);
+  part(g, rbox(46, 0.5, 0.6, 0.1), toon(0xffd23f), 0, 0.3, 16.8, 0);
+  for (let k = -3; k <= 3; k++) part(g, cyl(0.25, 0.3, 0.6, 10), toon(0x2b2d42), k * 6.5, 0.3, 16.2, 0);
+  const CC = [0xff4f5e, 0x3fa7ff, 0xffd23f, 0x3ddc97, 0xff9a3c, 0x9b6bff];
+  const stack = (lx, lz, n, rot) => { for (let k = 0; k < n; k++) { const c = part(g, rbox(6, 2.5, 2.4, 0.06), toon(CC[(Math.abs(lx * 7 + lz * 3) + k) % CC.length]), lx, 1.25 + k * 2.5, lz, 0.03); c.rotation.y = rot; } solid(s, lx - 3.2, lz - 1.4, lx + 3.2, lz + 1.4, n * 2.5); };
+  stack(-18, -12, 3, 0); stack(-18, -8.5, 2, 0); stack(-10, -14, 1, 0); stack(16, -12, 2, 0); stack(16, -8.5, 3, 0);
+  // a dock crane
+  for (const lx of [-6, 6]) for (const lz of [6, 14]) part(g, rbox(0.8, 16, 0.8, 0.1), toon(0xff9a3c), lx, 8, lz, 0);
+  part(g, rbox(13, 1.2, 1.2, 0.1), toon(0xff9a3c), 0, 16, 6, 0); part(g, rbox(13, 1.2, 1.2, 0.1), toon(0xff9a3c), 0, 16, 14, 0);
+  part(g, rbox(1.4, 1.2, 22, 0.1), toon(0xff9a3c), 0, 17, 14, 0);
+  for (const lx of [-6, 6]) for (const lz of [6, 14]) solid(s, lx - 0.5, lz - 0.5, lx + 0.5, lz + 0.5, 16);
+  for (const [lx, lz] of [[-12, 4], [12, 4], [0, -6]]) { part(g, cyl(0.12, 0.15, 6, 6), toon(0x3a3d52), lx, 3, lz, 0); const hd = new THREE.Mesh(rbox(1.2, 0.25, 0.5, 0.08), GLOW_WARM); hd.position.set(lx, 6, lz); g.add(hd); const pool = new THREE.Mesh(new THREE.CircleGeometry(6, 20), lampPool); pool.rotation.x = -Math.PI / 2; pool.position.set(lx, 0.09, lz); g.add(pool); }
+  signBoard(g, 'PEBBLE HARBOR', '#3fa7ff', '#ffffff', 0, 4, -16.5, 10, 1.8);
+  const c = s2w(s, 0, 2);
+  MEETS.push({ id: 'harbor', name: 'Harbor', x: c.x, z: c.z, y: s.y, r: 22, route: 'harbor', s, rumor: 'Down at the harbor, between the containers, crews race for pink slips after midnight.' });
+  meetNpcs(MEETS[2], [[-8, 8, 2.6], [8, 8, -2.6], [-2, -4, 0.2]], 'downtown');
+}
+function atMeet() { for (const M of MEETS) if (Math.hypot(player.x - M.x, player.z - M.z) < M.r && Math.abs(player.y - M.y) < 2.5) return M; return null; }
+let meetSeen = null;
+function meetStep(dt) {
+  const M = atMeet();
+  if (M && !(save.meets || []).includes(M.id)) { save.meets = (save.meets || []).concat(M.id); persist(); showBig('SECRET MEETUP'); toast('You found the ' + M.name + ' meetup! It is on your map now', true); addXp(250); }
+  meetSeen = M;
+  // the crews at the meets rev their engines now and then
+  for (const N of MEETS) for (const n of N.npcs) {
+    if (street && street.crew && street.crew.includes(n)) continue;
+    n.revT -= dt;
+    if (n.revT <= 0) { n.revT = rand(3, 9); const d = Math.hypot(n.home.x - player.x, n.home.z - player.z); if (d < 60) { n.model.bfT = 0.3; oneShot('limit', 0.15 * (1 - d / 70), 0.9); setTimeout(() => oneShot('bf' + (1 + ((Math.random() * 3) | 0)), 0.25 * (1 - d / 70), 1), 350); } }
+  }
+}
+// =====================================================================
+// Shiro's Used Cars: cheap cars, sold as seen. Some hide a worn or blown engine, a few hide a turbo.
+// Stock changes every 30 minutes (from the clock, so it is the same for everyone).
+// =====================================================================
+const usedPeriod = () => Math.floor(Date.now() / 1800000);
+function usedStock(p) {
+  const pool = BODIES.filter(b => !b.find && b.cost > 0 && b.id !== 'truck'), out = [];
+  for (let k = 0; k < 6; k++) {
+    const r = (fuelNoise(p, 300 + k) + 1) / 2, r2 = (fuelNoise(p, 400 + k) + 1) / 2, r3 = (fuelNoise(p, 500 + k) + 1) / 2;
+    const b = pool[Math.floor(r * pool.length) % pool.length];
+    const issue = r3 < 0.32 ? 'worn' : r3 < 0.47 ? 'blown' : r3 > 0.86 ? 'gem' : 'clean';
+    out.push({ id: p + '-' + k, m: b.id, paint: PAINTS[Math.floor(r2 * PAINTS.length) % PAINTS.length].id, price: Math.max(60, Math.round(b.cost * (0.32 + r2 * 0.3) / 10) * 10), km: Math.round(60000 + r3 * 230000), issue });
+  }
+  return out;
+}
+const USED = { models: [], period: -1, spots: [[-14, -8, 0.5], [-5, -8, 0.3], [5, -8, -0.3], [14, -8, -0.5], [-9, 6, 2.8], [9, 6, -2.8]] };
+{
+  const s = SITES.usedlot, g = siteGroup(s, 44, 40); USED.s = s;
+  const lot = new THREE.Mesh(new THREE.PlaneGeometry(42, 36), toon(0x5c5870)); lot.rotation.x = -Math.PI / 2; lot.position.set(0, 0.07, -1); lot.receiveShadow = true; g.add(lot);
+  for (let k = -10; k <= 10; k++) { part(g, cyl(0.08, 0.08, 1.6, 6), toon(0xcfcbe0), k * 2, 0.8, -19, 0); part(g, cyl(0.08, 0.08, 1.6, 6), toon(0xcfcbe0), -21, 0.8, -19 + (k + 10) * 1.8, 0); part(g, cyl(0.08, 0.08, 1.6, 6), toon(0xcfcbe0), 21, 0.8, -19 + (k + 10) * 1.8, 0); }
+  solid(s, -21, -19.5, 21, -18.5, 1.6); solid(s, -21.5, -19, -20.5, 17, 1.6); solid(s, 20.5, -19, 21.5, 17, 1.6);
+  for (const sx of [-1, 1]) { part(g, cyl(0.12, 0.12, 6, 8), toon(0x2b2d42), sx * 20, 3, 17, 0); for (let k = 0; k < 8; k++) { const f = part(g, new THREE.ConeGeometry(0.4, 0.8, 3), toon([0xff4f5e, 0xffd23f, 0x3fa7ff, 0x3ddc97][k % 4]), sx * 20 - sx * (k + 1) * 1.6, 5.7 - Math.sin(k / 7 * Math.PI) * 0.8, 17, 0); f.rotation.z = Math.PI; } }
+  part(g, rbox(6, 3, 4, 0.2), toon(0xf1e7d0), 14, 1.5, -15, 0.05); part(g, rbox(6.6, 0.4, 4.6, 0.12), toon(0x3b3f6b), 14, 3.2, -15, 0);
+  part(g, rbox(1.6, 1.2, 0.12, 0.04), WIN_M, 14, 1.8, -12.95, 0); solid(s, 11, -17, 17, -13, 3);
+  signBoard(g, "SHIRO'S USED CARS", '#ffd23f', '#1d1a2e', 0, 6.5, -19.3, 16, 2.6);
+  part(g, rbox(0.5, 5.5, 0.5, 0.1), toon(0x2b2d42), -7, 2.75, -19.5, 0); part(g, rbox(0.5, 5.5, 0.5, 0.1), toon(0x2b2d42), 7, 2.75, -19.5, 0);
+  propPad('usedlot', s, 0, 13, 4.2, 0xffd23f, 'USED');
+}
+function refreshUsedLot() {
+  const p = usedPeriod();
+  if (save.usedSold && save.usedSold.p !== p) save.usedSold = { p, ids: [] };
+  const sold = save.usedSold ? save.usedSold.ids : [];
+  if (USED.period === p && USED.soldKey === sold.join()) return;
+  USED.period = p; USED.soldKey = sold.join();
+  for (const m of USED.models) scene.remove(m.root);
+  USED.models = [];
+  usedStock(p).forEach((o, k) => {
+    if (sold.includes(o.id)) return;
+    const [lx, lz, yaw] = USED.spots[k], q = s2w(USED.s, lx, lz);
+    LITE = true; const m = buildCar(o.m, PAINT[o.paint].hex, DEFAULT_TUNE); LITE = false;
+    m.root.position.set(q.x, USED.s.y + 0.02, q.z); m.root.rotation.y = USED.s.yaw + yaw;
+    const t = makeTag(fmt$(o.price), '#ffd23f'); t.position.y = 2.7; t.scale.set(3.4, 0.85, 1); m.root.add(t);
+    scene.add(m.root); USED.models.push(m);
+  });
+}
+refreshUsedLot(); setInterval(refreshUsedLot, 20000);
+function openUsed() {
+  refreshUsedLot(); renderUsed(); openPanel('usedPanel');
+}
+function renderUsed() {
+  const L = $('usedList'); L.textContent = '';
+  const p = usedPeriod(), sold = save.usedSold && save.usedSold.p === p ? save.usedSold.ids : [];
+  const left = Math.ceil((1800000 - Date.now() % 1800000) / 60000);
+  $('usedLede').textContent = 'Shiro sells them cheap and asks no questions. Everything is sold as seen: some have a tired engine, a few have surprises. New cars arrive in ' + left + ' min.';
+  for (const o of usedStock(p)) {
+    const b = BODY[o.m], card = el('div', 'propcard');
+    const head = el('div', 'phead'); head.append(el('b', '', b.name), el('span', 'tagk', o.km.toLocaleString('en-US') + ' km'), classBadge(carPI(newCarObj(o.m, o.paint)))); card.append(head);
+    card.append(el('div', 'fx', b.cls + ' · ' + PAINT[o.paint].name + ' · new it costs ' + fmt$(b.cost) + '. Condition: sold as seen.'));
+    const row = el('div', 'btns');
+    if (sold.includes(o.id)) row.append(btn('Sold', 'alt', null, true));
+    else row.append(btn('Buy · ' + fmt$(o.price), '', () => buyUsed(o), save.money < o.price || save.cars.length >= 80));
+    card.append(row); L.append(card);
+  }
+}
+function buyUsed(o) {
+  if (save.money < o.price || save.cars.length >= 80) return;
+  const p = usedPeriod(); if (!save.usedSold || save.usedSold.p !== p) save.usedSold = { p, ids: [] };
+  if (save.usedSold.ids.includes(o.id)) return;
+  save.money -= o.price; save.usedSold.ids.push(o.id);
+  const car = newCarObj(o.m, o.paint), r = (fuelNoise(p, 600 + o.id.length) + 1) / 2;
+  let msg;
+  if (o.issue === 'worn') { car.wear = 0.42 + r * 0.25; msg = 'The engine is tired (' + Math.round((1 - car.wear) * 100) + '%). A repair in the garage fixes it'; }
+  else if (o.issue === 'blown') { car.wear = 0.88; msg = 'Uh oh: the head gasket is blown. Repair it in the garage before you push it'; }
+  else if (o.issue === 'gem') { car.tune.i = 't38'; car.tune.a = 'cai'; car.tune.has.push('i:t38', 'a:cai'); msg = 'Lucky find! It came with a small turbo and a cold air intake'; }
+  else msg = 'Clean car. Good deal!';
+  car.fuel = 0.25;
+  save.cars.push(car); persist(); renderMoney(true); sfx('buy'); refreshUsedLot(); renderUsed();
+  showBig('USED CAR!'); toast('You bought the ' + BODY[o.m].name + '. ' + msg + '. Switch to it in your garage', true);
+}
+$('bCloseUsed').addEventListener('click', closePanels);
+$('usedPanel').addEventListener('pointerdown', e => { if (e.target.id === 'usedPanel') closePanels(); });
+$('bCloseDyno').addEventListener('click', closePanels);
+$('bDynoAgain').addEventListener('click', () => openDyno());
+// garage body tab: kits, wings, stickers
+function renderLook() {
+  const car = ac(), lk = car.look || (car.look = { kit: 'stock', wing: 'none', stk: 'none' });
+  const list = (box2, items, key, slot) => {
+    box2.textContent = '';
+    for (const it of items) {
+      const lockedCrew = it.crew && !ownsDistrict(it.crew), owned = it.cost === 0 || car.lookOwn.includes(slot + ':' + it.id), on = lk[key] === it.id;
+      const row = el('div', 'opt' + (on ? ' sel' : '')), txt = el('div', 'txt');
+      txt.append(el('b', '', it.name), el('div', 'fx', lockedCrew ? 'Beat the ' + DISTRICTS[it.crew].crew + ' boss to unlock' : it.cost ? (owned ? 'Bought for this car' : fmt$(it.cost)) : 'Free'));
+      let b;
+      if (on) b = btn('Fitted', '', null, true);
+      else if (lockedCrew) b = btn('Locked', '', null, true);
+      else if (owned) b = btn('Fit', 'alt', () => { lk[key] = it.id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage(); });
+      else b = btn('$' + it.cost, '', () => { if (save.money < it.cost) return; save.money -= it.cost; car.lookOwn.push(slot + ':' + it.id); lk[key] = it.id; persist(); renderMoney(true); sfx('buy'); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage(); }, save.money < it.cost);
+      row.append(txt, b); box2.append(row);
+    }
+  };
+  list($('kitList'), KITS, 'kit', 'kit'); list($('wingList'), WINGS, 'wing', 'wing'); list($('stkList'), STICKERS, 'stk', 'stk');
+}
 function roadsideFuel() {
   if (save.money < 120) { toast('Roadside fuel costs $120'); return; }
   const car = ac(); save.money -= 120; car.fuel = Math.min(1, (car.fuel || 0) + 10 / tankOf(car.m)); persist(); renderMoney(true); sfx('buy');
@@ -5552,6 +6166,7 @@ function nearProp() {
   for (const [id, pr] of Object.entries(PROPS)) {
     const pd = pr.pad; if (!pd || Math.hypot(p.x - pd.x, p.z - pd.z) > pd.r + 0.8) continue;
     if (id === 'dealer') return { kind: 'desk', text: 'to shop at Pebble Motors' };
+    if (id === 'usedlot') return { kind: 'used', text: "to browse Shiro's used cars" };
     if (BIZ_BY[id]) return { kind: 'biz', id, text: save.biz[id] ? 'to run your ' + BIZ_BY[id].name : 'to look at ' + BIZ_BY[id].name };
     if (HOME_BY[id]) return { kind: 'home', id, text: save.homes.includes(id) ? 'to go inside' : 'to view ' + HOME_BY[id].name };
   }
@@ -5559,6 +6174,7 @@ function nearProp() {
 }
 function openProp(pr) {
   if (pr.kind === 'find') { claimFind(pr.f); return; }
+  if (pr.kind === 'used') { openUsed(); return; }
   if (pr.kind === 'pump') { openFuel(pr.st); return; }
   if (pr.kind === 'pay') { payFuel(pr.st); return; }
   if (pr.kind === 'tow') { roadsideFuel(); return; }
@@ -5846,6 +6462,8 @@ const TUT = [
   { icon: '🚨', title: 'Watch out for the police', text: 'Go over 150 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
   { icon: '⛽', title: 'Fuel, classes and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Every car has a class from 150 to Unlimited: races only put you against cars of your class. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
     keys: [['E', 'Pump fuel or pay'], ['V', 'Wardrobe']] },
+  { icon: '🌧', title: 'Crews, meetups and your engine', text: 'Rival crews own Downtown, the Farmlands and the Mountain Pass: beat three of their racers, then the boss, and the district pays you. Crew racers cruise around: sit behind one and flash your lights to race. Hidden meetups wait in the city. Weather changes: wet roads are slippery. Nitro and heat wear your engine; cooling and forged parts help, repairs are in the garage.',
+    keys: [['L', 'Flash lights / challenge'], ['X', 'Rev the engine']] },
   { icon: '💬', title: 'Play together', text: 'Chat with everyone on the island, sell cars to other players on the Market and set lap records. Everything else lives in the Menu at the top left. Have fun!', hl: 'bMenu',
     keys: [['T', 'Chat'], ['H', 'Honk']] },
 ];
@@ -5871,13 +6489,6 @@ $('tutNext').addEventListener('click', () => { if (tutI >= TUT.length - 1) endTu
 $('tutBack').addEventListener('click', () => { if (tutI > 0) { tutI--; renderTut(); } });
 $('tutSkip').addEventListener('click', endTutorial);
 $('bTut').addEventListener('click', () => openTutorial(0));
-// look switch: VHS / 90s console, or the clean cartoon look. Materials are made at load, so it reloads the page.
-$('bRetro').textContent = 'Look: ' + (RETRO ? 'VHS' : 'Clean');
-$('bRetro').addEventListener('click', () => { try { localStorage.setItem(SAVE_KEY + '-retro', RETRO ? '0' : '1'); } catch (e) { } persist(); location.reload(); });
-// the camcorder date in the corner
-{ const M = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  const tick = () => { const d = new Date(), h = d.getHours(), p = h < 12 ? 'AM' : 'PM', hh = String(h % 12 || 12).padStart(2, ' '); $('osdStamp').textContent = p + ' ' + hh + ':' + String(d.getMinutes()).padStart(2, '0') + '\n' + M[d.getMonth()] + '. ' + String(d.getDate()).padStart(2, '0') + ' 1997'; $('osdPlay').style.visibility = d.getSeconds() % 2 || !playing ? 'visible' : 'hidden'; };
-  if (RETRO) { tick(); setInterval(tick, 1000); } }
 
 // =====================================================================
 // underground street races: meets around the map, NPC crews and player challenges
@@ -5897,20 +6508,28 @@ const STREET = [
     pts: densify([[800, -362], [800, 300], [1200, 300], [1200, -300], [1000, -300], [1000, 120]].map(([x, z]) => ({ x, z })), 6) },
   { id: 'coast', name: 'Coast Highway', where: 'Farm roads', fee: 300, prize: 1500, lvl: 3, blurb: 'Flat out along the country road. Long straights, fast sweepers, no mercy.',
     pts: roadSlice(WEST, Math.round(WEST.pts.length * 0.06), Math.round(WEST.pts.length * 0.42), 6) },
+  { id: 'harbor', name: 'Harbor Run', where: 'Pebble City', fee: 250, prize: 1200, lvl: 2, blurb: 'From the harbor gates up the west side of downtown and across the top of the city.',
+    pts: densify([[700, -380], [700, -100], [900, -100], [900, 300], [1300, 300]].map(([x, z]) => ({ x, z })), 6) },
   { id: 'peak', name: 'Midnight Touge', where: 'Mountain pass', fee: 400, prize: 2200, lvl: 6, blurb: 'Up the mountain pass to the summit. Hairpins, guard rails and a long drop.',
     pts: (() => { const t0 = NORTH.pts.findIndex(q => q.z < -640); return roadSlice(NORTH, t0, NORTH.pts.length - 40, 6); })() },
 ];
 const STREET_BY = Object.fromEntries(STREET.map(s => [s.id, s]));
 const CREW = ['Kaito', 'Ryo', 'Mika', 'Shin', 'Yuki', 'Daichi', 'Haru', 'Ren', 'Sora'];
 const CREW_CARS = ['hikari', 'kitsune', 'yoru', 'raijin', 'arashi', 'kaze', 'coupe', 'sakura', 'hikari'];
-for (const R of STREET) {
+// headings, gates and the start grid for a route (the fixed ones and street duels made on the fly)
+function prepRoute(R) {
   const P = R.pts;
   for (let i = 0; i < P.length; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)]; P[i].yaw = Math.atan2(b.x - a.x, b.z - a.z); }
   R.len = P.length;
   R.gates = []; for (let i = 25; i < P.length - 5; i += 25) R.gates.push(i); R.gates.push(P.length - 1);
-  // the start grid sits behind the line; the meet pad is just past it on the road
+  // the start grid sits behind the line
   const s = P[0], fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
   R.slot = k => { const row = Math.floor(k / 2), back = 6 + row * 9, lat = k % 2 ? 2.8 : -2.8; return { x: s.x - fx * back + fz * lat, z: s.z - fz * back - fx * lat, yaw: s.yaw }; };
+  return R;
+}
+for (const R of STREET) {
+  const P = R.pts;
+  prepRoute(R); R.district = ROUTE_DISTRICT[R.id];
   const pp = P[Math.min(4, P.length - 1)];
   R.pad = makePad(pp.x, pp.z, 5, 0xff3fa4, 'MEET'); R.pad.grp.position.y = surfaceHeight(pp.x, pp.z); R.pad.x = pp.x; R.pad.z = pp.z; R.pad.r = 5;
   // the crew hangs out on the grid with their neon on
@@ -5918,7 +6537,7 @@ for (const R of STREET) {
     const ci = (STREET.indexOf(R) * 3 + k) % CREW.length, body = CREW_CARS[(STREET.indexOf(R) * 3 + k) % CREW_CARS.length];
     const neon = NEONS[1 + (ci + k) % (NEONS.length - 1)].id, paint = PAINTS[(ci * 2 + k) % PAINTS.length];
     const m = buildCar(body, paint.hex, { e: 'v6', i: 't52', a: 'cai', w: ['y5', 'split', 'mesh'][k - 1], has: [] }, neon);
-    const t = makeTag(CREW[ci], '#ff3fa4'); t.position.y = 2.9; t.scale.set(3.4, 0.85, 1); m.root.add(t);
+    const DD = DISTRICTS[R.district], t = makeTag(CREW[ci] + (DD ? ' · ' + DD.crew : ''), DD ? DD.col : '#ff3fa4'); t.position.y = 2.9; t.scale.set(DD ? 4.6 : 3.4, DD ? 1.15 : 0.85, 1); m.root.add(t);
     const q = R.slot(k); m.root.position.set(q.x, surfaceHeight(q.x, q.z), q.z); m.root.rotation.y = q.yaw; scene.add(m.root);
     return { name: CREW[ci], body, neon, paintHex: paint.hex, model: m, home: q };
   });
@@ -5936,19 +6555,21 @@ function startStreet(R, opts) {
   opts = opts || {};
   if (race || mission || delivery || street) { toast('Finish what you are doing first'); return false; }
   if (police.stars) { toast('Lose the police first'); return false; }
-  if (save.money < R.fee) { toast('You need $' + R.fee + ' to enter'); return false; }
+  const fee = opts.fee != null ? opts.fee : R.fee;
+  if (save.money < fee) { toast('You need $' + fee + ' to enter'); return false; }
   forceIntoCar(); closePanels(); queued = false;
-  save.money -= R.fee; persist(); renderMoney(true);
-  const multi = !!opts.multi;
-  street = { R, id: opts.id || ('s' + rid()), multi, peers: opts.peers || [], phase: 'countdown', goAt: performance.now() + 3200, t0: 0, ri: 0, fin: 0, bots: [], pot: R.fee * Math.max(1, (opts.peers || []).length), doneAt: 0, results: null };
+  save.money -= fee; persist(); renderMoney(true);
+  const multi = !!opts.multi, crew = opts.crew || R.crew;
+  street = { R, opts, crew, fee, prize: opts.prize != null ? opts.prize : R.prize, id: opts.id || ('s' + rid()), multi, peers: opts.peers || [], phase: 'countdown', goAt: performance.now() + 3200, t0: 0, ri: 0, fin: 0, bots: [], pot: fee * Math.max(1, (opts.peers || []).length), doneAt: 0, results: null };
   const mySlot = multi ? Math.max(0, street.peers.indexOf(myPeer)) : 0;
   streetPlace(player, R.slot(mySlot)); camSnap = true;
   if (!multi) {
     // the three crew cars line up and race you
-    const tg = classTargets(R.crew.length, 0.6, 0.92);
-    R.crew.forEach((cr, k) => {
+    const tg = classTargets(crew.length, opts.lo != null ? opts.lo : 0.6, opts.hi != null ? opts.hi : 0.92);
+    crew.forEach((cr, k) => {
       const b = newCarState(0, 0, 0); streetPlace(b, R.slot(k + 1));
-      b.stats = classBotStats(tg[k]);
+      b.stats = classBotStats(tg[k]); if (opts.botMul) { b.stats.top *= opts.botMul; b.stats.accel *= opts.botMul; }
+      cr.model.root.visible = true;
       Object.assign(b, { name: cr.name, model: cr.model, ri: 0, fin: 0, stuck: 0, cr });
       street.bots.push(b);
     });
@@ -6015,8 +6636,9 @@ function finishStreet(st) {
   const R = S.R, pos = st.findIndex(s => s.me) + 1, myFin = S.fin;
   let cash = 0;
   if (S.multi) { const winner = st.filter(s => s.fin).sort((a, b) => a.fin - b.fin)[0]; if (winner && winner.me) cash = S.pot; }
-  else cash = pos === 1 ? R.prize : pos === 2 ? Math.round(R.fee * 1.5) : 0;
+  else cash = pos === 1 ? S.prize : pos === 2 && S.fee ? Math.round(S.fee * 1.5) : 0;
   if (cash) addMoney(cash);
+  if (!S.multi && pos === 1) { if (S.opts && S.opts.boss) bossBeaten(S.opts.boss); else if (R.district) turfWin(R.district); }
   addXp([0, 160, 90, 50, 30][pos] || 30);
   S.results = { st, pos, cash };
   $('resTitle').textContent = pos === 1 ? 'You won the ' + R.name + '!' : ordinal(pos) + ' place';
@@ -6028,7 +6650,7 @@ function finishStreet(st) {
 function endStreet() {
   const S = street; if (!S) return;
   // the crew drives back to the meet
-  for (const cr of S.R.crew) { const q = cr.home; cr.model.root.position.set(q.x, surfaceHeight(q.x, q.z), q.z); cr.model.root.rotation.y = q.yaw; }
+  for (const cr of (S.crew || S.R.crew)) { const q = cr.home; if (q) { cr.model.root.position.set(q.x, q.y != null ? q.y : surfaceHeight(q.x, q.z), q.z); cr.model.root.rotation.y = q.yaw; cr.model.tilt.rotation.set(0, 0, 0); } else if (cr.release) cr.release(); }
   street = null; $('streetbar').hidden = true; $('countdown').hidden = true; document.body.classList.remove('racing');
   $('results').hidden = true; panelOpen = false;
   for (const o of gatePool) o.visible = false;
@@ -6067,6 +6689,12 @@ function renderMeet() {
   if (levelOf(save.xp) < R.lvl) row.append(btn('Unlocks at level ' + R.lvl, '', null, true));
   else row.append(btn('Race · $' + R.fee, '', () => startStreet(R), save.money < R.fee));
   solo.append(row); L.append(solo);
+  { const D = DISTRICTS[R.district], t = D && save.turf[R.district];
+    if (D) { const bc = el('div', 'propcard'); bc.append(el('div', 'phead')); bc.firstChild.append(el('b', '', D.crew), el('span', 'tagk', D.name));
+      if (t.own) bc.append(el('div', 'fx', D.name + ' is yours. The ' + D.crew + ' pay you turf money now.'));
+      else if (t.w < 3) bc.append(el('div', 'fx', 'Beat ' + (3 - t.w) + ' more ' + D.crew + ' racers (crew races here, or street duels in ' + D.name + ') and their boss ' + D.boss + ' will race you for the district.'));
+      else { bc.append(el('div', 'fx', 'Boss ' + D.boss + ' is waiting in a tuned ' + BODY[D.bossCar].name + '. Win and ' + D.name + ' is yours. Entry $' + R.fee * 2 + ', prize $' + (R.prize * 4).toLocaleString('en-US') + '.')); const r3 = el('div', 'btns'); r3.append(btn('Race the boss · $' + R.fee * 2, '', () => startBoss(R), save.money < R.fee * 2 || levelOf(save.xp) < R.lvl)); bc.append(r3); }
+      L.append(bc); } }
   const mp = el('div', 'propcard');
   mp.append(el('div', 'phead'));
   mp.firstChild.append(el('b', '', 'Challenge players'), el('span', 'tagk', 'Online'));
@@ -6172,7 +6800,7 @@ function simStep(now, dt) {
     if (mission && mission.phase === 'running' && mission.def.kind === 'air' && air > 0.25) { mission.air += air; toast('+' + air.toFixed(1) + 's air', true); }
     else if (air > 0.85 && !mission) { const v = Math.round(air * 14); addMoney(v); addXp(air * 20); toast('Big air! +$' + v, true); }
   }
-  if (playing) { if (!onFoot) updateDrift(dt, hit); trafficStep(dt); policeStep(dt); deliveryStep(dt); tycoonStep(dt); }
+  if (playing) { if (!onFoot) { updateDrift(dt, hit); engineStep(dt, inp, hit); } revStep(dt); trafficStep(dt); encounterStep(dt); meetStep(dt); policeStep(dt); deliveryStep(dt); tycoonStep(dt); }
   simTick++;
   if (!onFoot && player.grounded && (player.sliding || (inp.drift && Math.abs(player.fs) > 5)) && simTick % 2 === 0) laySkids(player, playerModel.def);
   raceStep(now, dt);
@@ -6190,14 +6818,22 @@ function updateVisuals(dt, now) {
     walker.root.position.set(p.x, p.y, p.z); walker.root.rotation.y = p.yaw;
     animatePerson(walker, Math.hypot(p.vx, p.vz), p.grounded, dt);
   } else {
-    pm.root.position.set(p.x, p.y, p.z); pm.root.rotation.y = p.yaw;
-    const hf = surfaceHeight(p.x + Math.sin(p.yaw) * 1.8, p.z + Math.cos(p.yaw) * 1.8), hb = surfaceHeight(p.x - Math.sin(p.yaw) * 1.8, p.z - Math.cos(p.yaw) * 1.8);
+    // the drawn height follows the physics height through a short filter, so small bumps don't shake the car
+    p.visY = p.visY == null || Math.abs(p.visY - p.y) > 1.5 || !p.grounded ? p.y : lerp(p.visY, p.y, 1 - Math.exp(-28 * dt));
+    pm.root.position.set(p.x, p.visY, p.z); pm.root.rotation.y = p.yaw;
+    const hf = surfaceHeight(p.x + Math.sin(p.yaw) * 1.8, p.z + Math.cos(p.yaw) * 1.8, p.y), hb = surfaceHeight(p.x - Math.sin(p.yaw) * 1.8, p.z - Math.cos(p.yaw) * 1.8, p.y);
     const pitch = p.grounded ? -Math.atan2(hf - hb, 3.6) : clamp(-p.vy * 0.025, -0.5, 0.5);
     animateCar(pm, p.fs, p.ls, p.steerVis, pitch, p.boosting, p.drifting, dt, p);
   }
   { const r = pm.root, cs = Math.cos(r.rotation.y), sn = Math.sin(r.rotation.y), L = (pm.spec ? pm.spec.L : 4) / 2;
     headlight.position.set(r.position.x + sn * L, r.position.y + 1.1, r.position.z + cs * L); headlight.target.position.set(r.position.x + sn * (L + 22), r.position.y, r.position.z + cs * (L + 22)); }
   skyDome.position.copy(camera.position);
+  weatherStep(dt);
+  // headlight flashes (yours, other players', the crews')
+  const fl = m => { if (!m || !m.flash) return; if (m.flashT > 0) { m.flashT -= dt; m.flash.visible = (m.flashT % 0.3) > 0.13; } else m.flash.visible = false; };
+  fl(playerModel); headlight.intensity = playerModel.flash && playerModel.flash.visible ? 4.5 : 1.6;
+  for (const r of remotes.values()) fl(r.model);
+  for (const n of npcs) if (n.racer) fl(n.model);
   ledStep(dt, p.x, p.z);
   streetVisuals(dt);
   // showroom turntables, car wash brushes, lab steam, delivery beam
@@ -6240,6 +6876,7 @@ function updateVisuals(dt, now) {
     if (r.drift && frameN % 3 === 0) puff(r.x - Math.sin(r.yaw) * 1.8, 0.5, r.z - Math.cos(r.yaw) * 1.8, 0xffffff, 0.9, 0.8);
     if (r.beepT > 0) { r.beepT -= dt; r.beep.visible = true; r.beep.position.y = (r.body === 'truck' ? 6.3 : 5.1); } else r.beep.visible = false;
     if (r.tag) r.tag.visible = Math.hypot(r.x - player.x, r.z - player.z) < 160;
+    if (r.revving && Math.random() < dt * 2.5) { const dd = Math.hypot(r.x - player.x, r.z - player.z); if (dd < 70) { r.model.bfT = 0.2; oneShot('limit', 0.18 * (1 - dd / 80), 0.95); } }
   }
   // particles
   for (const q of puffs) {
@@ -6296,7 +6933,7 @@ function updateVisuals(dt, now) {
 function animateCar(m, fs, ls, steer, pitch, boost, drift, dt, st) {
   for (const w of m.wheels) w.mesh.rotation.x += (fs / w.r) * dt;
   for (const s of m.steer) s.rotation.y = steer * 0.45;
-  st.visPitch = lerp(st.visPitch || 0, pitch, 1 - Math.exp(-10 * dt));
+  st.visPitch = lerp(st.visPitch || 0, pitch, 1 - Math.exp(-7 * dt));
   st.visRoll = lerp(st.visRoll || 0, clamp(ls * 0.012 + steer * fs * -0.0015, -0.18, 0.18), 1 - Math.exp(-8 * dt));
   m.tilt.rotation.x = st.visPitch; m.tilt.rotation.z = st.visRoll;
   if (st.squash > 0) { st.squash = Math.max(0, st.squash - dt * 3); }
@@ -6361,6 +6998,12 @@ function updateHud(now) {
   $('speedo').classList.toggle('limiter', !!(p.manual && p.limiter));
   $('nitroFill').style.width = Math.round(100 * p.nitro / p.stats.nitroMax) + '%';
   { const fu = ac().fuel ?? 1; $('fuelFill').style.width = Math.round(100 * fu) + '%'; $('fuelBar').classList.toggle('low', fu < 0.15);
+    $('tempFill').style.width = Math.round(100 * clamp(engHeat, 0.04, 1)) + '%'; $('tempBar').classList.toggle('hot', engHeat > 0.8);
+    { const w = num(ac().wear, 0); $('tempLbl').textContent = w > 0.3 ? 'ENG ' + Math.round((1 - w) * 100) + '%' : 'TEMP'; $('tempLbl').style.color = w > 0.5 ? '#ff4f5e' : ''; }
+    { const mh = $('meetHud'), M = !onFoot && !race && !street ? meetSeen : null;
+      if (M) { const n = [...remotes.values()].filter(r => r.active && Math.hypot(r.x - M.x, r.z - M.z) < M.r && Math.abs(r.y - M.y) < 3).length; mh.hidden = false; mh.innerHTML = '<b>' + M.name.toUpperCase() + ' MEETUP</b> · '; mh.append((n ? n + ' player' + (n > 1 ? 's' : '') + ' here · ' : '') + (isTouch ? 'flash someone to race them' : 'hold X to rev · L flashes your lights: flash a car to challenge it')); }
+      else if (encHintFor && !street && !race) { mh.hidden = false; mh.innerHTML = '<b>' + encHintFor.racer.name.toUpperCase() + '</b> · '; mh.append(DISTRICTS[encHintFor.racer.d].crew + ' · ' + (isTouch ? 'flash your lights to race' : 'press L to flash your lights and race')); }
+      else mh.hidden = true; }
     const ow = $('oweTxt'); ow.hidden = !fuelDebt; if (fuelDebt) ow.textContent = fuelDebt.fled ? 'DRIVE-OFF!' : 'UNPAID FUEL $' + fuelDebt.amount.toFixed(2); }
   // prompt
   let prompt = '', fKey = false;
@@ -6452,7 +7095,7 @@ function frame(now) {
   updateCamera(dt);
   if (playing) { updateHud(now); drawMinimap(); sendPresence(now); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
-  present();
+  renderer.render(scene, camera);
 }
 
 // intro camera: slow orbit until play starts
@@ -6467,9 +7110,10 @@ requestAnimationFrame(function introLoop(now) {
   for (const cl of clouds) { cl.position.x += cl.userData.v / 60; if (cl.position.x > 1700) cl.position.x = -1700; }
   animateCar(playerModel, 0, 0, 0, 0, false, false, 1 / 60, player);
   playerModel.root.position.set(player.x, player.y, player.z);
-  present();
+  renderer.render(scene, camera);
 });
 
+indexColliders();   // buildings added after the first index (stations, garage, lots) need to collide too
 renderMoney(); renderXp();
 initCaps().catch(() => setNetNote('Playing solo.'));
 })();

@@ -20,6 +20,8 @@ const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
 const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5', 'kagero', 'kagerow'];
 const TYRES = ['street', 'sport', 'drift', 'semi', 'slick'];
+const PARTS = { g: ['stock', 'short', 'long'], k: ['stock', 's1', 's2'], c: ['stock', 'rad', 'ic', 'full'], p: ['stock', 'pist', 'rods', 'built'], z: ['stock', 'irid', 'cold'] };
+const LOOK = { kit: ['stock', 'street', 'wide'], wing: ['none', 'duck', 'gt', 'big'], stk: ['none', 'banner', 'hashiri', 'num', 'kings', 'devils', 'tengu'] };
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
 // ---------- word filter for usernames and chat (German + English) ----------
@@ -77,10 +79,13 @@ function cleanCar(c) {
   const up = {};
   for (const k of UPGRADES) up[k] = Math.max(0, Math.min(5, Math.floor(Number(c.up && c.up[k]) || 0)));
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawy]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpz]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   return {
     m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none', stance: ['stock', 'low', 'slammed'].includes(c.stance) ? c.stance : 'stock',
-    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', has },
+    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', ...Object.fromEntries(Object.entries(PARTS).map(([k, l]) => [k, l.includes(t[k]) ? t[k] : 'stock'])), has },
+    look: Object.fromEntries(Object.entries(LOOK).map(([k, l]) => [k, l.includes(c.look && c.look[k]) ? c.look[k] : l[0]])),
+    lookOwn: Array.isArray(c.lookOwn) ? c.lookOwn.filter(x => typeof x === 'string' && /^[a-z]{2,5}:[a-z0-9]{1,10}$/.test(x)).slice(0, 40) : [],
+    wear: Math.max(0, Math.min(1, Number(c.wear) || 0)),
     plate: cleanPlate(c.plate),
   };
 }
