@@ -76,7 +76,7 @@ function cleanCar(c) {
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
   const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiaw]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   return {
-    m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up,
+    m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none',
     tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', has },
   };
 }
@@ -150,6 +150,10 @@ wss.on('connection', ws => {
       const now = Date.now(); if (now - (me.lastChat || 0) < 1000) return; me.lastChat = now;
       const text = censorText(m.data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 120)).trim(); if (!text) return;
       broadcast({ t: 'msg', topic: 'chat', data: { text, n: safeName(me.presence && me.presence.n) }, peer: me.peer }, ws);
+    } else if (m.t === 'emit' && m.topic === 'street') {
+      // underground race invites, joins and starts between players
+      if (JSON.stringify(m.data || null).length > 1024) return;
+      broadcast({ t: 'msg', topic: 'street', data: m.data, peer: me.peer }, ws);
     } else if (m.t === 'emit' && m.topic === 'race') {
       if (JSON.stringify(m.data || null).length > 4096) return;
       broadcast({ t: 'msg', topic: 'race', data: m.data, peer: me.peer }, ws);

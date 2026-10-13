@@ -4,6 +4,9 @@ A cartoon open-world drift and racing game that anyone can play in the browser. 
 
 ## In the game
 
+- It is always night, with a 90s film-grain look and a Japanese-style island, city and mountain pass.
+- Underground street races: drive onto a pink MEET pad in the city, on the coast road or up the touge to race the local crew for cash, or challenge other players at the meet (winner takes the pot).
+
 - Drift, race other players and take on missions across the island, the city, farm roads and the mountain pass.
 - Press F to get out of your car and walk. Walk into Pebble Motors in Pebble City to look at the cars on their turntables and buy one.
 - Buy businesses and upgrade them. Legit ones (car wash, taxi company, tuning shop) pay you automatically, even while you're offline. Shady ones (grow shed, chop shop, Fizz lab) fill up with stock that you drive to buyers, with the police on your tail if someone tips them off.
