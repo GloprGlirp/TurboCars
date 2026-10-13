@@ -4977,6 +4977,8 @@ function mapIcons(ctx, P, scale, inView) {
   const pin = (x, z, col, r) => { if (!inView(x, z)) return; const [px, py] = P(x, z); ctx.fillStyle = col; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill(); ctx.stroke(); };
   pin(GARAGE_PAD.x, GARAGE_PAD.z, '#ffc93c', 7 * scale); pin(RACE_PAD.x, RACE_PAD.z, '#ff4f5e', 7 * scale);
   pin(PROPS.dealer.pad.x, PROPS.dealer.pad.z, '#3ddc97', 8 * scale);
+  // Shiro's Used Cars: a yellow square with a $ on it
+  if (PROPS.usedlot && inView(PROPS.usedlot.pad.x, PROPS.usedlot.pad.z)) { const [x, y] = P(PROPS.usedlot.pad.x, PROPS.usedlot.pad.z), r = 7 * scale; ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1d1a2e'; ctx.font = '900 ' + Math.round(11 * scale) + 'px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, y + 1); ctx.textBaseline = 'alphabetic'; }
   for (const R of STREET) if (inView(R.pad.x, R.pad.z)) { const [x, y] = P(R.pad.x, R.pad.z), r = 7 * scale; ctx.fillStyle = '#ff3fa4'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, rr = k % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke(); }
   for (const d of BIZ) { const pd = PROPS[d.id].pad; if (!inView(pd.x, pd.z)) continue; const [x, y] = P(pd.x, pd.z), r = 6 * scale; ctx.fillStyle = save.biz[d.id] ? '#9b6bff' : '#d9ccf5'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2); ctx.fill(); ctx.stroke(); }
   for (const h of HOMES) { const pd = PROPS[h.id].pad; if (!inView(pd.x, pd.z)) continue; const [x, y] = P(pd.x, pd.z), r = 7 * scale; ctx.fillStyle = save.homes.includes(h.id) ? '#3ddc97' : '#ffffff'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x + r * 0.7, y); ctx.lineTo(x + r * 0.7, y + r * 0.8); ctx.lineTo(x - r * 0.7, y + r * 0.8); ctx.lineTo(x - r * 0.7, y); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
@@ -5063,6 +5065,7 @@ function openMap() {
   const list = $('travelList'); list.textContent = '';
   const dp = PROPS.dealer.pad, ds = DEALER.site, dyaw = Math.atan2(ds.x - dp.x, ds.z - dp.z);
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
+  { const up = PROPS.usedlot.pad, us = USED.s, uy = Math.atan2(us.x - up.x, us.z - up.z); spots.push({ name: "Shiro's Used Cars", x: up.x - Math.sin(uy) * 6, z: up.z - Math.cos(uy) * 6, yaw: uy }); }
   for (const st of STATIONS) { const q = s2w(st.s, 7.5, 20); spots.push({ name: '⛽ ' + st.name.replace('Pebble Fuel ', ''), x: q.x, z: q.z, yaw: st.s.yaw + Math.PI }); }
   for (const t of spots) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small alt'; b.textContent = t.name; b.addEventListener('click', () => travelTo(t)); list.append(b); }
   for (const M of MEETS) if ((save.meets || []).includes(M.id)) { const b = btn('🅿 ' + M.name, 'alt', () => travelTo({ name: M.name, x: M.x, z: M.z, yaw: M.s.yaw })); list.append(b); }
