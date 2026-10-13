@@ -2551,7 +2551,7 @@ function sleekGeo(id, S, wheels) {
       out.slab = warpX(extrudeX(tp.map(p => [p[0], p[1] + 0.035]).concat(tp.slice().reverse().map(p => [p[0], p[1] - 0.1])), S.cabW + 0.06, 0.1, 0.03, 2), cw);
       // side windows, split by a B-pillar when the cabin is long enough
       const Hh = S.roof - base, zW = y => lerp(S.hoodZ, S.roofF, (y - base) / Hh), zRr = y => lerp(S.deckZ, S.roofR, (y - base) / Hh);
-      const yb = S.sh + 0.06, yt = S.roof - 0.17, d = 0.17;
+      const ang = sport && S.cabin !== 'canopy', yb = S.sh + (ang ? 0.02 : 0.06), yt = S.roof - (ang ? 0.09 : 0.17), d = ang ? 0.12 : 0.17;
       const f0 = zW(yb) - d, f1 = zW(yt) - d, r0 = zRr(yb) + d, r1 = zRr(yt) + d;
       // windscreen and rear window follow the cabin's own curve, sitting a hair proud of it
       const band = (pts, up, dn) => {
@@ -2569,16 +2569,16 @@ function sleekGeo(id, S, wheels) {
       out.sideWin = []; out.trim = []; out.r0 = r0;
       // each window is baked onto its side of the leaning cabin; a black frame (and B-pillar) sits behind the glass
       const side = (g, x) => { const o = []; for (const s of [-1, 1]) o.push(warpX(g.clone().translate(s * x, 0, 0), cw)); return o; };
-      if (f1 - r1 > 0.6 && f0 - r0 > 0.6 && yt - yb > 0.22) {
+      if (f1 - r1 > 0.45 && f0 - r0 > 0.45 && yt - yb > 0.14) {
         const split = f1 - r1 > 1.5, zB = lerp(r1, f1, 0.45);
         out.zB = split ? zB : null;
         const polys = split ? [[[f0, yb], [f1, yt], [zB + 0.08, yt], [zB + 0.08, yb]], [[zB - 0.08, yb], [zB - 0.08, yt], [r1, yt], [r0, yb]]] : [[[f0, yb], [f1, yt], [r1, yt], [r0, yb]]];
         // keep every window point inside the cabin silhouette, where the roof corners round off
         const under = (Q, m) => Q.map(p => [p[0], Math.min(p[1], ylook(cab, p[0]) - m)]);
-        for (const P of polys) if (P[0][0] - P[3][0] > 0.2) out.sideWin.push(...side(extrudeX(under(roundPoly(P, [0.06, 0.1, 0.1, 0.05], 3), 0.075), 0.03, 0, 0), S.cabW / 2 + 0.006));
+        for (const P of polys) if (P[0][0] - P[3][0] > 0.15) out.sideWin.push(...side(extrudeX(under(roundPoly(P, [0.05, 0.08, 0.08, 0.04], 3), ang ? 0.045 : 0.075), 0.03, 0, 0), S.cabW / 2 + 0.006));
         if (S.cabin !== 'van') {
-          const e = 0.055, T = [[f0 + e, yb - e], [f1 + e * 0.6, yt + e], [r1 - e * 0.6, yt + e], [r0 - e, yb - e]];
-          out.trim.push(...side(extrudeX(under(roundPoly(T, [0.07, 0.12, 0.12, 0.06], 3), 0.035), 0.02, 0, 0), S.cabW / 2 + 0.002));
+          const e = ang ? 0.04 : 0.055, T = [[f0 + e, yb - e], [f1 + e * 0.6, yt + e], [r1 - e * 0.6, yt + e], [r0 - e, yb - e]];
+          out.trim.push(...side(extrudeX(under(roundPoly(T, [0.07, 0.12, 0.12, 0.06], 3), ang ? 0.02 : 0.035), 0.02, 0, 0), S.cabW / 2 + 0.002));
         }
       }
     }
