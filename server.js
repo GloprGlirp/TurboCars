@@ -14,11 +14,11 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 // ---------- what a valid car looks like (mirrors the game) ----------
 const PAINTS = ['cherry', 'tangerine', 'lemon', 'mint', 'sky', 'grape', 'bubblegum', 'snow', 'midnight'];
-const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super'];
+const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin'];
 const ENGINES = ['i4', 'i5', 'v6', 'i6', 'v8', 'v10', 'v12'];
 const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
-const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5'];
+const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5', 'kagero', 'kagerow'];
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
 // ---------- word filter for usernames and chat (German + English) ----------
@@ -76,7 +76,7 @@ function cleanCar(c) {
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
   const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiaw]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   return {
-    m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none',
+    m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none', stance: ['stock', 'low', 'slammed'].includes(c.stance) ? c.stance : 'stock',
     tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', has },
   };
 }

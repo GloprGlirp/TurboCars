@@ -4,6 +4,7 @@ A cartoon open-world drift and racing game that anyone can play in the browser. 
 
 ## In the game
 
+- JDM cars, lowered and slammed stance, forged wheels, and a manual gearbox (Q and E) with exhaust backfires on downshifts.
 - It is always night, with a 90s film-grain look and a Japanese-style island, city and mountain pass.
 - Underground street races: drive onto a pink MEET pad in the city, on the coast road or up the touge to race the local crew for cash, or challenge other players at the meet (winner takes the pot).
 
