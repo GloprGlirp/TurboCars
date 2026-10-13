@@ -66,6 +66,7 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 #meetHud b { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; }
 #dynoCanvas { width: 100%; height: auto; border: 3px solid var(--ink); border-radius: 12px; display: block; background: #120e24; }
 .temp i { background: #3fa7ff !important; } .temp.hot i { background: #ff4f5e !important; }
+#speedLines { position: fixed; inset: -10%; pointer-events: none; opacity: 0; background: repeating-conic-gradient(from 0deg at 50% 52%, rgba(255,255,255,0) 0deg 2.6deg, rgba(220,230,255,.16) 2.6deg 3deg, rgba(255,255,255,0) 3deg 5.2deg); -webkit-mask-image: radial-gradient(circle at 50% 52%, transparent 28%, #000 70%); mask-image: radial-gradient(circle at 50% 52%, transparent 28%, #000 70%); }
 #vhs { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(4,2,20,.55) 100%), repeating-linear-gradient(0deg, rgba(0,0,0,.07) 0 1px, rgba(0,0,0,0) 1px 3px); }
 @media (prefers-reduced-motion: reduce) { #grain { animation: none; } }
 #streetInvite { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 12px 16px; width: min(380px, calc(100vw - 32px)); font-weight: 800; background: #ffe0f1; }
@@ -328,7 +329,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
 </style>
 
 <div id="game"></div>
-<div id="grain" aria-hidden="true"></div><div id="wxFlash" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
+<div id="speedLines" aria-hidden="true"></div><div id="grain" aria-hidden="true"></div><div id="wxFlash" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
 <div id="sirenGlow"></div>
 
 <div id="hud" hidden>
@@ -949,7 +950,7 @@ const CPN = 12;          // checkpoints per lap
 const ROAD_W = 15;       // ring road width
 const N = 800;           // track samples
 const ISLAND_R = 402;
-const SPEED_UNIT = 5;    // world units/s -> displayed km/h
+const SPEED_UNIT = 3.6;  // world units are metres: m/s -> km/h
 const BOT_NAMES = ['Pip', 'Bolt', 'Mango', 'Ziggy'];
 const REWARD = [400, 250, 150, 80];
 
@@ -1411,7 +1412,7 @@ function makeRoad(name, ctrl, w, opts) {
   MAIN_ROADS.push(road); return road;
 }
 const NORTH = makeRoad('north', [[0, -326], [0, -470], [0, -620], [55, -690], [165, -745], [225, -820], [165, -880], [-30, -892], [-185, -930], [-235, -995], [-150, -1045], [35, -1048], [185, -1090], [235, -1160], [160, -1212], [-25, -1215], [-150, -1255], [-120, -1320], [0, -1335]], 11, { kind: 'touge', grade: 0.13 });
-const WEST = makeRoad('country', [[-253, 0], [-420, 0], [-610, 0], [-770, -150], [-985, -265], [-1220, -170], [-1320, 120], [-1190, 420], [-950, 640], [-700, 900], [-420, 1120], [-120, 1180], [120, 1060], [160, 880], [60, 720], [0, 560], [0, 400], [0, 252]], 13, { kind: 'country', grade: 0.1 });
+const WEST = makeRoad('country', [[-243, 0], [-420, 0], [-610, 0], [-770, -150], [-985, -265], [-1220, -170], [-1320, 120], [-1190, 420], [-950, 640], [-700, 900], [-420, 1120], [-120, 1180], [120, 1060], [160, 880], [60, 720], [0, 560], [0, 400], [0, 241]], 13, { kind: 'country', grade: 0.1 });
 const EAST = makeRoad('east', [[323, 0], [480, 0], [600, 0], [700, 0]], 13, { kind: 'causeway', grade: 0.06 });
 const SPUR = makeRoad('spur', [[900, 400], [885, 560], [760, 720], [520, 860], [300, 905], [160, 880]], 13, { kind: 'country', grade: 0.1 });
 for (let x = 700; x <= 1300; x += 100) makeRoad('st', [[x, -400], [x, 0], [x, 400]], 14, { kind: 'city', flat: 0.45 });
@@ -2341,6 +2342,7 @@ const lampSpots = [];
       if (acc < every) continue; acc = 0;
       const n = pts[i + 1]; let tx = n.x - a.x, tz = n.z - a.z; const L = Math.hypot(tx, tz) || 1; tx /= L; tz /= L;
       const side = (lampSpots.length % 2) ? 1 : -1;
+      { const px = b.x - tz * off * side, pz = b.z + tx * off * side, ox = -tz * side, oz = tx * side; if (roadAt(px, pz) || roadAt(px + ox * 1.6, pz + oz * 1.6) || roadAt(px + tx * 2, pz + tz * 2) || roadAt(px - tx * 2, pz - tz * 2)) continue; }
       lampSpots.push({ x: b.x - tz * off * side, z: b.z + tx * off * side, lx: b.x - tz * (off - 2.6) * side, lz: b.z + tx * (off - 2.6) * side, y: getH(b), cx: b.x, cz: b.z });
     }
   };
@@ -3166,7 +3168,7 @@ function stepCar(c, inp, dt, opts) {
   const speed = Math.hypot(fs, ls);
   let top = st.top * (c.onRoad ? 1 : st.offroad) * (opts && opts.topMul || 1);
   c.boosting = (inp.nitro && c.nitro > 0.02 && inp.throttle >= 0) || c.padBoost > 0;
-  if (c.boosting) top *= 1.42;
+  if (c.boosting) top *= 1.24;
   if (c.padBoost > 0) c.padBoost -= dt;
   if (inp.nitro && c.nitro > 0 && inp.throttle >= 0) c.nitro = Math.max(0, c.nitro - dt);
   const thr = inp.throttle > 0 ? inp.throttle : 0;
@@ -3176,7 +3178,7 @@ function stepCar(c, inp, dt, opts) {
   c.sliding = c.grounded && speed > 9 && sa > 0.19;
   c.drifting = c.sliding;
   // steering: quick at low speed, calmer at high speed, always quick back to centre
-  const sRate = (Math.abs(inp.steer) < Math.abs(c.steerIn) || inp.steer * c.steerIn < 0) ? 11 : lerp(9, 4.5, clamp(speed / 45, 0, 1));
+  const sRate = (Math.abs(inp.steer) < Math.abs(c.steerIn) || inp.steer * c.steerIn < 0) ? lerp(11, 6, clamp(speed / 60, 0, 1)) : lerp(9, 2.6, clamp(speed / 60, 0, 1));
   c.steerIn += clamp(inp.steer - c.steerIn, -sRate * dt, sRate * dt);
   // tyres: full grip until the car starts sliding, then grip falls away with the slip angle
   const curve = sa < 0.14 ? 1 : Math.max(0.66, 1 - (sa - 0.14) * 0.5);
@@ -3236,7 +3238,8 @@ function stepCar(c, inp, dt, opts) {
   c.vx = fx * fs + lx * ls; c.vz = fz * fs + lz * ls;
   // yaw has momentum: grip makes it snappy, a slide makes it lazy
   const spd = Math.abs(fs);
-  const sf = clamp(spd / 5, 0, 1) * (1 - 0.45 * clamp(spd / 55, 0, 1));
+  // less steering lock the faster you go, like a real car: quick in town, careful at 250 km/h
+  const sf = clamp(spd / 5, 0, 1) * (1 - 0.62 * clamp(spd / 65, 0, 1) ** 0.8);
   let steer = c.steerIn;
   if (c.sliding && steer * slip > 0) steer *= 1.6;                     // countersteer gets extra lock
   let target = steer * st.turn * sf * (fs < -0.5 ? -1 : 1);
@@ -3288,7 +3291,7 @@ function collideWorld(c, R) {
     if (d2 < rr * rr && d2 > 1e-6) {
       const d = Math.sqrt(d2), nx = dx / d, nz = dz / d;
       c.x = o.x + nx * rr; c.z = o.z + nz * rr;
-      const vn = c.vx * nx + c.vz * nz; if (vn < 0) { c.vx -= 1.35 * vn * nx; c.vz -= 1.35 * vn * nz; hit = Math.max(hit, -vn); }
+      const vn = c.vx * nx + c.vz * nz; if (vn < 0) { c.vx -= 1.1 * vn * nx; c.vz -= 1.1 * vn * nz; hit = Math.max(hit, -vn); }
     }
   }
   for (let k = 0; k < bl.length; k++) {
@@ -3303,24 +3306,37 @@ function collideWorld(c, R) {
       if (m === l) { nx = -1; nz = 0; pen = l + R; } else if (m === r) { nx = 1; nz = 0; pen = r + R; } else if (m === t) { nx = 0; nz = -1; pen = t + R; } else { nx = 0; nz = 1; pen = bt + R; }
     }
     c.x += nx * pen; c.z += nz * pen;
-    const vn = c.vx * nx + c.vz * nz; if (vn < 0) { c.vx -= 1.35 * vn * nx; c.vz -= 1.35 * vn * nz; hit = Math.max(hit, -vn); }
+    const vn = c.vx * nx + c.vz * nz; if (vn < 0) { c.vx -= 1.1 * vn * nx; c.vz -= 1.1 * vn * nz; hit = Math.max(hit, -vn); }
   }
   const lim = WMAX - 40;
   if (Math.abs(c.x) > lim || Math.abs(c.z) > lim) { c.x = clamp(c.x, -lim, lim); c.z = clamp(c.z, -lim, lim); hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.vx *= -0.3; c.vz *= -0.3; }
   if (c.px != null && gridH(c.x, c.z) < -0.8 && !roadAt(c.x, c.z)) { hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.x = c.px; c.z = c.pz; c.vx *= -0.35; c.vz *= -0.35; }
   return hit;
 }
+// cars are capsules: a line along the car with rounded ends, about 4.4 m long and 2 m wide (a person is a small circle)
 function collideCars(a, b, R, moveB) {
-  const dx = a.x - b.x, dz = a.z - b.z; const d2 = dx * dx + dz * dz; const rr = R * 2;
-  if (d2 >= rr * rr || d2 < 1e-6 || Math.abs(a.y - b.y) > 2.5) return 0;
-  const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, pen = rr - d;
+  const dx0 = a.x - b.x, dz0 = a.z - b.z;
+  if (dx0 * dx0 + dz0 * dz0 > 49 || Math.abs((a.y || 0) - (b.y || 0)) > 2.5) return 0;
+  const foot = R < 1.5, ha = foot ? 0 : 1.25, hb = 1.25, ra = foot ? 0.45 : 0.98, rb = 0.98;
+  const ax = Math.sin(a.yaw || 0), az = Math.cos(a.yaw || 0), bx = Math.sin(b.yaw || 0), bz = Math.cos(b.yaw || 0);
+  const b2 = ax * bx + az * bz, c = ax * dx0 + az * dz0, f = bx * dx0 + bz * dz0, den = 1 - b2 * b2;
+  let sA = den > 1e-6 ? clamp((b2 * f - c) / den, -ha, ha) : 0;
+  const tB = clamp(b2 * sA + f, -hb, hb); sA = clamp(b2 * tB - c, -ha, ha);
+  let nx = dx0 + ax * sA - bx * tB, nz = dz0 + az * sA - bz * tB;
+  const d = Math.hypot(nx, nz), rr = ra + rb;
+  if (d >= rr) return 0;
+  if (d > 1e-6) { nx /= d; nz /= d; } else { const l = Math.hypot(dx0, dz0) || 1; nx = dx0 / l; nz = dz0 / l; }
+  const pen = rr - d;
   if (moveB) { a.x += nx * pen / 2; a.z += nz * pen / 2; b.x -= nx * pen / 2; b.z -= nz * pen / 2; }
   else { a.x += nx * pen; a.z += nz * pen; }
-  const rv = (a.vx - (b.vx || 0)) * nx + (a.vz - (b.vz || 0)) * nz;
+  const rvx = a.vx - (b.vx || 0), rvz = a.vz - (b.vz || 0), rv = rvx * nx + rvz * nz;
   if (rv < 0) {
-    const j = moveB ? -rv * 0.6 : -rv * 1.1;
+    // no bounce: the closing speed is simply taken away, plus a bit of scrub along the contact
+    const j = moveB ? -rv * 0.5 : -rv;
     a.vx += j * nx; a.vz += j * nz;
-    if (moveB) { b.vx -= j * nx; b.vz -= j * nz; }
+    const tx = rvx - rv * nx, tz = rvz - rv * nz, scrub = 0.12;
+    a.vx -= tx * scrub * (moveB ? 0.5 : 1); a.vz -= tz * scrub * (moveB ? 0.5 : 1);
+    if (moveB) { b.vx -= j * nx; b.vz -= j * nz; b.vx += tx * scrub * 0.5; b.vz += tz * scrub * 0.5; }
     return -rv;
   }
   return 0;
@@ -4760,6 +4776,32 @@ function spawnNpc() {
   return false;
 }
 function removeNpc(k) { const n = npcs[k]; n.slot.used = false; n.model.root.visible = false; npcs.splice(k, 1); }
+// at the end of a road, traffic carries on along whichever road meets it there (instead of turning round)
+function roadEnds(r) {
+  if (r.ends) return r.ends;
+  r.ends = [0, r.pts.length - 1].map(ei => {
+    const e = r.pts[ei], out = [];
+    for (const o of TRAFFIC_ROADS) {
+      if (o === r) continue;
+      let best = -1, bd = 22 * 22;
+      for (let i = 0; i < o.pts.length; i++) { const q = o.pts[i], d = (q.x - e.x) ** 2 + (q.z - e.z) ** 2; if (d < bd) { bd = d; best = i; } }
+      if (best >= 0) out.push({ o, i: best });
+    }
+    return out;
+  });
+  return r.ends;
+}
+function junctionTurn(n) {
+  if (n.racer) return false;
+  const r = n.road, atStart = n.s < 2, opts = roadEnds(r)[atStart ? 0 : 1];
+  if (!opts.length) return false;
+  const { o, i } = opts[(Math.random() * opts.length) | 0], L2 = o.pts.length;
+  let dir = i < 4 ? 1 : i > L2 - 5 ? -1 : (Math.random() < 0.5 ? 1 : -1);
+  if (o.closed) dir = Math.random() < 0.5 ? 1 : -1;
+  n.road = o; n.dir = dir; n.s = o.closed ? i : clamp(i, 2.5, L2 - 3.5);
+  n.vmax = o.speed * (n.vmax / (r.speed || o.speed));
+  return true;
+}
 let trafficTimer = 0;
 function trafficStep(dt) {
   trafficTimer -= dt;
@@ -4778,7 +4820,7 @@ function trafficStep(dt) {
     n.s += n.dir * n.v * dt / n.road.step;
     const L = n.road.pts.length;
     if (n.road.closed) n.s = ((n.s % L) + L) % L;
-    else if (n.s < 2 || n.s > L - 3) { n.dir *= -1; n.s = clamp(n.s, 2, L - 3); }
+    else if (n.s < 2 || n.s > L - 3) { if (!junctionTurn(n)) { n.dir *= -1; n.s = clamp(n.s, 2, L - 3); } }
     n.kx += n.kvx * dt; n.kz += n.kvz * dt; const damp = Math.exp(-3 * dt); n.kvx *= damp; n.kvz *= damp;
     if (n.stopT <= 0) { const back = Math.exp(-1.2 * dt); n.kx *= back; n.kz *= back; n.spin *= Math.exp(-1.5 * dt); }
     placeNpc(n);
@@ -4837,10 +4879,10 @@ function policeStep(dt) {
   const p = player, kmh = Math.abs(p.fs) * SPEED_UNIT;
   if ((race || mission || street) && police.stars) clearWanted();
   if (police.cool > 0) police.cool -= dt;
-  // going over 150 km/h can get you noticed: instantly by a nearby patrol, or by a speed camera after a while
+  // going over 120 km/h can get you noticed: instantly by a nearby patrol, or by a speed camera after a while
   const inCity = cityMask(p.x, p.z) > 0.5 || police.driveOff;
   if (!police.stars && !race && !mission && !street && police.cool <= 0) {
-    if (kmh > 150 && p.grounded && inCity) {
+    if (kmh > 120 && p.grounded && inCity) {
       police.speedT += dt;
       if (npcs.some(n => n.police && Math.hypot(n.x - p.x, n.z - p.z) < 150)) startWanted('A patrol clocked you at ' + Math.round(kmh) + ' km/h!');
       else if (police.speedT > 6 && Math.random() < 0.06 * dt) startWanted('Speed camera! ' + Math.round(kmh) + ' km/h');
@@ -4854,7 +4896,7 @@ function policeStep(dt) {
     police.seen = inCity && (cops.some(c => !c.leaving && Math.hypot(c.x - p.x, c.z - p.z) < 120) || npcs.some(n => n.police && Math.hypot(n.x - p.x, n.z - p.z) < 90));
     if (police.seen) {
       police.lostT = 0; police.lastX = p.x; police.lastZ = p.z;
-      police.heat += dt * (kmh > 150 ? 3.5 : 1.2);
+      police.heat += dt * (kmh > 120 ? 3.5 : 1.2);
       setStarsFromHeat();
     } else {
       police.lostT += dt;
@@ -6459,7 +6501,7 @@ const TUT = [
     keys: [['F', 'Get out, or back in'], ['C', 'First or third person view']] },
   { icon: '💼', title: 'Businesses and homes', text: 'Buy businesses that earn money even while you are offline. Legit ones pay out by themselves. Shady ones pay more, but you drive the goods to buyers yourself. Homes are garages and fast travel spots.', hl: 'bMenu',
     keys: [['Menu → Property', 'See everything you can buy']] },
-  { icon: '🚨', title: 'Watch out for the police', text: 'Go over 150 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
+  { icon: '🚨', title: 'Watch out for the police', text: 'Go over 120 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
   { icon: '⛽', title: 'Fuel, classes and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Every car has a class from 150 to Unlimited: races only put you against cars of your class. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
     keys: [['E', 'Pump fuel or pay'], ['V', 'Wardrobe']] },
   { icon: '🌧', title: 'Crews, meetups and your engine', text: 'Rival crews own Downtown, the Farmlands and the Mountain Pass: beat three of their racers, then the boss, and the district pays you. Crew racers cruise around: sit behind one and flash your lights to race. Hidden meetups wait in the city. Weather changes: wet roads are slippery. Nitro and heat wear your engine; cooling and forged parts help, repairs are in the garage.',
@@ -6994,6 +7036,7 @@ function updateHud(now) {
   const p = player;
   $('speedo').hidden = onFoot;
   $('spd').textContent = Math.round(Math.abs(p.fs) * SPEED_UNIT);
+  { const sl = $('speedLines'), k = onFoot || panelOpen ? 0 : clamp((Math.abs(p.fs) - 42) / 40, 0, 1) * 0.75 + (p.boosting ? 0.25 : 0); sl.style.opacity = k.toFixed(2); if (k > 0) sl.style.transform = 'rotate(' + (Math.random() * 3).toFixed(2) + 'deg)'; }
   $('gearTxt').textContent = p.manual ? (p.fs < -0.5 ? 'R' : 'M' + (p.gear || 1)) : eng && eng.ready ? (p.fs < -0.5 ? 'R' : 'G' + eng.gear) : 'G1';
   $('speedo').classList.toggle('limiter', !!(p.manual && p.limiter));
   $('nitroFill').style.width = Math.round(100 * p.nitro / p.stats.nitroMax) + '%';
@@ -7087,10 +7130,12 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = (now - last) / 1000; last = now; if (dt > 0.1) dt = 0.1;
   frameN++;
+  // physics runs every frame in steps of at most 1/60 s; on 120/144/240 Hz screens the car no longer moves in
+  // jumps every few frames (that was the shaking)
   acc += dt;
   let steps = 0;
-  while (acc >= STEP && steps < 6) { simStep(now, STEP); acc -= STEP; steps++; }
-  if (steps === 6) acc = 0;
+  while (acc > 1e-5 && steps < 8) { const h = Math.min(STEP, acc); simStep(now, h); acc -= h; steps++; }
+  acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
   if (playing) { updateHud(now); drawMinimap(); sendPresence(now); }
