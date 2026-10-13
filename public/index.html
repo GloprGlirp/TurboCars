@@ -57,6 +57,24 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 .hudbtns { display: flex; gap: 6px; pointer-events: auto; flex-wrap: wrap; }
 .chip { font-family: var(--font-display); font-size: .85rem; background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-radius: 10px; box-shadow: 2px 2px 0 var(--ink); padding: .25em .6em; cursor: pointer; }
 .chip:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+.hudbtns { position: relative; }
+.overlay.tut { background: rgba(29,26,46,.28); place-items: start center; padding-top: max(16vh, 90px); }
+.tutcard { width: min(480px, 100%); }
+.tuthead { display: flex; justify-content: space-between; align-items: center; }
+.tuticon { font-size: 2.2rem; line-height: 1; }
+.tutstep { font-weight: 900; font-size: .72rem; letter-spacing: .14em; color: var(--muted); }
+.tutcard .lede { margin-bottom: 10px; }
+.tutdots { display: flex; gap: 5px; justify-content: center; margin: 14px 0 12px; }
+.tutdots i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--ink); background: var(--card); }
+.tutdots i.on { background: var(--sun); width: 22px; border-radius: 6px; }
+.tutrow { align-items: center; }
+.tutrow .sp { flex: 1; }
+.tut-hl { outline: 4px solid var(--sun) !important; outline-offset: 3px; border-radius: 12px; animation: tutpulse 1s ease-in-out infinite; }
+@keyframes tutpulse { 50% { outline-color: var(--pop, #ff4f5e); } }
+#menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 5; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px; width: 250px; }
+.mbtn { font-family: var(--font-display); font-size: .95rem; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 6px; background: var(--card-soft); color: var(--ink); border: 3px solid var(--ink); border-radius: 10px; padding: .4em .6em; cursor: pointer; }
+.mbtn:hover { background: var(--sun); }
+.mbtn kbd { font: 800 .65rem var(--font-body); border: 2px solid var(--ink); border-radius: 5px; padding: 0 4px; background: var(--card); }
 
 #mapwrap { position: absolute; right: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); width: 170px; height: 170px; border-radius: 50%; overflow: hidden; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink); background: #3fa7ff; }
 #minimap { width: 100%; height: 100%; display: block; }
@@ -254,6 +272,17 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 .dlhead .cls { font-weight: 900; font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .dlhead .price { margin-left: auto; font-family: var(--font-display); font-size: 1.4rem; }
 .car.sel { background: #fff2c4; }
+#chat { position: absolute; left: 16px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100vw - 230px)); pointer-events: none; }
+#chatLog { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; max-height: 230px; overflow: hidden; }
+#chat.open #chatLog { overflow-y: auto; pointer-events: auto; }
+#chatLog .ln { background: rgba(29,26,46,.68); color: #fff; border-radius: 10px; padding: 3px 10px; font-weight: 700; font-size: .86rem; max-width: 100%; overflow-wrap: anywhere; transition: opacity .8s; }
+#chatLog .ln.sys { color: #ffc93c; }
+#chatLog .ln.old { opacity: 0; }
+#chat.open #chatLog .ln.old { opacity: .85; }
+#chatRow { margin-top: 6px; pointer-events: auto; }
+#chatIn { width: 100%; box-sizing: border-box; font: 700 .95rem var(--font-body); padding: .5em .8em; border: 3px solid var(--ink); border-radius: 12px; background: #fff; color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+#chatRow .hint { color: #fff; text-shadow: 0 1px 2px #000; margin-top: 3px; }
+body.touch #chat { bottom: calc(290px + env(safe-area-inset-bottom, 0px)); width: min(300px, calc(100vw - 32px)); }
 #tAct { right: 16px; bottom: calc(210px + env(safe-area-inset-bottom, 0px)); width: 64px !important; height: 64px !important; background: var(--sun) !important; }
 body.touch #speedo { right: auto; left: 50%; transform: translateX(-50%); bottom: auto; top: calc(70px + env(safe-area-inset-top, 0px)); min-width: 120px; padding: 6px 12px 8px; text-align: center; }
 body.touch #speedo .num { font-size: 2rem; }
@@ -282,14 +311,20 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="pill" id="online" title="Racers on the island"><span class="dot"></span><span id="onlineTxt">Solo</span></div>
     <div id="roster" class="sticker" hidden></div>
     <div class="hudbtns">
-      <button class="chip" id="bGarage" type="button">Garage</button>
-      <button class="chip" id="bMap" type="button">Map</button>
-      <button class="chip" id="bMissions" type="button">Missions</button>
-      <button class="chip" id="bMarket" type="button">Market</button>
-      <button class="chip" id="bProps" type="button">Property</button>
-      <button class="chip" id="bCodes" type="button">Codes</button>
-      <button class="chip" id="bRecords" type="button">Records</button>
-      <button class="chip" id="bMute" type="button">Sound on</button>
+      <button class="chip" id="bMenu" type="button" aria-expanded="false" aria-controls="menu">☰ Menu</button>
+      <div id="menu" class="sticker" hidden>
+        <button class="mbtn" id="bGarage" type="button">Garage<kbd>G</kbd></button>
+        <button class="mbtn" id="bMap" type="button">Map<kbd>M</kbd></button>
+        <button class="mbtn" id="bMissions" type="button">Missions</button>
+        <button class="mbtn" id="bMarket" type="button">Market</button>
+        <button class="mbtn" id="bProps" type="button">Property</button>
+        <button class="mbtn" id="bChat" type="button">Chat<kbd>T</kbd></button>
+        <button class="mbtn" id="bCam" type="button">Camera<kbd>C</kbd></button>
+        <button class="mbtn" id="bRecords" type="button">Records</button>
+        <button class="mbtn" id="bCodes" type="button">Codes</button>
+        <button class="mbtn" id="bMute" type="button">Sound on</button>
+        <button class="mbtn" id="bTut" type="button">Tutorial</button>
+      </div>
     </div>
   </div>
   <div id="mapwrap"><canvas id="minimap" width="340" height="340"></canvas></div>
@@ -329,6 +364,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="wmsg" id="wMsg">Police can see you</div>
     <div class="wbar"><i id="wBar"></i></div>
   </div>
+  <div id="chat"><div id="chatLog" aria-live="polite"></div><div id="chatRow" hidden><input type="text" id="chatIn" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Say something…" aria-label="Chat message"><div class="hint" id="chatHint"></div></div></div>
   <div id="toasts"></div>
   <div id="countdown" hidden></div>
 </div>
@@ -361,6 +397,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <kbd>Drift tip</kbd><span>Flick into a corner, then hold gas and countersteer to keep the slide going</span>
       <kbd>E</kbd><span>Garage, race pad or a glowing mission beam</span>
       <kbd>F</kbd><span>Get out and walk, or get back in. Walk into Pebble Motors to buy cars</span>
+      <kbd>C · T</kbd><span>Switch between first and third person · Chat with other players</span>
       <kbd>H · R · G · M</kbd><span>Honk · Reset car · Back to garage · Map</span>
     </div>
     <div class="row" style="margin-top:16px"><button class="btn" id="bPlay" type="button">Hit the road</button></div>
@@ -508,6 +545,17 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   </div>
 </div>
 
+<div id="tutorial" class="overlay tut" hidden>
+  <div class="panel sticker tutcard" role="dialog" aria-labelledby="tutTitle">
+    <div class="tuthead"><span class="tuticon" id="tutIcon"></span><span class="tutstep" id="tutStep">1 / 9</span></div>
+    <h2 id="tutTitle">Welcome</h2>
+    <p class="lede" id="tutText"></p>
+    <div class="keys" id="tutKeys"></div>
+    <div class="tutdots" id="tutDots"></div>
+    <div class="row tutrow"><button class="btn small alt" id="tutSkip" type="button">Skip tutorial</button><span class="sp"></span><button class="btn small alt" id="tutBack" type="button">Back</button><button class="btn small" id="tutNext" type="button">Next</button></div>
+  </div>
+</div>
+
 <div id="records" class="overlay" hidden>
   <div class="panel sticker">
     <button class="btn small alt x" id="bCloseRecords" type="button">Close</button>
@@ -541,6 +589,53 @@ const $ = id => document.getElementById(id);
 const fmtTime = ms => { ms = Math.max(0, ms); const m = Math.floor(ms / 60000); const s = Math.floor(ms / 1000) % 60; const c = Math.floor(ms / 10) % 100; return m + ':' + String(s).padStart(2, '0') + '.' + String(c).padStart(2, '0'); };
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
 const rid = () => Math.random().toString(36).slice(2, 10);
+// ---------- word filter for usernames and chat (German + English) ----------
+// SUB: blocked anywhere inside a word. WHOLE: blocked only as a whole word (they hide inside harmless words).
+const BAD_SUB = ['arschloch', 'arschgeige', 'arsch', 'wichser', 'wixer', 'wichs', 'fotze', 'hurensohn', 'hure', 'schlampe', 'nutte', 'schwuchtel', 'spast', 'missgeburt', 'behindert',
+  'mongo', 'bastard', 'fick', 'fuck', 'scheiss', 'kacke', 'pisser', 'schwanz', 'pimmel', 'muschi', 'titten', 'moese', 'nazi', 'hitler', 'siegheil', 'kanake', 'neger', 'nigg', 'zigeuner',
+  'kinderficker', 'vergewaltig', 'porn', 'penis', 'vagina', 'dildo', 'bitch', 'slut', 'whore', 'cunt', 'faggot', 'retard', 'asshole', 'wanker', 'twat', 'shit', 'pussy', 'blowjob', 'handjob',
+  'jerkoff', 'masturb', 'orgasm', 'nudes', 'hoden', 'sperma', 'judensau', 'heilhitler', 'killyourself', 'transe', 'tranny', 'dumbass', 'jackass', 'idiot', 'hurre', 'drecksau', 'sackgesicht',
+  'wixxer', 'wichsa', 'spasti', 'schlitzauge', 'peniz', 'sex'];
+const BAD_WHOLE = ['anal', 'cum', 'cock', 'dick', 'fag', 'heil', 'kkk', 'rape', 'tit', 'tits', 'nutten', 'opfer', 'depp', 'nigga', 'hoe', 'hoes', 'ss', 'nsdap', 'kys', 'assi', 'kotz'];
+const BAD_OK = ['marsch', 'barsch', 'harsch', 'scunthorpe', 'mongol', 'sextett', 'sextant', 'essex', 'sussex', 'middlesex', 'schwanzflosse', 'unisex', 'mongoose'];
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i', '|': 'i', '€': 'e' };
+const rxOf = w => new RegExp(w.split('').map(c => c + '+').join(''));
+const BAD_SUB_RX = BAD_SUB.map(rxOf), BAD_WHOLE_RX = BAD_WHOLE.map(w => new RegExp('^' + w.split('').map(c => c + '+').join('') + '$'));
+function normWord(s) {
+  s = String(s).toLowerCase().replace(/^[.,!?;:()"'\s]+|[.,!?;:()"'\s]+$/g, '').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+  s = s.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+  s = s.replace(/[0134578@$!|€]/g, c => LEET[c] || c);
+  return s.replace(/[^a-z]/g, '');
+}
+function badToken(w) {
+  let n = normWord(w); if (!n) return false;
+  for (const ok of BAD_OK) n = n.split(ok).join('_');
+  if (BAD_WHOLE_RX.some(r => r.test(n))) return true;
+  return BAD_SUB_RX.some(r => r.test(n));
+}
+// usernames: check each word and the whole name squashed together (catches "Ar sch" or "F.u.c.k")
+function nameIsBad(name) {
+  const parts = String(name).split(/[\s_.\-]+/).filter(Boolean);
+  if (parts.some(badToken)) return true;
+  const joined = normWord(name); let j = joined; for (const ok of BAD_OK) j = j.split(ok).join('_');
+  return BAD_SUB_RX.some(r => r.test(j));
+}
+// chat: blank out bad words, including ones spelled out with spaces between the letters
+function censorText(text) {
+  const toks = String(text).split(/(\s+)/);
+  const out = toks.slice();
+  for (let i = 0; i < toks.length; i++) if (toks[i].trim() && badToken(toks[i])) out[i] = '*'.repeat(Math.min(8, toks[i].length));
+  // runs of single letters: "f u c k"
+  const words = []; toks.forEach((t, i) => { if (t.trim()) words.push(i); });
+  for (let a = 0; a < words.length; a++) {
+    if (normWord(toks[words[a]]).length !== 1) continue;
+    let b = a; while (b + 1 < words.length && normWord(toks[words[b + 1]]).length === 1) b++;
+    if (b - a >= 2) { const joined = words.slice(a, b + 1).map(i => toks[i]).join(''); if (badToken(joined) || nameIsBad(joined)) for (let k = a; k <= b; k++) out[words[k]] = '*'; }
+    a = b;
+  }
+  return out.join('');
+}
+
 
 // =====================================================================
 // game data
@@ -699,7 +794,7 @@ function sanitizeCar(o, keepId) {
   c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), has };
   return c;
 }
-function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '' }; }
+function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0 }; }
 function sanitizeSave(o) {
   const s = defaultSave(); if (!o || typeof o !== 'object') return s;
   s.money = clamp(Math.floor(num(o.money, s.money)), 0, MONEY_CAP);
@@ -738,6 +833,7 @@ function sanitizeSave(o) {
   }
   s.homes = Array.isArray(o.homes) ? HOME_IDS.filter(h => o.homes.includes(h)) : [];
   s.home = s.homes.includes(o.home) ? o.home : '';
+  s.tut = o.tut ? 1 : 0;
   return s;
 }
 let save = defaultSave();
@@ -1327,6 +1423,8 @@ function free(x, z, r, trackGap) {
   for (const p of [GARAGE_PAD, RACE_PAD]) if (Math.hypot(p.x - x, p.z - z) < p.r + r + 4) return false;
   for (const rp of ramps) if (Math.hypot(rp.x - x, rp.z - z) < 14 + r) return false;
   if (x > -46 && x < -14 && z > -26 && z < 18) return false;
+  for (let a = 0; a < 8; a++) if (roadAt(x + Math.cos(a * TAU / 8) * (r + 4), z + Math.sin(a * TAU / 8) * (r + 4))) return false;
+  if (roadAt(x, z)) return false;
   return true;
 }
 blockers.push({ x: -30, z: -14, r: 16 });
@@ -2286,6 +2384,7 @@ function rebuildPlayerModel() {
   scene.add(playerModel.root);
   player.stats = statsFor(ac());
   player.nitro = Math.min(player.nitro, player.stats.nitroMax);
+  try { syncFp(); } catch (e) { /* not set up yet */ }
 }
 rebuildPlayerModel();
 const playerBeep = makeBeep(); playerModel.root.add(playerBeep);
@@ -2313,7 +2412,7 @@ addEventListener('keydown', e => {
   if (!playing) return;
   if (e.repeat) { keys.add(k); return; }
   keys.add(k);
-  if (k === 'escape') { closePanels(); return; }
+  if (k === 'escape') { closePanels(); setMenu(false); return; }
   if (panelOpen) { if (k === 'e' && !$('garage').hidden) closePanels(); return; }
   if (k === 'e') interact();
   if (k === 'r') resetCar();
@@ -2321,6 +2420,8 @@ addEventListener('keydown', e => {
   if (k === 'g' && !race) teleportGarage();
   if (k === 'm') openMap();
   if (k === 'f') toggleFoot();
+  if (k === 'c') toggleCam();
+  if (k === 't') { e.preventDefault(); keys.delete('t'); openChat(); }
 });
 addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
 addEventListener('blur', () => keys.clear());
@@ -2721,6 +2822,7 @@ function wireNet() {
       updateOnline();
     }, () => { });
     room.on('race', onRaceMsg, () => { });
+    room.on('chat', onChatMsg, () => { });
   }
 }
 
@@ -2837,7 +2939,7 @@ function upsertPeer(p) {
   r.hn = hn;
 }
 function removePeer(peer) { const r = remotes.get(peer); if (r && r.model) scene.remove(r.model.root); if (r && r.person) scene.remove(r.person.root); remotes.delete(peer); }
-function displayName(r) { const n = cleanName(r.pres && r.pres.n); if (n) return n; const pn = r.by && profileNames.get(r.by); return pn || 'Racer'; }
+function displayName(r) { const n = cleanName(r.pres && r.pres.n); if (n) return nameIsBad(n) ? 'Racer' : n; const pn = r.by && profileNames.get(r.by); return pn && !nameIsBad(pn) ? pn : 'Racer'; }
 
 async function refreshProfiles() {
   if (!user) return;
@@ -2970,12 +3072,23 @@ paintSwatches($('introPaints'), id => { ac().paint = id; persist(); rebuildPlaye
 $('nick').value = save.nick;
 
 function openPanel(id) { closePanels(); $(id).hidden = false; panelOpen = true; }
-function closePanels() { for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer']) $(id).hidden = true; panelOpen = !$('results').hidden; }
+function closePanels() {
+  if ($('tutorial') && !$('tutorial').hidden && !save.tut) { save.tut = 1; persist(); }
+  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial']) $(id).hidden = true; panelOpen = !$('results').hidden;
+  for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
+}
 $('bCloseGarage').addEventListener('click', closePanels);
 $('bCloseRecords').addEventListener('click', closePanels);
 $('bRecords').addEventListener('click', () => { renderRecords(); openPanel('records'); });
 $('bGarage').addEventListener('click', () => { if (police.stars) { toast('Lose the police first'); return; } if (race || mission) { toast(mission ? 'Finish the mission first' : 'Finish the race first'); return; } teleportGarage(); renderGarage(); openPanel('garage'); });
 $('bMute').addEventListener('click', toggleMute);
+function setMenu(open) { $('menu').hidden = !open; $('bMenu').setAttribute('aria-expanded', String(open)); }
+$('bMenu').addEventListener('click', e => { e.stopPropagation(); setMenu($('menu').hidden); });
+$('menu').addEventListener('click', e => { if (e.target.closest('.mbtn') && e.target.closest('.mbtn').id !== 'bMute') setMenu(false); });
+addEventListener('pointerdown', e => { if (!$('menu').hidden && !e.target.closest('.hudbtns')) setMenu(false); });
+$('bCam').addEventListener('click', () => toggleCam());
+// HUD buttons give focus back to the game, so Space and Enter keep driving instead of pressing them again
+$('hud').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTimeout(() => b.blur(), 0); });
 $('bMissions').addEventListener('click', () => { renderMissions(); openPanel('missions'); });
 $('bCloseMissions').addEventListener('click', closePanels);
 $('bMap').addEventListener('click', openMap);
@@ -3106,7 +3219,7 @@ function setListings(list) {
     if (!l || typeof l.lid !== 'string') return null;
     const car = sanitizeCar(l.car, false), price = Math.floor(num(l.price, 0));
     if (!car || !(price >= 1)) return null;
-    return { lid: l.lid.slice(0, 40), seller: typeof l.seller === 'string' ? l.seller : '', nick: cleanName(l.nick) || 'Racer', car, price };
+    return { lid: l.lid.slice(0, 40), seller: typeof l.seller === 'string' ? l.seller : '', nick: (cleanName(l.nick) && !nameIsBad(l.nick)) ? cleanName(l.nick) : 'Racer', car, price };
   }).filter(Boolean).slice(0, 300);
   if (!$('market').hidden) renderMarket();
 }
@@ -3247,7 +3360,7 @@ function renderRecords() {
   records.forEach((r, k) => {
     const tr = document.createElement('tr'); if (uid && r.id === uid) tr.className = 'me';
     const a = document.createElement('td'); a.textContent = k + 1;
-    const b = document.createElement('td'); b.className = 'nm'; b.textContent = profileNames.get(r.id) || cleanName(r.nick) || 'Racer';
+    const b = document.createElement('td'); b.className = 'nm'; { const nm = profileNames.get(r.id) || cleanName(r.nick); b.textContent = nm && !nameIsBad(nm) ? nm : 'Racer'; }
     const c = document.createElement('td'); c.className = 't'; c.textContent = fmtTime(num(r.lap, 0));
     tr.append(a, b, c); tb.append(tr);
   });
@@ -3801,7 +3914,7 @@ for (let k = 0; k < (isTouch ? 13 : 21); k++) {
   LITE = true; const m = buildCar(TRAFFIC_BODIES[k % TRAFFIC_BODIES.length], PAINTS[(k * 4 + 1) % PAINTS.length].hex, DEFAULT_TUNE); LITE = false;
   m.root.visible = false; scene.add(m.root); npcPool.push({ model: m, police: false, used: false });
 }
-for (let k = 0; k < 3; k++) { const m = buildPolice(true); m.root.visible = false; scene.add(m.root); npcPool.push({ model: m, police: true, used: false }); }
+for (let k = 0; k < 2; k++) { const m = buildPolice(true); m.root.visible = false; scene.add(m.root); npcPool.push({ model: m, police: true, used: false }); }
 for (let k = 0; k < 7; k++) { const m = buildPolice(false); m.root.visible = false; scene.add(m.root); copPool.push({ model: m, used: false }); }
 
 function placeNpc(n) {
@@ -3824,6 +3937,7 @@ function spawnNpc() {
   for (let t = 0; t < 30; t++) {
     const { r, i, q } = spotOf(TRAFFIC_SPOTS[(Math.random() * TRAFFIC_SPOTS.length) | 0]);
     if (race && r.kind === 'ring') continue;
+    if (slot.police && r.kind !== 'city') continue;
     const d = Math.hypot(q.x - player.x, q.z - player.z);
     if (d < 140 || d > 380 || npcs.some(n => Math.hypot(n.x - q.x, n.z - q.z) < 30)) continue;
     slot.used = true; slot.model.root.visible = true;
@@ -3864,7 +3978,7 @@ function trafficStep(dt) {
       if (hit > 6) {
         sfx('bump', Math.min(1, hit / 25)); player.bump = 0.3;
         if (police.stars && police.seen) addHeat(12, 'Hit and run!');
-        else if (n.police && !police.stars && !race && !mission) startWanted('You hit a police car!');
+        else if (n.police && !police.stars && !race && !mission && cityMask(player.x, player.z) > 0.5) startWanted('You hit a police car!');
       }
     }
   }
@@ -3906,21 +4020,23 @@ function policeStep(dt) {
   if ((race || mission) && police.stars) clearWanted();
   if (police.cool > 0) police.cool -= dt;
   // going over 150 km/h can get you noticed: instantly by a nearby patrol, or by a speed camera after a while
+  const inCity = cityMask(p.x, p.z) > 0.5;
   if (!police.stars && !race && !mission && police.cool <= 0) {
-    if (kmh > 150 && p.grounded) {
+    if (kmh > 150 && p.grounded && inCity) {
       police.speedT += dt;
       if (npcs.some(n => n.police && Math.hypot(n.x - p.x, n.z - p.z) < 150)) startWanted('A patrol clocked you at ' + Math.round(kmh) + ' km/h!');
-      else if (police.speedT > 3 && Math.random() < 0.2 * dt) startWanted('Speed camera! ' + Math.round(kmh) + ' km/h');
+      else if (police.speedT > 6 && Math.random() < 0.06 * dt) startWanted('Speed camera! ' + Math.round(kmh) + ' km/h');
     } else police.speedT = Math.max(0, police.speedT - dt * 0.5);
   }
   if (police.stars) {
     police.spawnT -= dt;
     // backup only arrives while they can see you or right after they lost you
-    if (cops.filter(c => !c.leaving).length < [0, 1, 2, 3, 4, 6][police.stars] && police.spawnT <= 0 && police.lostT < 1.5) { spawnCop(); police.spawnT = 2.5; }
-    police.seen = cops.some(c => !c.leaving && Math.hypot(c.x - p.x, c.z - p.z) < 140) || npcs.some(n => n.police && Math.hypot(n.x - p.x, n.z - p.z) < 110);
+    // the police only work the city: outside it no backup comes and they lose track of you
+    if (inCity && cops.filter(c => !c.leaving).length < [0, 1, 1, 2, 3, 4][police.stars] && police.spawnT <= 0 && police.lostT < 1.5) { spawnCop(); police.spawnT = 7; }
+    police.seen = inCity && (cops.some(c => !c.leaving && Math.hypot(c.x - p.x, c.z - p.z) < 120) || npcs.some(n => n.police && Math.hypot(n.x - p.x, n.z - p.z) < 90));
     if (police.seen) {
       police.lostT = 0; police.lastX = p.x; police.lastZ = p.z;
-      police.heat += dt * (kmh > 150 ? 6 : 2.5);
+      police.heat += dt * (kmh > 150 ? 3.5 : 1.2);
       setStarsFromHeat();
     } else {
       police.lostT += dt;
@@ -4132,7 +4248,7 @@ function exitCar() {
   Object.assign(player, { vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, boosting: false, drifting: false, sliding: false, grounded: true, padBoost: 0 });
   player.y = surfaceHeight(player.x, player.z);
   walker.shirt.color.set(PAINT[ac().paint].hex);
-  onFoot = true; walker.root.visible = true; walker.root.position.set(player.x, player.y, player.z);
+  onFoot = true; walker.root.visible = true; walker.root.position.set(player.x, player.y, player.z); syncFp();
 }
 function enterCar() {
   if (!onFoot) return;
@@ -4151,11 +4267,11 @@ function enterCar() {
     toast('Your car was brought round');
   }
   Object.assign(player, { x: parked.x, z: parked.z, y: parked.y, yaw: parked.yaw, vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, grounded: true, hintI: -1 });
-  onFoot = false; walker.root.visible = false;
+  onFoot = false; walker.root.visible = false; syncFp();
 }
 function toggleFoot() { if (onFoot) enterCar(); else exitCar(); }
 // travelling or racing always puts you back behind the wheel
-function forceIntoCar() { if (!onFoot) return; onFoot = false; walker.root.visible = false; Object.assign(player, { yaw: parked.yaw, vx: 0, vz: 0, vy: 0, fs: 0, ls: 0, grounded: true }); }
+function forceIntoCar() { if (!onFoot) return; onFoot = false; walker.root.visible = false; Object.assign(player, { yaw: parked.yaw, vx: 0, vz: 0, vy: 0, fs: 0, ls: 0, grounded: true }); syncFp(); }
 function pushOutOfCar(p, c, hw, hl) {
   if (p.y > c.y + 1.7) return;
   const dx = p.x - c.x, dz = p.z - c.z, cs = Math.cos(c.yaw), sn = Math.sin(c.yaw);
@@ -4515,6 +4631,145 @@ for (const id of ['props', 'dealer']) $(id).addEventListener('pointerdown', e =>
 updatePropVisuals();
 
 // =====================================================================
+// chat (T)
+// =====================================================================
+let chatOpen = false, lastChatAt = 0;
+function chatLine(name, text, hex, sys) {
+  const log = $('chatLog'), ln = document.createElement('div'); ln.className = 'ln' + (sys ? ' sys' : '');
+  if (name) { const n = document.createElement('b'); n.textContent = name + ': '; n.style.color = hex || '#ffc93c'; ln.append(n); }
+  ln.append(document.createTextNode(text));
+  log.append(ln);
+  while (log.children.length > 40) log.firstChild.remove();
+  setTimeout(() => ln.classList.add('old'), 12000);
+  log.scrollTop = log.scrollHeight;
+}
+function openChat() {
+  if (!playing || chatOpen) return;
+  chatOpen = true; keys.clear();
+  for (const k in touchState) touchState[k] = false;
+  $('chat').classList.add('open'); $('chatRow').hidden = false;
+  const inp = $('chatIn'); inp.value = ''; inp.focus();
+  if (!(room && roomUp)) $('chatHint').textContent = 'Nobody else is online right now';
+  else $('chatHint').textContent = 'Enter to send · Esc to close';
+}
+function closeChat() { chatOpen = false; $('chat').classList.remove('open'); $('chatRow').hidden = true; $('chatIn').blur(); }
+function sendChat() {
+  const raw = $('chatIn').value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 120);
+  closeChat();
+  if (!raw) return;
+  const now = performance.now();
+  if (now - lastChatAt < 1200) { chatLine('', 'Slow down a little', null, true); return; }
+  lastChatAt = now;
+  const text = censorText(raw);
+  chatLine(save.nick || 'You', text, PAINT[ac().paint].hex);
+  if (room && roomUp) room.emit('chat', { text, n: save.nick || '' }).catch(() => { });
+}
+function onChatMsg(msg) {
+  if (!msg || msg.isMe || msg.sameTab || !msg.data || typeof msg.data.text !== 'string') return;
+  const r = remotes.get(msg.peer);
+  const text = censorText(msg.data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 120)).trim(); if (!text) return;
+  let name = r ? displayName(r) : cleanName(msg.data.n); if (!name || nameIsBad(name)) name = 'Racer';
+  chatLine(name, text, r && PAINT[r.paint] ? PAINT[r.paint].hex : '#ffffff');
+}
+$('chatIn').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); sendChat(); } else if (e.key === 'Escape') { e.preventDefault(); closeChat(); } });
+$('chatIn').addEventListener('blur', () => { if (chatOpen) setTimeout(() => { if (chatOpen && document.activeElement !== $('chatIn')) closeChat(); }, 150); });
+$('bChat').addEventListener('click', () => chatOpen ? closeChat() : openChat());
+
+// =====================================================================
+// first-person camera (C)
+// =====================================================================
+let fpCam = false;
+try { fpCam = localStorage.getItem(SAVE_KEY + '-fp') === '1'; } catch (e) { }
+// in first person the roof, glass and outlines of your own car are hidden so you look over the bonnet;
+// a dashboard and steering wheel appear instead
+function fpModel(m, on) {
+  const S = m.spec, thr = S ? S.sh - 0.12 : 1.3;
+  if (on && !m.fpParts && S) {
+    const ey = S.roof ? S.sh + (S.roof - S.sh) * 0.6 : S.sh + 0.6, ez = S.roof ? lerp(S.roofF, S.roofR, 0.2) : -0.3;
+    const dash = new THREE.Mesh(rbox((S.cabW || S.W) - 0.2, 0.16, 0.45, 0.06), toon(0x2b2d42)); dash.position.set(0, S.sh - 0.1, ez + 0.95);
+    const wheel = new THREE.Mesh(geo('swheel', () => new THREE.TorusGeometry(0.15, 0.028, 8, 24)), toon(0x1d1a2e)); wheel.position.set(0.38, ey - 0.5, ez + 0.58); wheel.rotation.x = -0.35;
+    const hub = new THREE.Mesh(cyl(0.05, 0.05, 0.06, 10), toon(0x45486e)); hub.rotation.x = Math.PI / 2; wheel.add(hub);
+    m.fpParts = [dash, wheel]; m.fpWheel = wheel; m.eye = [0.38, ey, ez];
+    for (const p of m.fpParts) { p.userData.fp = true; m.tilt.add(p); }
+  }
+  for (const c of m.tilt.children) {
+    if (c.userData.fp) { c.visible = on; continue; }
+    if (!c.isMesh || m.flames.includes(c)) continue;
+    const g = c.geometry; if (!g.boundingBox) g.computeBoundingBox();
+    if (c.position.y + g.boundingBox.min.y * c.scale.y > thr) c.visible = !on;
+  }
+  m.root.traverse(o => { if (o.isMesh && o.material === OUTLINE) o.visible = !on; });
+}
+function syncFp() {
+  fpModel(playerModel, fpCam && !onFoot);
+  walker.root.visible = onFoot && !fpCam;
+}
+function toggleCam() { fpCam = !fpCam; try { localStorage.setItem(SAVE_KEY + '-fp', fpCam ? '1' : '0'); } catch (e) { } syncFp(); camSnap = true; toast(fpCam ? 'First person' : 'Third person'); }
+function fpCamera(dt) {
+  const p = player, eye = new THREE.Vector3(), look = new THREE.Vector3();
+  if (onFoot) {
+    eye.set(p.x + Math.sin(p.yaw) * 0.2, p.y + 1.85, p.z + Math.cos(p.yaw) * 0.2);
+    look.set(eye.x + Math.sin(p.yaw) * 10, eye.y - 0.9, eye.z + Math.cos(p.yaw) * 10);
+  } else {
+    const m = playerModel, e = m.eye || [0.38, 1.9, -0.3];
+    m.root.updateMatrixWorld(true);
+    eye.set(e[0], e[1], e[2]); m.tilt.localToWorld(eye);
+    look.set(e[0], e[1] - 0.35, e[2] + 10); m.tilt.localToWorld(look);
+    if (m.fpWheel) m.fpWheel.rotation.z = (p.steerVis || 0) * 1.6;
+  }
+  camPos.copy(eye); camLook.copy(look); camSnap = false;
+  camera.position.copy(eye); camera.lookAt(look);
+  const fov = 74 + (onFoot ? 0 : clamp(Math.hypot(p.vx, p.vz) - 20, 0, 40) * 0.2 + (p.boosting ? 6 : 0));
+  if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-5 * dt)); camera.updateProjectionMatrix(); }
+  sun.position.set(p.x + 60, 110, p.z + 40); sun.target.position.set(p.x, 0, p.z);
+}
+
+// =====================================================================
+// tutorial: a short tour of every feature, shown once to each player
+// =====================================================================
+const TUT = [
+  { icon: '🏁', title: 'Welcome to Pebble Isle!', text: 'An island and a whole mainland to drift, race and explore with everyone online. Here is a quick tour. You can skip it any time.',
+    keys: [['W A S D / arrows', 'Drive and steer'], ['Shift', 'Nitro boost'], ['Space', 'Handbrake: flick the car into a drift']] },
+  { icon: '💨', title: 'Drift, jump and earn', text: 'Long drifts, big jumps and the coins along the roads all pay cash and XP. Every new level unlocks better parts and cars.',
+    keys: [['Drift tip', 'Tap the handbrake into a corner, then hold gas and countersteer'], ['R', 'Reset your car if you get stuck']] },
+  { icon: '🔧', title: 'Your garage', text: 'Drive onto the yellow GARAGE pad, or press G from anywhere. Upgrade the engine, swap in a V8 or V12, bolt on turbos, change wheels and paint. Every car keeps its own setup.', hl: 'bMenu',
+    keys: [['G', 'Back to the garage'], ['E', 'Use the pad or beam you are standing on']] },
+  { icon: '🏆', title: 'Races and missions', text: 'The red RACE pad starts a race against other players, or bots when nobody is around. Glowing beams on the map are missions: drift trials, time attacks and stunts with gold medals to win.',
+    keys: [['E', 'Join the race or start a mission']] },
+  { icon: '🗺️', title: 'Map and fast travel', text: 'Press M for the big map. Pebble City, the mountain touge, the farm roads and every place you own are one click away.', hl: 'mapwrap',
+    keys: [['M', 'Open the map']] },
+  { icon: '🚶', title: 'On foot and Pebble Motors', text: 'Press F to get out and walk. New cars are sold at Pebble Motors in Pebble City: walk in, check out the cars on their turntables and drive one away.',
+    keys: [['F', 'Get out, or back in'], ['C', 'First or third person view']] },
+  { icon: '💼', title: 'Businesses and homes', text: 'Buy businesses that earn money even while you are offline. Legit ones pay out by themselves. Shady ones pay more, but you drive the goods to buyers yourself. Homes are garages and fast travel spots.', hl: 'bMenu',
+    keys: [['Menu → Property', 'See everything you can buy']] },
+  { icon: '🚨', title: 'Watch out for the police', text: 'Go over 150 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
+  { icon: '💬', title: 'Play together', text: 'Chat with everyone on the island, sell cars to other players on the Market and set lap records. Everything else lives in the Menu at the top left. Have fun!', hl: 'bMenu',
+    keys: [['T', 'Chat'], ['H', 'Honk']] },
+];
+let tutI = 0;
+function openTutorial(from) { tutI = from || 0; renderTut(); openPanel('tutorial'); }
+function endTutorial() {
+  if (!save.tut) { save.tut = 1; persist(); }
+  closePanels();
+}
+function renderTut() {
+  const s = TUT[tutI];
+  $('tutIcon').textContent = s.icon; $('tutTitle').textContent = s.title; $('tutText').textContent = s.text;
+  $('tutStep').textContent = (tutI + 1) + ' / ' + TUT.length;
+  const k = $('tutKeys'); k.textContent = ''; k.hidden = !s.keys;
+  for (const [a, b] of s.keys || []) { const kb = document.createElement('kbd'); kb.textContent = a; const sp = document.createElement('span'); sp.textContent = b; k.append(kb, sp); }
+  const d = $('tutDots'); d.textContent = ''; TUT.forEach((_, i) => { const dot = document.createElement('i'); if (i === tutI) dot.className = 'on'; d.append(dot); });
+  $('tutBack').disabled = tutI === 0;
+  $('tutNext').textContent = tutI === TUT.length - 1 ? "Let's drive!" : 'Next';
+  for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
+  if (s.hl && $(s.hl)) $(s.hl).classList.add('tut-hl');
+}
+$('tutNext').addEventListener('click', () => { if (tutI >= TUT.length - 1) endTutorial(); else { tutI++; renderTut(); } });
+$('tutBack').addEventListener('click', () => { if (tutI > 0) { tutI--; renderTut(); } });
+$('tutSkip').addEventListener('click', endTutorial);
+$('bTut').addEventListener('click', () => openTutorial(0));
+
+// =====================================================================
 // main loop
 // =====================================================================
 let playing = false, camSnap = true, acc = 0, last = performance.now(), frameN = 0;
@@ -4523,6 +4778,7 @@ let camYaw = 0;
 
 function nickProblem(n) {
   if (!/^[\p{L}\p{N} _.\-]{2,14}$/u.test(n)) return 'Pick a username first: 2 to 14 letters or numbers. Spaces, dots, dashes and underscores are fine too.';
+  if (nameIsBad(n)) return "That username isn't allowed here. Please pick a friendly one.";
   for (const r of remotes.values()) if (r.active && cleanName(r.pres && r.pres.n).toLowerCase() === n.toLowerCase()) return 'Someone on the island is already using that name. Try another.';
   return '';
 }
@@ -4536,6 +4792,7 @@ function startPlay() {
   $('intro').hidden = true; $('hud').hidden = false; playing = true; camSnap = true;
   if (isTouch) { $('touch').hidden = false; document.body.classList.add('touch'); }
   initAudio(); renderMoney(); updateOnline();
+  if (!save.tut) setTimeout(() => { if (playing && !panelOpen) openTutorial(0); }, 700);
   if (save.home && PROPS[save.home]) { const pd = PROPS[save.home].pad, s = PROPS[save.home].site, yaw = Math.atan2(pd.x - s.x, pd.z - s.z); Object.assign(player, { x: pd.x + Math.sin(yaw) * 5, z: pd.z + Math.cos(yaw) * 5, yaw, y: surfaceHeight(pd.x + Math.sin(yaw) * 5, pd.z + Math.cos(yaw) * 5), vx: 0, vz: 0, hintI: -1 }); camSnap = true; toast('Welcome home'); }
 }
 $('bPlay').addEventListener('click', startPlay);
@@ -4706,6 +4963,7 @@ function footCamera(dt) {
   sun.position.set(p.x + 60, 110, p.z + 40); sun.target.position.set(p.x, 0, p.z);
 }
 function updateCamera(dt) {
+  if (fpCam) return fpCamera(dt);
   if (onFoot) return footCamera(dt);
   const p = player;
   const speed = Math.hypot(p.vx, p.vz);

@@ -1,6 +1,14 @@
 # Pebble Isle Rally (online version)
 
-A cartoon open-world drift and racing game that anyone can play in the browser. There are no accounts: players just pick a username. Each player's money, XP and car collection (with every car's own parts and upgrades) are saved in their own browser. The small game server shares live car positions, starts races between players, keeps the lap records board and runs the car market where players sell cars to each other.
+A cartoon open-world drift and racing game that anyone can play in the browser. There are no accounts: players just pick a username. Each player's money, XP, car collection (with every car's own parts and upgrades), businesses and homes are saved in their own browser. The small game server shares live car positions, starts races between players, keeps the lap records board and runs the car market where players sell cars to each other.
+
+## In the game
+
+- Drift, race other players and take on missions across the island, the city, farm roads and the mountain pass.
+- Press F to get out of your car and walk. Walk into Pebble Motors in Pebble City to look at the cars on their turntables and buy one.
+- Buy businesses and upgrade them. Legit ones (car wash, taxi company, tuning shop) pay you automatically, even while you're offline. Shady ones (grow shed, chop shop, Fizz lab) fill up with stock that you drive to buyers, with the police on your tail if someone tips them off.
+- Buy homes. They work as garages and fast travel spots, and you start at the one you set as home.
+- Press T to chat with everyone on the island and C to switch between first and third person. Usernames and chat go through a word filter (German and English) in the game and again on the server.
 
 ## What's in here
 

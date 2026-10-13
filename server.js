@@ -21,6 +21,54 @@ const INTAKES = ['stock', 'cai', 'ram', 'itb'];
 const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5'];
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
+// ---------- word filter for usernames and chat (German + English) ----------
+// SUB: blocked anywhere inside a word. WHOLE: blocked only as a whole word (they hide inside harmless words).
+const BAD_SUB = ['arschloch', 'arschgeige', 'arsch', 'wichser', 'wixer', 'wichs', 'fotze', 'hurensohn', 'hure', 'schlampe', 'nutte', 'schwuchtel', 'spast', 'missgeburt', 'behindert',
+  'mongo', 'bastard', 'fick', 'fuck', 'scheiss', 'kacke', 'pisser', 'schwanz', 'pimmel', 'muschi', 'titten', 'moese', 'nazi', 'hitler', 'siegheil', 'kanake', 'neger', 'nigg', 'zigeuner',
+  'kinderficker', 'vergewaltig', 'porn', 'penis', 'vagina', 'dildo', 'bitch', 'slut', 'whore', 'cunt', 'faggot', 'retard', 'asshole', 'wanker', 'twat', 'shit', 'pussy', 'blowjob', 'handjob',
+  'jerkoff', 'masturb', 'orgasm', 'nudes', 'hoden', 'sperma', 'judensau', 'heilhitler', 'killyourself', 'transe', 'tranny', 'dumbass', 'jackass', 'idiot', 'hurre', 'drecksau', 'sackgesicht',
+  'wixxer', 'wichsa', 'spasti', 'schlitzauge', 'peniz', 'sex'];
+const BAD_WHOLE = ['anal', 'cum', 'cock', 'dick', 'fag', 'heil', 'kkk', 'rape', 'tit', 'tits', 'nutten', 'opfer', 'depp', 'nigga', 'hoe', 'hoes', 'ss', 'nsdap', 'kys', 'assi', 'kotz'];
+const BAD_OK = ['marsch', 'barsch', 'harsch', 'scunthorpe', 'mongol', 'sextett', 'sextant', 'essex', 'sussex', 'middlesex', 'schwanzflosse', 'unisex', 'mongoose'];
+const LEET = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i', '|': 'i', '€': 'e' };
+const rxOf = w => new RegExp(w.split('').map(c => c + '+').join(''));
+const BAD_SUB_RX = BAD_SUB.map(rxOf), BAD_WHOLE_RX = BAD_WHOLE.map(w => new RegExp('^' + w.split('').map(c => c + '+').join('') + '$'));
+function normWord(s) {
+  s = String(s).toLowerCase().replace(/^[.,!?;:()"'\s]+|[.,!?;:()"'\s]+$/g, '').replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+  s = s.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+  s = s.replace(/[0134578@$!|€]/g, c => LEET[c] || c);
+  return s.replace(/[^a-z]/g, '');
+}
+function badToken(w) {
+  let n = normWord(w); if (!n) return false;
+  for (const ok of BAD_OK) n = n.split(ok).join('_');
+  if (BAD_WHOLE_RX.some(r => r.test(n))) return true;
+  return BAD_SUB_RX.some(r => r.test(n));
+}
+// usernames: check each word and the whole name squashed together (catches "Ar sch" or "F.u.c.k")
+function nameIsBad(name) {
+  const parts = String(name).split(/[\s_.\-]+/).filter(Boolean);
+  if (parts.some(badToken)) return true;
+  const joined = normWord(name); let j = joined; for (const ok of BAD_OK) j = j.split(ok).join('_');
+  return BAD_SUB_RX.some(r => r.test(j));
+}
+// chat: blank out bad words, including ones spelled out with spaces between the letters
+function censorText(text) {
+  const toks = String(text).split(/(\s+)/);
+  const out = toks.slice();
+  for (let i = 0; i < toks.length; i++) if (toks[i].trim() && badToken(toks[i])) out[i] = '*'.repeat(Math.min(8, toks[i].length));
+  // runs of single letters: "f u c k"
+  const words = []; toks.forEach((t, i) => { if (t.trim()) words.push(i); });
+  for (let a = 0; a < words.length; a++) {
+    if (normWord(toks[words[a]]).length !== 1) continue;
+    let b = a; while (b + 1 < words.length && normWord(toks[words[b + 1]]).length === 1) b++;
+    if (b - a >= 2) { const joined = words.slice(a, b + 1).map(i => toks[i]).join(''); if (badToken(joined) || nameIsBad(joined)) for (let k = a; k <= b; k++) out[words[k]] = '*'; }
+    a = b;
+  }
+  return out.join('');
+}
+const safeName = s => { const n = cleanName(s); return n && !nameIsBad(n) ? n : 'Racer'; };
+
 function cleanCar(c) {
   if (!c || typeof c !== 'object' || !BODIES.includes(c.m)) return null;
   const up = {};
@@ -94,8 +142,14 @@ wss.on('connection', ws => {
 
     if (m.t === 'presence' && m.presence && typeof m.presence === 'object' && !Array.isArray(m.presence)) {
       if (JSON.stringify(m.presence).length > 4096) return;
+      if (typeof m.presence.n === 'string' && nameIsBad(m.presence.n)) m.presence.n = 'Racer';
       me.presence = m.presence;
       broadcast({ t: 'presence', peer: me.peer, presence: me.presence }, ws);
+    } else if (m.t === 'emit' && m.topic === 'chat' && m.data && typeof m.data.text === 'string') {
+      // chat: short, filtered, at most one message a second per player
+      const now = Date.now(); if (now - (me.lastChat || 0) < 1000) return; me.lastChat = now;
+      const text = censorText(m.data.text.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 120)).trim(); if (!text) return;
+      broadcast({ t: 'msg', topic: 'chat', data: { text, n: safeName(me.presence && me.presence.n) }, peer: me.peer }, ws);
     } else if (m.t === 'emit' && m.topic === 'race') {
       if (JSON.stringify(m.data || null).length > 4096) return;
       broadcast({ t: 'msg', topic: 'race', data: m.data, peer: me.peer }, ws);
@@ -116,7 +170,7 @@ wss.on('connection', ws => {
       if (prev && prev.lap <= lap) return;
       state.records[me.pid] = {
         lap: Math.round(lap), total: Number.isFinite(total) ? Math.round(total) : 0,
-        nick: cleanName(m.rec.nick) || 'Racer',
+        nick: safeName(m.rec.nick),
         body: BODIES.includes(m.rec.body) ? m.rec.body : 'bubble',
         paint: PAINTS.includes(m.rec.paint) ? m.rec.paint : 'cherry',
         at: Date.now(),
@@ -131,7 +185,7 @@ wss.on('connection', ws => {
       if (Object.values(state.listings).filter(l => l.seller === me.pid).length >= 8) return reply(m.rq, false, { err: 'You can have up to 8 cars on the market at once.' });
       if (Object.keys(state.listings).length >= 400) return reply(m.rq, false, { err: 'The market is full right now.' });
       const lid = 'l' + crypto.randomBytes(8).toString('hex');
-      state.listings[lid] = { lid, seller: me.pid, nick: cleanName(m.nick) || 'Racer', car, price, at: Date.now() };
+      state.listings[lid] = { lid, seller: me.pid, nick: safeName(m.nick), car, price, at: Date.now() };
       saveState();
       reply(m.rq, true, { lid });
       broadcast({ t: 'mk_listings', listings: listingsOut() });
@@ -148,7 +202,7 @@ wss.on('connection', ws => {
       if (!l) return reply(m.rq, false, { err: 'That car is no longer for sale.' });
       if (l.seller === me.pid) return reply(m.rq, false, { err: "That's your own listing." });
       delete state.listings[m.lid];
-      const sale = { lid: l.lid, price: l.price, buyer: cleanName(m.nick) || 'Racer' };
+      const sale = { lid: l.lid, price: l.price, buyer: safeName(m.nick) };
       (state.sold[l.seller] = state.sold[l.seller] || []).push(sale);
       saveState();
       reply(m.rq, true, { car: l.car, price: l.price });
