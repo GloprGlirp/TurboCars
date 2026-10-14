@@ -260,6 +260,12 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 .hint.err { color: var(--pop); }
 .hint.ok { color: #1f9c63; }
 .panel.wide { width: min(720px, 100%); }
+.ecu { display: grid; gap: 8px; }
+.ecurow { display: grid; grid-template-columns: 9.5em 1fr 9em 3.4em; align-items: center; gap: 4px 10px; font-size: 13px; }
+.ecurow .n { font-weight: 800; grid-column: 1; } .ecurow .lo { grid-column: 1; grid-row: 2; opacity: .7; font-size: 12px; }
+.ecurow input { grid-column: 2; grid-row: 1 / span 2; width: 100%; accent-color: #9b6bff; } .ecurow .hi { grid-column: 3; grid-row: 1 / span 2; opacity: .7; font-size: 12px; } .ecurow b { grid-column: 4; grid-row: 1 / span 2; text-align: right; }
+.ecurow .hint { grid-column: 1 / -1; }
+@media (max-width: 560px) { .ecurow { grid-template-columns: 1fr 3.4em; } .ecurow .n, .ecurow .lo, .ecurow .hi { grid-column: 1; grid-row: auto; } .ecurow input { grid-column: 1; grid-row: auto; } .ecurow b { grid-column: 2; grid-row: 1; } }
 #searchHint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; background: #1d1a2e; color: #fff; border: 3px solid #fff; border-radius: 999px; padding: 6px 16px; font: 700 15px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
 #searchHint[hidden] { display: none; }
 #bigMap { display: block; width: 100%; max-width: 640px; aspect-ratio: 1; height: auto; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; background: #43b9ee; }
@@ -352,7 +358,6 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
         <button class="mbtn" id="bRecords" type="button">Records</button>
         <button class="mbtn" id="bCodes" type="button">Codes</button>
         <button class="mbtn" id="bMute" type="button">Sound on</button>
-        <button class="mbtn" id="bGearbox" type="button">Gearbox: auto</button>
         <button class="mbtn" id="bWardrobe" type="button">Wardrobe<kbd>V</kbd></button>
         <button class="mbtn" id="bTut" type="button">Tutorial</button>
       </div>
@@ -439,7 +444,6 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <kbd>Drift tip</kbd><span>Flick into a corner, then hold gas and countersteer to keep the slide going</span>
       <kbd>E</kbd><span>Garage, race pad or a glowing mission beam</span>
       <kbd>F</kbd><span>Get out and walk, or get back in. Walk into Pebble Motors to buy cars</span>
-      <kbd>Q · E</kbd><span>Shift down and up with the manual gearbox (E still uses pads when you're on one)</span>
       <kbd>C · T</kbd><span>Switch between first and third person · Chat with other players</span>
       <kbd>H · R · G · M</kbd><span>Honk · Reset car · Back to garage · Map</span>
     </div>
@@ -483,6 +487,10 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="opts" id="pistList"></div>
       <div class="label">Spark plugs</div>
       <div class="opts" id="plugList"></div>
+      <div class="label">ECU: unlocks software tuning</div>
+      <div class="opts" id="ecuList"></div>
+      <div class="label">Software tuning</div>
+      <div class="ecu" id="ecuTune"></div>
       <div class="label">Gearing</div>
       <div class="opts" id="gearList"></div>
       <div class="label">Weight reduction</div>
@@ -503,6 +511,8 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="row" id="stanceList"></div>
       <div class="label">Tyre compound</div>
       <div class="opts" id="tyreList"></div>
+      <div class="label">Brakes</div>
+      <div class="opts" id="brakeList"></div>
     </div>
     <div data-pane="look" hidden>
       <div class="label">Paint</div>
@@ -559,6 +569,15 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="mlist" id="usedList"></div>
   </div>
 </div>
+<div id="bmPanel" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseBM" type="button">Close</button>
+    <h2>Black market</h2>
+    <p class="lede" id="bmLede"></p>
+    <div class="opts" id="bmList"></div>
+  </div>
+</div>
+
 <div id="fuelPanel" class="overlay" hidden>
   <div class="panel sticker">
     <button class="btn small alt x" id="bCloseFuel" type="button">Close</button>
@@ -596,7 +615,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   <div class="panel sticker wide">
     <button class="btn small alt x" id="bCloseMap" type="button">Close</button>
     <h2>Map</h2>
-    <p class="lede">Diamonds are missions, the yellow dot is the garage, the red dot is the race pad, green is Pebble Motors, purple squares are businesses and houses are homes for sale. Dashed circles are search areas for hidden cars (?) and secret meetups (♪). <b>Tap the map to set a destination</b>: arrows on the road show the way (tap the pin again to clear it). Or jump straight to a spot below.</p>
+    <p class="lede">Diamonds are missions, the yellow dot is the garage, the red dot is the race pad, green is Pebble Motors, purple squares are businesses and houses are homes for sale. Dashed circles are search areas for hidden cars (?) and secret meetups (♪). A purple $ is the black market dealer: every 15 minutes he sells rare engine parts for 6 minutes. <b>Tap the map to set a destination</b>: arrows on the road show the way (tap the pin again to clear it). Or jump straight to a spot below.</p>
     <canvas id="bigMap" width="800" height="800"></canvas>
     <div class="label">Fast travel</div>
     <div class="row" id="travelList"></div>
@@ -833,13 +852,14 @@ const MISSION_IDS = ['donuts', 'slalom', 'hopper', 'sprint', 'sideways', 'coast'
 
 // engine bay parts and wheels, fitted per car. Brands are made up.
 const ENGINES = [
-  { id: 'i4', name: 'Inline-4', brand: 'Stock', cost: 0, top: 1, acc: 1, turn: 1, tips: 1, snd: { p: 1, t: 'sawtooth', t2: 'square', r2: 0.5 } },
-  { id: 'i5', name: 'Inline-5', brand: 'Quintet', cost: 500, top: 1.04, acc: 1.05, turn: 1, tips: 1, snd: { p: 0.92, t: 'sawtooth', t2: 'sawtooth', r2: 0.6 } },
-  { id: 'v6', name: 'V6', brand: 'Hexa', cost: 900, top: 1.07, acc: 1.08, turn: 0.99, tips: 2, snd: { p: 0.82, t: 'sawtooth', t2: 'square', r2: 0.5 } },
-  { id: 'i6', name: 'Inline-6', brand: 'Straightline', cost: 1200, top: 1.09, acc: 1.09, turn: 0.99, tips: 2, snd: { p: 1.05, t: 'sawtooth', t2: 'triangle', r2: 1.5 } },
-  { id: 'v8', name: 'V8', brand: 'Thunderblock', cost: 1800, top: 1.13, acc: 1.16, turn: 0.96, drift: 1.05, tips: 4, snd: { p: 0.62, t: 'square', t2: 'sawtooth', r2: 0.5 } },
-  { id: 'v10', name: 'V10', brand: 'Decima', cost: 2600, top: 1.17, acc: 1.18, turn: 0.97, drift: 1.03, tips: 4, snd: { p: 1.18, t: 'sawtooth', t2: 'square', r2: 1.25 } },
-  { id: 'v12', name: 'V12', brand: 'Dodeca', cost: 3600, top: 1.21, acc: 1.2, turn: 0.95, tips: 4, snd: { p: 1.32, t: 'sawtooth', t2: 'triangle', r2: 2 } },
+  { id: 'i4', name: 'Inline-4', brand: 'Stock', cost: 0, top: 1, acc: 1, turn: 1, bk: 2.3, tips: 1, snd: { p: 1, t: 'sawtooth', t2: 'square', r2: 0.5 } },
+  { id: 'i5', name: 'Inline-5', brand: 'Quintet', cost: 500, top: 1.04, acc: 1.05, turn: 1, bk: 2.0, tips: 1, snd: { p: 0.92, t: 'sawtooth', t2: 'sawtooth', r2: 0.6 } },
+  { id: 'v6', name: 'V6', brand: 'Hexa', cost: 900, top: 1.07, acc: 1.08, turn: 0.99, bk: 1.75, tips: 2, snd: { p: 0.82, t: 'sawtooth', t2: 'square', r2: 0.5 } },
+  { id: 'i6', name: 'Inline-6', brand: 'Straightline', cost: 1200, top: 1.09, acc: 1.09, turn: 0.99, bk: 1.65, tips: 2, snd: { p: 1.05, t: 'sawtooth', t2: 'triangle', r2: 1.5 } },
+  { id: 'v8', name: 'V8', brand: 'Thunderblock', cost: 1800, top: 1.13, acc: 1.16, turn: 0.96, drift: 1.05, bk: 1.2, tips: 4, snd: { p: 0.62, t: 'square', t2: 'sawtooth', r2: 0.5 } },
+  { id: 'v10', name: 'V10', brand: 'Decima', cost: 2600, top: 1.17, acc: 1.18, turn: 0.97, drift: 1.03, bk: 1.0, tips: 4, snd: { p: 1.18, t: 'sawtooth', t2: 'square', r2: 1.25 } },
+  { id: 'kuro6', name: 'Kuro black-label twin-cam six', brand: '???', cost: 5200, top: 1.2, acc: 1.2, turn: 0.99, bk: 1.3, bm: true, tips: 2, snd: { p: 1.08, t: 'sawtooth', t2: 'triangle', r2: 1.6 } },
+  { id: 'v12', name: 'V12', brand: 'Dodeca', cost: 3600, top: 1.21, acc: 1.2, turn: 0.95, bk: 0.8, tips: 4, snd: { p: 1.32, t: 'sawtooth', t2: 'triangle', r2: 2 } },
 ];
 const INDUCTIONS = [
   { id: 'na', name: 'Naturally aspirated', brand: 'Stock', cost: 0, top: 1, acc: 1, lag: 0 },
@@ -849,6 +869,7 @@ const INDUCTIONS = [
   { id: 'h76', name: 'Hurricane 76 race turbo', brand: 'Gale Boost', cost: 2100, top: 1.14, acc: 1.16, lag: 0.6, turbo: true },
   { id: 'c30', name: 'C30 centrifugal supercharger', brand: 'Spinwell', cost: 1000, top: 1.09, acc: 1.07, lag: 0 },
   { id: 'tsb', name: 'Twin-screw blower', brand: 'Blowr', cost: 1200, top: 1.06, acc: 1.15, lag: 0, blower: true },
+  { id: 'gt99', name: 'Ghost GT99 twin-turbo kit', brand: '???', cost: 4200, top: 1.17, acc: 1.2, lag: 0.36, turbo: true, bm: true },
 ];
 const INTAKES = [
   { id: 'stock', name: 'Stock airbox', brand: 'Stock', cost: 0, top: 1, acc: 1 },
@@ -916,35 +937,65 @@ const COOLINGS = [
   { id: 'rad', name: 'Aluminium radiator', brand: 'Frostline', cost: 450, cool: 1.25, pow: 1 },
   { id: 'ic', name: 'Front-mount intercooler', brand: 'Frostline', cost: 700, cool: 1.2, pow: 1, boostPow: 1.04 },
   { id: 'full', name: 'Race cooling package', brand: 'Frostline Racing', cost: 1600, cool: 1.55, pow: 1, boostPow: 1.04 },
+  { id: 'ice', name: 'Black Ice cooling system', brand: '???', cost: 2400, cool: 2.0, pow: 1, boostPow: 1.06, bm: true },
 ];
 const INTERNALS = [
   { id: 'stock', name: 'Cast pistons', brand: 'Stock', cost: 0, str: 1, pow: 1 },
   { id: 'pist', name: 'Forged pistons', brand: 'Ironcore', cost: 900, str: 1.35, pow: 1 },
   { id: 'rods', name: 'Forged pistons and rods', brand: 'Ironcore', cost: 1600, str: 1.65, pow: 1.01 },
   { id: 'built', name: 'Fully built bottom end', brand: 'Ironcore Race', cost: 2800, str: 2.0, pow: 1.02 },
+  { id: 'ti', name: 'Titanium internals', brand: '???', cost: 3600, str: 2.6, pow: 1.03, bm: true },
 ];
 const PLUGS = [
   { id: 'stock', name: 'Stock spark plugs', brand: 'Stock', cost: 0, str: 1, cool: 1, pow: 1 },
   { id: 'irid', name: 'Iridium spark plugs', brand: 'Sparkwell', cost: 180, str: 1.05, cool: 1, pow: 1.01 },
   { id: 'cold', name: 'Colder racing plugs', brand: 'Sparkwell Racing', cost: 380, str: 1.1, cool: 1.05, pow: 1.02 },
 ];
+// brakes: shorter stops, later braking points
+const BRAKES = [
+  { id: 'stock', name: 'Stock brakes', brand: 'Stock', cost: 0, brake: 1 },
+  { id: 'pads', name: 'Sport pads and braided lines', brand: 'Stopwell', cost: 350, brake: 1.15 },
+  { id: 'bbk', name: '4-piston big brake kit', brand: 'Stopwell', cost: 950, brake: 1.32 },
+  { id: 'race', name: '6-piston carbon-ceramic brakes', brand: 'Stopwell Racing', cost: 2200, brake: 1.5 },
+];
+// engine software: an ECU unlocks the fine tuning sliders in the garage; better ones allow more range
+const ECUS = [
+  { id: 'stock', name: 'Factory ECU', brand: 'Stock', cost: 0, pow: 1, range: 0 },
+  { id: 's1', name: 'Stage 1 flash', brand: 'Bitworks', cost: 500, pow: 1.03, range: 0.5 },
+  { id: 's2', name: 'Stage 2 map with datalogger', brand: 'Bitworks', cost: 1200, pow: 1.05, range: 0.8 },
+  { id: 'pro', name: 'Standalone race ECU', brand: 'Bitworks Motorsport', cost: 2600, pow: 1.07, range: 1 },
+  { id: 'bm', name: 'Ghost map ECU', brand: '???', cost: 3800, pow: 1.1, range: 1.25, bm: true },
+];
+const BRAKE_BY = Object.fromEntries(BRAKES.map(x => [x.id, x])), ECU_BY = Object.fromEntries(ECUS.map(x => [x.id, x]));
+UNLOCK.b = { pads: 2, bbk: 7, race: 14 }; UNLOCK.x = { s1: 3, s2: 8, pro: 15 };
+const ECU_KEYS = [
+  { k: 'boost', name: 'Boost pressure', lo: 'less boost, cooler', hi: 'more boost, more heat', boost: true },
+  { k: 'timing', name: 'Ignition timing', lo: 'safe, less power', hi: 'more power, likes 98 octane' },
+  { k: 'rev', name: 'Shift map', lo: 'short: faster off the line', hi: 'long: higher top speed' },
+];
+// the fine tuning that's actually allowed with the fitted ECU
+function ecuVals(car) {
+  const X = ECU_BY[(car.tune || {}).x] || ECU_BY.stock, R = X.range, e = car.ecu || {};
+  return { X, R, boost: clamp(num(e.boost, 0), -R, R), timing: clamp(num(e.timing, 0), -R, R), rev: clamp(num(e.rev, 0), -R, R) };
+}
 const GEAR_BY = Object.fromEntries(GEARINGS.map(x => [x.id, x])), WEIGHT_BY = Object.fromEntries(WEIGHTS.map(x => [x.id, x]));
 const COOL_BY = Object.fromEntries(COOLINGS.map(x => [x.id, x])), INTERNAL_BY = Object.fromEntries(INTERNALS.map(x => [x.id, x])), PLUG_BY = Object.fromEntries(PLUGS.map(x => [x.id, x]));
 UNLOCK.g = { short: 4, long: 4 }; UNLOCK.k = { s1: 5, s2: 11 }; UNLOCK.c = { rad: 3, ic: 6, full: 12 }; UNLOCK.p = { pist: 6, rods: 10, built: 16 }; UNLOCK.z = { irid: 2, cold: 7 };
-const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE, g: GEAR_BY, k: WEIGHT_BY, c: COOL_BY, p: INTERNAL_BY, z: PLUG_BY };
-const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] });
+const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE, g: GEAR_BY, k: WEIGHT_BY, c: COOL_BY, p: INTERNAL_BY, z: PLUG_BY, b: BRAKE_BY, x: ECU_BY };
+const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] });
 // how well this engine copes: cooling (heat) and strength (wear, blow-ups)
 function engineCare(car) {
   const t = car.tune || DEFAULT_TUNE, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock, I = IND[t.i] || IND.na;
   // boost makes heat; bigger turbos make more
-  const stress = 1 + (I.turbo || I.blower || I.id === 'c30' ? 0.25 + I.lag * 0.5 : 0) + ((ENGINE[t.e] || ENGINE.i4).acc - 1) * 1.5;
+  const ev = ecuVals(car), boosted = I.turbo || I.blower || I.id === 'c30', knock = num(car.oct, 95) < 97 && ev.timing > 0 ? ev.timing * 0.3 : 0;
+  const stress = 1 + (boosted ? 0.25 + I.lag * 0.5 : 0) + ((ENGINE[t.e] || ENGINE.i4).acc - 1) * 1.5 + (boosted ? Math.max(0, ev.boost) * 0.3 : 0) + Math.max(0, ev.timing) * 0.2 + knock;
   return { cool: C.cool * Z.cool, str: Pn.str * Z.str, stress };
 }
 const tuneKey = t => [t.e, t.i, t.a, t.w, t.y || 'street'].join('.');
 function parseTune(str) {
   const parts = typeof str === 'string' ? str.split('.') : [];
   const pick = (k, slot, def) => SLOT_MAP[slot][parts[k]] ? parts[k] : def;
-  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] };
+  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] };
 }
 const UP_COST = [150, 300, 550, 900, 1400];
 const MAX_LVL = 5;
@@ -960,7 +1011,12 @@ const REWARD = [400, 250, 150, 80];
 function statsFor(car) {
   const b = (BODY[car.m] || BODY.bubble).s, up = car.up;
   const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
-  const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock;
+  const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock, B = BRAKE_BY[t.b] || BRAKE_BY.stock;
+  // forced induction: small engines gain much more from boost than big ones, so every engine can end up fast
+  const bk = E.bk || 1, iTop = 1 + (I.top - 1) * bk, iAcc = (I.acc - 1) * bk;
+  // software: the ECU itself, then the three sliders
+  const ev = ecuVals(car), bst = (I.turbo || I.blower || I.id === 'c30') ? ev.boost : 0;
+  const ecuAcc = ev.X.pow * (1 + 0.06 * bst + 0.03 * ev.timing - 0.05 * ev.rev), ecuTop = (1 + (ev.X.pow - 1) * 0.6) * (1 + 0.03 * bst + 0.015 * ev.timing + 0.045 * ev.rev);
   // a worn engine loses power; past 30 % wear it gets noticeably weaker
   const wearMul = 1 - Math.max(0, num(car.wear, 0) - 0.3) * 0.45;
   const partPow = Pn.pow * Z.pow * ((I.turbo || I.blower || I.id === 'c30') && C.boostPow ? C.boostPow : 1);
@@ -968,10 +1024,10 @@ function statsFor(car) {
   const oct = clamp(num(car.oct, 95), 95, 98), boosted = I.turbo || I.blower || I.id === 'c30', ox = (oct - 95) / 3;
   const fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && oct < 96 ? 0.015 : 0);
   return {
-    top: (28 + 3.2 * up.engine) * b.top * E.top * I.top * A.top * (1 + (fuelMul - 1) * 0.5) * G.top * (1 + (partPow - 1) * 0.5) * (1 + (wearMul - 1) * 0.5),
-    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul * G.acc * K.acc * partPow * wearMul,
-    boostAcc: I.acc - 1, lag: I.lag, drive: b.drive || 'rwd',
-    brake: 30,
+    top: (28 + 3.2 * up.engine) * b.top * E.top * iTop * A.top * (1 + (fuelMul - 1) * 0.5) * G.top * (1 + (partPow - 1) * 0.5) * (1 + (wearMul - 1) * 0.5) * ecuTop,
+    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul * G.acc * K.acc * partPow * wearMul * ecuAcc,
+    boostAcc: iAcc, lag: I.lag, drive: b.drive || 'rwd',
+    brake: 30 * B.brake,
     grip: 9,
     latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip * K.grip,
     turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn * K.turn,
@@ -997,22 +1053,23 @@ function carPI(car) { return perfIndex(statsFor(car)); }
 function carClass(car) { return classOf(carPI(car)); }
 // shown power and weight: power follows from acceleration and kerb weight
 function carPower(car) { const st = statsFor(car), kg = (KG[car.m] || 1300) + ((WEIGHT_BY[car.tune && car.tune.k] || WEIGHT_BY.stock).kg); return { kg, hp: Math.round(st.accel * (1 + st.boostAcc * 0.6) * kg / 110) }; }
-const STAT_MAX = { top: 44 * 1.34 * 1.21 * 1.14 * 1.04, accel: 30 * 1.3 * 1.2 * 1.16 * 1.06, latMax: 45 * 1.3 * 1.1, drift: 1.35 * 1.3 * 1.05, nitroMax: 5 };
+const STAT_MAX = { top: 44 * 1.34 * 1.24 * 1.14 * 1.04, accel: 30 * 1.3 * 1.2 * 1.16 * 1.06, latMax: 45 * 1.3 * 1.1, drift: 1.35 * 1.3 * 1.05, nitroMax: 5 };
 
 // ---------- save ----------
 const SAVE_KEY = 'pebble-isle-rally-save-v1';
 const GEAR_TQ = [1.45, 1.2, 1.02, 0.88, 0.77, 0.68];   // pull in each gear of the manual box
 const STARTER_UP = () => ({ engine: 0, accel: 0, grip: 0, drift: 0, nitro: 0, susp: 0 });
-function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', has: [] }, plate: '', fuel: 1, oct: 95, wear: 0, look: { kit: 'stock', wing: 'none', stk: 'none' }, lookOwn: [] }; }
+function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] }, ecu: { boost: 0, timing: 0, rev: 0 }, plate: '', fuel: 1, oct: 95, wear: 0, look: { kit: 'stock', wing: 'none', stk: 'none' }, lookOwn: [] }; }
 function sanitizeCar(o, keepId) {
   if (!o || typeof o !== 'object' || !BODY[o.m]) return null;
   const c = newCarObj(o.m, o.paint);
   if (keepId && typeof o.id === 'string' && /^c[a-z0-9]{2,24}$/.test(o.id)) c.id = o.id;
   if (o.up && typeof o.up === 'object') for (const u of UPGRADES) c.up[u.id] = clamp(Math.floor(num(o.up[u.id], 0)), 0, MAX_LVL);
   const t = o.tune && typeof o.tune === 'object' ? o.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpz]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbx]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
   const pick = (slot, def) => { const v = t[slot], m = SLOT_MAP[slot][v]; return m && (m.cost === 0 || has.includes(slot + ':' + v)) ? v : def; };
-  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), has };
+  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), b: pick('b', 'stock'), x: pick('x', 'stock'), has };
+  { const e = o.ecu && typeof o.ecu === 'object' ? o.ecu : {}; c.ecu = { boost: clamp(num(e.boost, 0), -1.25, 1.25), timing: clamp(num(e.timing, 0), -1.25, 1.25), rev: clamp(num(e.rev, 0), -1.25, 1.25) }; }
   c.wear = clamp(num(o.wear, 0), 0, 1);
   const lk = o.look && typeof o.look === 'object' ? o.look : {};
   c.look = { kit: KITS.some(x => x.id === lk.kit) ? lk.kit : 'stock', wing: WINGS.some(x => x.id === lk.wing) ? lk.wing : 'none', stk: STICKERS.some(x => x.id === lk.stk) ? lk.stk : 'none' };
@@ -1049,10 +1106,11 @@ function fitDecode(str) {
   const it = (k, i) => (FIT[k][a[i]] || FIT[k][0]).id;
   return sanitizeFit({ top: it('top', 0), tc: a[1], print: it('print', 2), bottom: it('bottom', 3), bc: a[4], shoes: it('shoes', 5), sc: a[6], hat: it('hat', 7), hc: a[8], acc: FIT.acc.filter((x, k) => (a[9] || 0) & (1 << k)).map(x => x.id), skin: a[10], hair: a[11] });
 }
-function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 250, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0, finds: [], fit: sanitizeFit(null), fitOwn: [], turf: { downtown: { w: 0, own: 0 }, farm: { w: 0, own: 0 }, mountain: { w: 0, own: 0 } }, meets: [], usedSold: null }; }
+function defaultSave() { const c = newCarObj('bubble', 'cherry'); return { money: 4000, start4k: 1, cars: [c], active: c.id, nick: '', ts: 0, missions: {}, xp: 0, codes: [], escrow: [], paidLids: [], biz: {}, homes: [], home: '', tut: 0, manual: 0, finds: [], fit: sanitizeFit(null), fitOwn: [], turf: { downtown: { w: 0, own: 0 }, farm: { w: 0, own: 0 }, mountain: { w: 0, own: 0 } }, meets: [], usedSold: null }; }
 function sanitizeSave(o) {
   const s = defaultSave(); if (!o || typeof o !== 'object') return s;
   s.money = clamp(Math.floor(num(o.money, s.money)), 0, MONEY_CAP);
+  if (!o.start4k) s.money = Math.max(s.money, 4000);   // one-time top-up: every player gets $4000 to start with
   s.nick = cleanName(o.nick);
   s.xp = clamp(Math.floor(num(o.xp, 0)), 0, XP_CAP);
   s.codes = Array.isArray(o.codes) ? o.codes.filter(c => typeof c === 'string' && /^[a-z0-9]{1,24}$/.test(c)).slice(0, 50) : [];
@@ -1126,7 +1184,7 @@ const isTouch = matchMedia('(pointer: coarse)').matches;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2));
 renderer.setSize(host.clientWidth || innerWidth, host.clientHeight || innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 host.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -1145,7 +1203,7 @@ scene.add(new THREE.HemisphereLight(0x7480d8, 0x1c1838, 0.4));
 // moonlight; the shadows follow you around like the old sun did
 const sun = new THREE.DirectionalLight(0x9fb0ff, 0.3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(isTouch ? 1024 : 2048, isTouch ? 1024 : 2048);
+sun.shadow.mapSize.set(isTouch ? 1024 : 1536, isTouch ? 1024 : 1536);
 const SC = sun.shadow.camera; SC.left = -55; SC.right = 55; SC.top = 55; SC.bottom = -55; SC.near = 10; SC.far = 260;
 sun.shadow.bias = -0.0008;
 scene.add(sun); scene.add(sun.target);
@@ -1848,6 +1906,50 @@ let windmillBlades = null;
 }
 
 // --- trees & rocks (instanced) ---
+// --- drawing only what's near: instanced scenery (trees, rocks, lamps) and whole building lots ---
+const CULL_INST = [], SITE_GROUPS = [];
+function cullInstReg(m, R) { if (m) { m.frustumCulled = false; CULL_INST.push({ m, R }); } }
+let cullX = 1e9, cullZ = 1e9;
+// small things far away (parked cars, props, crews) leave the camera's layer; .visible stays theirs to use
+const FAR_CULL = { list: null }, farV = new THREE.Vector3();
+function farCull(cx, cz) {
+  if (!FAR_CULL.list) {
+    FAR_CULL.list = [];
+    const skip = new Set([skyDome, ...clouds, playerModel.root]);
+    for (const o of scene.children) {
+      if (!o.isGroup || skip.has(o)) continue;
+      const meshes = []; o.traverse(c => { if (c.isMesh || c.isSprite) meshes.push(c); });
+      if (!meshes.length) continue;
+      o.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(o); if (box.isEmpty()) continue;
+      const sph = box.getBoundingSphere(new THREE.Sphere()); if (sph.radius > 120) continue;
+      FAR_CULL.list.push({ o, meshes, local: o.worldToLocal(sph.center.clone()), r: sph.radius, on: true });
+    }
+  }
+  for (const F of FAR_CULL.list) {
+    farV.copy(F.local); F.o.localToWorld(farV);
+    const on = Math.hypot(farV.x - cx, farV.z - cz) - F.r < 650;
+    if (on !== F.on) { F.on = on; for (const m of F.meshes) m.layers.set(on ? 0 : 1); }
+  }
+}
+function cullScenery(cx, cz) {
+  farCull(cx, cz);
+  if (Math.hypot(cx - cullX, cz - cullZ) < 25) return;
+  cullX = cx; cullZ = cz;
+  for (const c of CULL_INST) {
+    const m = c.m;
+    // keep a copy of every instance the first time, then copy in only the ones in range
+    if (!c.all) { c.n = m.count; c.all = m.instanceMatrix.array.slice(0, c.n * 16); c.col = m.instanceColor ? m.instanceColor.array.slice(0, c.n * 3) : null; }
+    const A = c.all, M = m.instanceMatrix.array, R2 = c.R * c.R, C = c.col, MC = C && m.instanceColor.array;
+    let j = 0;
+    for (let k = 0; k < c.n; k++) {
+      const dx = A[k * 16 + 12] - cx, dz = A[k * 16 + 14] - cz; if (dx * dx + dz * dz > R2) continue;
+      M.set(A.subarray(k * 16, k * 16 + 16), j * 16); if (C) MC.set(C.subarray(k * 3, k * 3 + 3), j * 3); j++;
+    }
+    m.count = j; m.instanceMatrix.needsUpdate = true; if (C) m.instanceColor.needsUpdate = true;
+  }
+  for (const S of SITE_GROUPS) S.g.visible = Math.hypot(S.g.position.x - cx, S.g.position.z - cz) - S.r < 480;
+}
 const treeSpots = { round: [], pine: [], rock: [] };
 for (let tries = 0; tries < 4000 && (treeSpots.round.length + treeSpots.pine.length) < 230; tries++) {
   const a = rand(0, TAU), r = Math.sqrt(rng()) * 380;
@@ -2006,7 +2108,9 @@ for (let tries = 0, placed = 0; tries < 3000 && placed < 140; tries++) {
       place(dummy, it); dummy.updateMatrix(); m.setMatrixAt(k, dummy.matrix);
       if (o) { dummy.scale.multiplyScalar(outlineScale); dummy.updateMatrix(); o.setMatrixAt(k, dummy.matrix); }
     });
-    m.castShadow = !!castShadow; m.receiveShadow = true; scene.add(m); if (o) scene.add(o); return m;
+    m.castShadow = !!castShadow; m.receiveShadow = true; scene.add(m); if (o) scene.add(o);
+    cullInstReg(m, 720); cullInstReg(o, 240);
+    return m;
   };
   const crownCols = [new THREE.Color(0x3fbf63), new THREE.Color(0x2fa36b), new THREE.Color(0xffb3d1)];   // a third of them are cherry trees
   const trunkG = cyl(0.6, 0.8, 3, 7);
@@ -2034,6 +2138,7 @@ function siteGroup(s, w, d) {
     s.y = sum / C.length; levelGround(s, w / 2 + 1.5, d / 2 + 1.5); pave = true;
   }
   const g = new THREE.Group(); g.position.set(s.x, s.y, s.z); g.rotation.y = s.yaw; scene.add(g);
+  SITE_GROUPS.push({ g, r: Math.hypot(w, d) / 2 + 4 });
   if (pave) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(w + 3, d + 3), toon(0xbdb4a2)); pl.rotation.x = -Math.PI / 2; pl.position.y = 0.03; pl.receiveShadow = true; g.add(pl); }
   return g;
 }
@@ -2105,7 +2210,7 @@ function houseWindows(g, w, d, h, y0, mat) {
   }
 }
 function forSaleSign(g, x, z) {
-  const grp = new THREE.Group(); grp.position.set(x, 0, z); g.add(grp);
+  const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.userData.keep = true; g.add(grp);
   part(grp, cyl(0.12, 0.12, 3, 8), WOOD, 0, 1.5, 0);
   const b = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5), new THREE.MeshBasicMaterial({ map: textTex('FOR SALE', '#ff4f5e', '#ffffff', 256, 128, 52), side: THREE.DoubleSide })); b.position.set(0, 2.6, 0.15); grp.add(b);
   return grp;
@@ -2400,6 +2505,7 @@ const lampSpots = [];
   });
   poles.castShadow = true; scene.add(poles, heads, pools);
   lampSpots.inst = { poles, heads, pools };
+  cullInstReg(poles, 600); cullInstReg(heads, 600); cullInstReg(pools, 350);
 }
 // neon signs with Japanese lettering for the city
 const NEON_TEXT = ['ラーメン', 'カラオケ', '居酒屋', 'ホテル', '寿司', '焼肉', '駐車場', '喫茶', 'ゲーム', '電器', '24時間', 'ネオン', 'ドリフト', 'ターボ'];
@@ -3218,6 +3324,7 @@ function glbSwap() {
     if (par) { par.remove(old); par.add(n.root); }
     delete m.fpParts; delete m.fpWheel; delete m.eye; delete m.__glb; delete m.__own; delete m.__ownT;
     Object.assign(m, n);
+    if (nm && m === playerModel) splitMergePlayer(m);
   }
   try { syncFp(); } catch (e) { /* not ready */ }
 }
@@ -3342,9 +3449,8 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   if (BEAMS) { const bm = new THREE.Mesh(geo('beamG', () => new THREE.PlaneGeometry(5, 16)), beamMat); bm.rotation.x = -Math.PI / 2; bm.position.set(0, 0.09, len / 2 + 8); root.add(bm); }
   if (neon && NEON[neon] && NEON[neon].hex) addUnderglow(root, NEON[neon].hex, len, wid);
   const flash = new THREE.Group(); flash.visible = false; tilt.add(flash);
-  if (!buildCar.noMerge) {
-    const keep = new Set([flash, ...flames, ...bfs]), lk = look || {}, t = tune || DEFAULT_TUNE;
-    mergeByMaterial(tilt, o => keep.has(o), ['car', bodyId, stance || 'stock', LITE ? 1 : 0, lk.kit, lk.wing, lk.stk, t.e, t.i, t.a, t.w, t.y].join('|'));
+  { const t = tune || DEFAULT_TUNE;
+    if (!buildCar.noMerge) { const keep = new Set([flash, ...flames, ...bfs]), lk = look || {}; mergeByMaterial(tilt, o => keep.has(o), ['car', bodyId, stance || 'stock', LITE ? 1 : 0, lk.kit, lk.wing, lk.stk, t.e, t.i, t.a, t.w, t.y].join('|')); }
     for (const h of wheelsG.children) { const wh = h.children.find(o => o.isMesh && o.geometry && o.geometry.type === 'LatheGeometry'); if (wh) { const wk = [t.w, t.y, LITE ? 1 : 0, wh.geometry.parameters ? 'x' : '', Math.sign(h.position.x), h.position.z > 0 ? 1 : 0, bodyId].join('|'); mergeByMaterial(wh, () => false, 'rim|' + wk); mergeByMaterial(h, o => o === wh, 'hub|' + wk); } }
   }
   for (const sd of [-1, 1]) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff6dc, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); g.scale.set(2.6, 2.6, 1); g.position.set(sd * (wid / 2 - 0.4), SP ? SP.nose - 0.2 : 0.8, len / 2 + 0.25); flash.add(g); }
@@ -3375,13 +3481,28 @@ function makeBeep() { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map
 // ---------- player ----------
 const player = newCarState(GARAGE_PAD.x, GARAGE_PAD.z + 14, 0);
 player.stats = statsFor(ac());
-player.gear = 1; player.manual = !!save.manual;
+player.gear = 1; player.manual = false;
 let playerModel = null;
+// your own car: one mesh per material for the lower body and one set for everything above the beltline
+function splitMergePlayer(m) {
+  if (m.__glb) return;   // stand-in body: merged when the real model arrives
+  const S = m.spec, thr = S ? S.sh - 0.12 : 1.3, keep = new Set([m.flash, ...m.flames, ...m.bfs]);
+  const hi = new THREE.Group(), lo = new THREE.Group();
+  for (const c of [...m.tilt.children]) {
+    if (!c.isMesh || keep.has(c) || c.userData.fp) continue;
+    const g = c.geometry; if (!g.boundingBox) g.computeBoundingBox();
+    (c.position.y + g.boundingBox.min.y * c.scale.y > thr ? hi : lo).add(c);
+  }
+  m.tilt.add(hi, lo);
+  mergeByMaterial(hi, () => false); mergeByMaterial(lo, () => false);
+  m.fpHi = hi;
+}
 function rebuildPlayerModel() {
   if (playerModel) scene.remove(playerModel.root);
   buildCar.noMerge = true;   // your own car stays in parts (first person hides some of them)
   playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance, ac().plate, ac().look);
   buildCar.noMerge = false;
+  splitMergePlayer(playerModel);
   applyEngineSound();
   scene.add(playerModel.root);
   player.stats = statsFor(ac());
@@ -3419,8 +3540,7 @@ addEventListener('keydown', e => {
   keys.add(k);
   if (k === 'escape') { closePanels(); setMenu(false); return; }
   if (panelOpen) { if (k === 'e' && !$('garage').hidden) closePanels(); return; }
-  if (k === 'e') { if (onFoot || promptKind === 'e') interact(); else shift(1); }
-  if (k === 'q') shift(-1);
+  if (k === 'e') interact();
   if (k === 'r') resetCar();
   if (k === 'h') honk();
   if (k === 'g' && !race) teleportGarage();
@@ -3664,6 +3784,7 @@ const ENGINE_SOUND = {
   v8: { rate: 0.7, cut: 3400, vol: 1.15, pops: 0.8 },
   v10: { rate: 1.18, cut: 9500, vol: 1.0, pops: 0.5 },
   v12: { rate: 1.3, cut: 12000, vol: 0.95, pops: 0.3 },
+  kuro6: { rate: 1.12, cut: 10000, vol: 1.0, pops: 0.6 },
 };
 const GEAR_TOP = [0.3, 0.47, 0.62, 0.76, 0.89, 1.03];   // share of top speed each gear reaches at the limiter
 let AC = null, master = null, eng = null, muted = false;
@@ -3774,7 +3895,7 @@ function backfire(n) {
   const p = player, bx = p.x - Math.sin(p.yaw) * 2.4, bz = p.z - Math.cos(p.yaw) * 2.4;
   for (let k = 0; k < 2; k++) puff(bx, p.y + 0.4, bz, 0x6a6878, 0.5, 0.5, rand(-1, 1), 1, rand(-1, 1));
 }
-function setManual(on) { player.manual = on; save.manual = on ? 1 : 0; persist(); if (on) player.gear = eng ? clamp(eng.gear, 1, 6) : 1; toast(on ? 'Manual gearbox · Q down, E up' : 'Automatic gearbox'); $('bGearbox').textContent = on ? 'Gearbox: manual' : 'Gearbox: auto'; }
+function setManual() { player.manual = false; }
 function shift(dir) {
   if (onFoot || !playing) return;
   if (!player.manual) setManual(true);
@@ -4111,7 +4232,7 @@ function applySave() {
   rebuildPlayerModel(); playerModel.root.add(playerBeep);
   renderMoney(); renderXp(); if (!$('garage').hidden) renderGarage();
   $('nick').value = save.nick || $('nick').value;
-  updatePropVisuals(); firstTick = true; player.manual = !!save.manual; $('bGearbox').textContent = save.manual ? 'Gearbox: manual' : 'Gearbox: auto';
+  updatePropVisuals(); firstTick = true; player.manual = false;
 }
 
 // =====================================================================
@@ -4140,7 +4261,7 @@ function openPanel(id) { closePanels(); $(id).hidden = false; panelOpen = true; 
 function closePanels() {
   if ($('meet')) $('meet').hidden = true;
   if ($('tutorial') && !$('tutorial').hidden && !save.tut) { save.tut = 1; persist(); }
-  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe', 'dynoPanel', 'usedPanel']) $(id).hidden = true; panelOpen = !$('results').hidden;
+  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe', 'dynoPanel', 'usedPanel', 'bmPanel']) $(id).hidden = true; panelOpen = !$('results').hidden;
   for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
 }
 $('bCloseGarage').addEventListener('click', closePanels);
@@ -4153,8 +4274,6 @@ $('bMenu').addEventListener('click', e => { e.stopPropagation(); setMenu($('menu
 $('menu').addEventListener('click', e => { if (e.target.closest('.mbtn') && e.target.closest('.mbtn').id !== 'bMute') setMenu(false); });
 addEventListener('pointerdown', e => { if (!$('menu').hidden && !e.target.closest('.hudbtns')) setMenu(false); });
 $('bCam').addEventListener('click', () => toggleCam());
-$('bGearbox').addEventListener('click', () => setManual(!player.manual));
-$('bGearbox').textContent = save.manual ? 'Gearbox: manual' : 'Gearbox: auto';
 { const c = document.createElement('canvas'); c.width = c.height = 220; const g = c.getContext('2d'), im = g.createImageData(220, 220); for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; } g.putImageData(im, 0, 0); $('grain').style.backgroundImage = 'url(' + c.toDataURL() + ')'; }
 // HUD buttons give focus back to the game, so Space and Enter keep driving instead of pressing them again
 $('hud').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTimeout(() => b.blur(), 0); });
@@ -4212,6 +4331,7 @@ function renderOptions(container, list, slot, fx) {
     const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn small';
     if (fitted) { btn.textContent = 'Fitted'; btn.disabled = true; }
     else if (owned) { btn.textContent = 'Fit'; btn.classList.add('alt'); }
+    else if (o.bm) { btn.textContent = 'Black market only'; btn.disabled = true; row.classList.add('locked'); }
     else if (locked) { btn.textContent = 'Level ' + need; btn.disabled = true; row.classList.add('locked'); }
     else { btn.textContent = '$' + o.cost; btn.disabled = save.money < o.cost; }
     btn.addEventListener('click', () => {
@@ -4221,6 +4341,27 @@ function renderOptions(container, list, slot, fx) {
     });
     row.append(txt, btn); container.append(row);
   }
+}
+// software tuning sliders: boost, timing and the shift map
+function renderEcu() {
+  const box = $('ecuTune'), car = ac(), ev = ecuVals(car), I = IND[car.tune.i] || IND.na, boosted = I.turbo || I.blower || I.id === 'c30';
+  box.textContent = '';
+  if (!ev.R) { box.append(el('p', 'hint', 'Fit an ECU above to tune the engine software.')); return; }
+  car.ecu = car.ecu || { boost: 0, timing: 0, rev: 0 };
+  for (const K of ECU_KEYS) {
+    const row = el('div', 'ecurow'), off = K.boost && !boosted;
+    const val = el('b', '', ''), show = v => { val.textContent = (v > 0 ? '+' : '') + Math.round(v * 100) + '%'; };
+    const r = document.createElement('input'); r.type = 'range'; r.min = String(-ev.R); r.max = String(ev.R); r.step = '0.05'; r.value = String(ev[K.k]); r.disabled = off;
+    r.setAttribute('aria-label', K.name);
+    r.addEventListener('input', () => { car.ecu[K.k] = Number(r.value); show(car.ecu[K.k]); player.stats = statsFor(car); });
+    r.addEventListener('change', () => { persist(); updateClassHud(); renderGarage(); });
+    show(ev[K.k]);
+    row.append(el('span', 'n', K.name), el('span', 'lo', K.lo), r, el('span', 'hi', K.hi), val);
+    if (off) row.append(el('span', 'hint', 'needs a turbo or supercharger'));
+    box.append(row);
+  }
+  box.append(btn('Reset to safe map', 'alt', () => { car.ecu = { boost: 0, timing: 0, rev: 0 }; persist(); player.stats = statsFor(car); updateClassHud(); renderGarage(); }));
+  if (ev.timing > 0 && num(car.oct, 95) < 97) box.append(el('p', 'hint', 'Advanced timing on 95 octane knocks: more heat and wear. Fill up with 98.'));
 }
 function renderGarage() {
   const st = statsFor(ac());
@@ -4253,7 +4394,10 @@ function renderGarage() {
   { const box2 = $('garageNeon'); box2.textContent = '';
     for (const n of NEONS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'swatch' + (n.hex ? '' : ' none'); b.style.background = n.hex ? '#' + n.hex.toString(16).padStart(6, '0') : '#2b2d42'; b.title = n.name; b.setAttribute('aria-label', 'Neon ' + n.name); b.setAttribute('aria-pressed', String(ac().neon === n.id)); if (!n.hex) b.textContent = '✕';
       b.addEventListener('click', () => { ac().neon = n.id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage(); }); box2.append(b); } }
-  renderOptions($('engList'), ENGINES, 'e', o => !o.cost ? 'The engine it came with' : pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') + (o.turn < 0.98 ? ' · heavier nose' : ''));
+  renderOptions($('engList'), ENGINES, 'e', o => (!o.cost ? 'The engine it came with' : pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration')) + ' · ' + (o.bk >= 1.9 ? 'loves boost: turbos gain ×' + o.bk : o.bk >= 1.4 ? 'good with boost: ×' + o.bk : o.bk >= 1 ? 'boost gains ×' + o.bk : 'already strong, boost gains ×' + o.bk) + (o.turn < 0.98 ? ' · heavier nose' : ''));
+  renderOptions($('ecuList'), ECUS, 'x', o => !o.cost ? 'No software tuning' : pctFx(o.pow, 'power') + ' · tuning range ±' + Math.round(o.range * 100) + '%');
+  renderEcu();
+  renderOptions($('brakeList'), BRAKES, 'b', o => !o.cost ? 'Fine for the street' : '+' + Math.round((o.brake - 1) * 100) + '% braking power');
   renderOptions($('indList'), INDUCTIONS, 'i', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · ' + (o.lag ? (o.lag < 0.2 ? 'little lag' : o.lag < 0.45 ? 'some lag' : 'big lag, huge top end') : 'instant boost') : 'No boost');
   renderOptions($('intakeList'), INTAKES, 'a', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') : 'Factory airbox');
   renderOptions($('coolList'), COOLINGS, 'c', o => !o.cost ? 'Fine for a stock engine' : '+' + Math.round((o.cool - 1) * 100) + '% cooling' + (o.boostPow ? ' · +4% power with a turbo or supercharger' : ''));
@@ -5334,6 +5478,7 @@ function drawMinimap() {
     mg.save(); mg.beginPath(); mg.arc(MMC, MMC, MMS / 2, 0, TAU); mg.clip(); drawNav(mg, P, 0.8, inView); mg.restore();
     if (!inView(nav.x, nav.z)) { const a = Math.atan2(nav.z - player.z, nav.x - player.x), rr = MMS / 2 - 14; mg.save(); mg.translate(MMC + Math.cos(a) * rr, MMC + Math.sin(a) * rr); mg.rotate(a); mg.fillStyle = '#3ff4ff'; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.moveTo(9, 0); mg.lineTo(-7, -7); mg.lineTo(-7, 7); mg.closePath(); mg.fill(); mg.stroke(); mg.restore(); }
   }
+  drawBM(mg, P, 1, inView, a => { const rr = MMS / 2 - 14; mg.save(); mg.translate(MMC + Math.cos(a) * rr, MMC + Math.sin(a) * rr); mg.rotate(a); mg.fillStyle = '#9b6bff'; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.moveTo(9, 0); mg.lineTo(-7, -7); mg.lineTo(-7, 7); mg.closePath(); mg.fill(); mg.stroke(); mg.restore(); });
   drawArrow(mg, MMC, MMC, player.yaw, 1);
 }
 
@@ -5480,6 +5625,7 @@ function drawBigMap() {
   for (const r of remotes.values()) if (r.model) { const [px, py] = P(r.x, r.z); g.fillStyle = PAINT[r.paint] ? PAINT[r.paint].hex : '#fff'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3; g.beginPath(); g.arc(px, py, 7, 0, TAU); g.fill(); g.stroke(); }
   drawSearch(g, P, S, null);
   drawNav(g, P, 1.3, () => true);
+  drawBM(g, P, 1.4, () => true);
   const [ppx, ppy] = P(player.x, player.z); drawArrow(g, ppx, ppy, player.yaw, 1.3);
 }
 // tap the big map: set a destination there (tap the pin again, or right-click, to clear it)
@@ -5878,7 +6024,7 @@ function buildStation(id, name, k, off) {
   // the shop: walk in through the door to pay at the counter
   const wallM = toon(0xe8e2d4), W = 14, D = 8, H = 4.2, zc = -6;
   part(g, rbox(W, 0.3, D, 0.1), toon(0xbdb4a2), 0, 0.05, zc, 0);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.8, D - 0.8), toon(0xcfcadb, { emissive: 0x1e1a14 })); floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.22, zc); g.add(floor);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.8, D - 0.8), toon(0xcfcadb, { emissive: 0x3a3226 })); floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.22, zc); g.add(floor);
   part(g, rbox(W, H, 0.4, 0.15), wallM, 0, H / 2, zc - D / 2 + 0.2, 0.05);
   for (const sx of [-1, 1]) part(g, rbox(0.4, H, D, 0.15), wallM, sx * (W / 2 - 0.2), H / 2, zc, 0.05);
   const door = 2.2, fw = (W - door) / 2;
@@ -5924,14 +6070,7 @@ function buildStation(id, name, k, off) {
   st.pos = s2w(s, 0, 8);
   STATIONS.push(st);
 }
-// one warm light, moved into the shop you're closest to (one light costs far less than three)
-const shopLight = new THREE.PointLight(0xffe2b0, 0, 15, 1.4); scene.add(shopLight);
-function shopLightStep() {
-  let best = null, bd = 80;
-  for (const st of STATIONS) { const c = s2w(st.s, 0, -6), d = Math.hypot(player.x - c.x, player.z - c.z); if (d < bd) { bd = d; best = { st, c }; } }
-  if (!best) { shopLight.intensity = 0; return; }
-  shopLight.position.set(best.c.x, best.st.s.y + 3.6, best.c.z); shopLight.intensity = 1.1 * clamp((80 - bd) / 20, 0, 1);
-}
+function shopLightStep() { }
 buildStation('gas1', 'Pebble Fuel City', 0, 0.04);
 buildStation('gas2', 'Pebble Fuel Country', 1, -0.03);
 buildStation('gas3', 'Pebble Fuel Island', 2, 0.0);
@@ -6014,6 +6153,7 @@ function fuelStep(inp, dt) {
   }
 }
 $('bCloseFuel').addEventListener('click', closePanels);
+$('bCloseBM').addEventListener('click', closePanels);
 $('fuelPanel').addEventListener('pointerdown', e => { if (e.target.id === 'fuelPanel') closePanels(); });
 
 // =====================================================================
@@ -6098,10 +6238,10 @@ function engineStep(dt, inp, hit) {
   const rpm = eng && eng.ready ? eng.rpm : clamp(Math.abs(player.fs) / Math.max(10, player.stats.top), 0, 1);
   const load = thr * (0.3 + rpm) * care.stress + (player.boosting ? 1.5 * care.stress : 0) + (player.limiter ? 0.6 : 0) + (revving ? 0.6 * rpm : 0);
   const air = 0.5 + Math.min(1, Math.abs(player.fs) / 30) * 0.7;
-  engHeat = clamp(engHeat + dt * (load * 0.045 / care.cool - 0.03 * care.cool * air), 0, 1.05);
+  engHeat = clamp(engHeat + dt * (load * 0.026 / care.cool - 0.042 * Math.sqrt(care.cool) * air), 0, 1.05);
   let w = 0;
   if (player.boosting) w += 0.0018 * care.stress;
-  if (engHeat > 0.78) w += (engHeat - 0.78) * 0.012;
+  if (engHeat > 0.8) w += (engHeat - 0.8) * 0.01;
   if (player.limiter) w += 0.0005;
   car.wear = clamp(num(car.wear, 0) + w * dt / care.str + (hit > 14 ? 0.015 * (hit - 14) / 20 / care.str : 0), 0, 1);
   // a very hot, tired engine can let go
@@ -6418,6 +6558,87 @@ function searchStep(dt) {
   searchHint.hidden = false;
   searchHint.innerHTML = '🔍 ' + (hit.kind === 'find' ? 'Barn find' : 'Meetup') + ' nearby · <b style="color:' + heat[1] + '">' + heat[0] + '</b>';
 }
+// ---------- black market: a dealer turns up for 6 minutes every quarter hour, somewhere different each time ----------
+// Timing comes from the clock, so every player sees the same dealer at the same place.
+const BM_PERIOD = 900000, BM_OPEN = 360000;
+const BM_ITEMS = [['e', 'kuro6'], ['i', 'gt99'], ['c', 'ice'], ['p', 'ti'], ['x', 'bm']];
+const BM = { spots: null, model: null, p: -1, open: false, x: 0, z: 0, y: 0, name: '', offer: [], left: 0, next: 0 };
+const bmHash = (p, k) => (fuelNoise(p, 700 + k) + 1) / 2;
+function bmState(t) { const p = Math.floor(t / BM_PERIOD), into = t - p * BM_PERIOD; return { p, open: into < BM_OPEN, left: BM_OPEN - into, next: BM_PERIOD - into }; }
+function bmOffer(p) { return [0, 1, 2, 3, 4].sort((a, b) => bmHash(p, a) - bmHash(p, b)).slice(0, 3).map(i => BM_ITEMS[i]); }
+function bmSpots() {
+  if (BM.spots) return BM.spots;
+  const at = (road, f) => road.pts[Math.floor(road.pts.length * f)];
+  const list = [['the harbor', s2w(SITES.harbor, 10, -2)], ['the farm roads', at(WEST, 0.45)], ['the mountain pass', at(NORTH, 0.55)], ['the coast road', at(SPUR, 0.45)], ['the edge of Pebble City', { x: 1345, z: -120 }]];
+  BM.spots = list.map(([name, q]) => { const h = hideSpot(q.x, q.z); return { name, x: h.x, z: h.z }; });
+  return BM.spots;
+}
+function bmBuild() {
+  const g = new THREE.Group();
+  const van = buildCar('van', '#1d1a2e', DEFAULT_TUNE, 'purple', 'low', 'NOQSTNS', null); g.add(van.root);
+  const man = buildPerson('#2b2d42'); man.root.position.set(1.9, 0, 1.2); man.root.rotation.y = 1.1; g.add(man.root);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x9b6bff, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.08; g.add(glow);
+  const tag = makeTag('BLACK MARKET', '#9b6bff'); tag.position.y = 3.8; g.add(tag);
+  g.visible = false; scene.add(g); BM.model = g;
+}
+let bmT = 0;
+function bmStep(dt) {
+  if (BM.open) {
+    // the van is solid
+    const dx = player.x - BM.x, dz = player.z - BM.z, d = Math.hypot(dx, dz), R = onFoot ? 2.4 : 3.1;
+    if (d < R && d > 1e-3 && Math.abs(player.y - BM.y) < 2.5) { player.x = BM.x + dx / d * R; player.z = BM.z + dz / d * R; const vn = (player.vx * dx + player.vz * dz) / d; if (vn < 0) { player.vx -= vn * dx / d; player.vz -= vn * dz / d; } }
+  }
+  bmT -= dt; if (bmT > 0) return; bmT = 0.5;
+  if (!BM.model) bmBuild();
+  const S = bmState(Date.now()), spots = bmSpots();
+  if (S.open && (!BM.open || BM.p !== S.p)) {
+    const sp = spots[Math.floor(bmHash(S.p, 9) * spots.length) % spots.length];
+    Object.assign(BM, { p: S.p, open: true, x: sp.x, z: sp.z, y: surfaceHeight(sp.x, sp.z), name: sp.name, offer: bmOffer(S.p) });
+    BM.model.position.set(sp.x, BM.y, sp.z); BM.model.rotation.y = bmHash(S.p, 11) * TAU; BM.model.visible = true;
+    if (playing) { showBig('BLACK MARKET'); toast('A black market dealer is at ' + sp.name + ' for ' + Math.ceil(S.left / 60000) + ' min. Look for the purple mark on your map!', true); }
+  } else if (!S.open && BM.open) {
+    BM.open = false; BM.model.visible = false;
+    if (!$('bmPanel').hidden) closePanels();
+    if (playing) toast('The black market dealer packed up. Back in ' + Math.ceil(S.next / 60000) + ' min');
+  }
+  BM.left = S.left; BM.next = S.next;
+  if (!$('bmPanel').hidden) $('bmLede').textContent = bmLede();
+}
+function drawBM(g, P, sc, inView, rim) {
+  if (!BM.open) return;
+  if (inView(BM.x, BM.z)) {
+    const [x, y] = P(BM.x, BM.z), pulse = 1 + 0.25 * Math.sin(performance.now() / 180);
+    g.strokeStyle = '#9b6bff'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 13 * sc * pulse, 0, TAU); g.stroke();
+    g.fillStyle = '#9b6bff'; g.strokeStyle = '#1d1a2e'; g.beginPath(); g.arc(x, y, 8 * sc, 0, TAU); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = '900 ' + Math.round(11 * sc) + 'px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('$', x, y + 0.5);
+  } else if (rim) rim(Math.atan2(BM.z - player.z, BM.x - player.x));
+}
+const bmLede = () => "Parts you won't find in any catalogue, fitted to your " + BODY[ac().m].name + '. Leaving in ' + Math.max(1, Math.ceil(BM.left / 60000)) + ' min.';
+const BM_FX = {
+  e: o => pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') + ' · boost gains ×' + o.bk,
+  i: o => pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · less lag than a race turbo',
+  c: o => '+' + Math.round((o.cool - 1) * 100) + '% cooling · +' + Math.round((o.boostPow - 1) * 100) + '% power with boost',
+  p: o => '+' + Math.round((o.str - 1) * 100) + '% engine strength · ' + pctFx(o.pow, 'power'),
+  x: o => pctFx(o.pow, 'power') + ' · software range ±' + Math.round(o.range * 100) + '%',
+};
+function openBM() {
+  if (!BM.open) return;
+  const list = $('bmList'); list.textContent = '';
+  $('bmLede').textContent = bmLede();
+  for (const [slot, id] of BM.offer) {
+    const o = SLOT_MAP[slot][id], t = ac().tune, key = slot + ':' + id, owned = t.has.includes(key), fitted = t[slot] === id;
+    const row = el('div', 'opt' + (fitted ? ' sel' : '')), txt = el('div', 'txt');
+    txt.append(el('b', '', o.name), el('span', 'br', 'Black market'), el('div', 'fx', BM_FX[slot](o)));
+    const b = btn(fitted ? 'Fitted' : owned ? 'Fit' : '$' + o.cost.toLocaleString('en-US'), owned && !fitted ? 'alt' : '', () => {
+      const tt = ac().tune;
+      if (!tt.has.includes(key)) { if (save.money < o.cost) return; save.money -= o.cost; tt.has.push(key); sfx('buy'); renderMoney(true); toast(o.name + ' fitted. Nobody asks where it came from', true); addXp(80); }
+      tt[slot] = id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); openBM();
+    }, fitted || (!owned && save.money < o.cost));
+    row.append(txt, b); list.append(row);
+  }
+  list.append(el('p', 'hint', 'Bought parts stay with this car: swap them in and out in the garage like any other part.'));
+  openPanel('bmPanel');
+}
 function atMeet() { for (const M of MEETS) if (Math.hypot(player.x - M.x, player.z - M.z) < M.r && Math.abs(player.y - M.y) < 2.5) return M; return null; }
 let meetSeen = null;
 function meetStep(dt) {
@@ -6614,6 +6835,7 @@ $('bCloseWardrobe').addEventListener('click', closePanels);
 $('wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardrobe') closePanels(); });
 function nearProp() {
   const p = player;
+  if (BM.open && Math.hypot(p.x - BM.x, p.z - BM.z) < (onFoot ? 4.2 : 7)) return { kind: 'bm', text: 'to trade with the black market dealer' };
   { const fd = findAt(); if (fd) return { kind: 'find', f: fd, text: 'to restore this abandoned ' + BODY[fd.id].name };
     if (onFoot) { const cs = counterAt(); if (cs) return { kind: 'pay', st: cs, text: fuelDebt && fuelDebt.st === cs ? 'to pay $' + fuelDebt.amount.toFixed(2) + ' for your fuel' : 'to talk to the cashier' }; }
     else if (!police.stars) { const ps = pumpAt(); if (ps) return { kind: 'pump', st: ps, text: 'to fill up at ' + ps.name }; if ((ac().fuel ?? 1) <= 0.001) return { kind: 'tow', text: 'to call roadside fuel · $120 for 10 L' }; } }
@@ -6636,6 +6858,7 @@ function nearProp() {
 }
 function openProp(pr) {
   if (pr.kind === 'find') { claimFind(pr.f); return; }
+  if (pr.kind === 'bm') { openBM(); return; }
   if (pr.kind === 'used') { openUsed(); return; }
   if (pr.kind === 'pump') { openFuel(pr.st); return; }
   if (pr.kind === 'pay') { payFuel(pr.st); return; }
@@ -6869,6 +7092,7 @@ function fpModel(m, on) {
     m.fpParts = [dash, wheel]; m.fpWheel = wheel; m.eye = [0.38, ey, ez];
     for (const p of m.fpParts) { p.userData.fp = true; m.tilt.add(p); }
   }
+  if (m.fpHi) m.fpHi.visible = !on;
   for (const c of m.tilt.children) {
     if (c.userData.fp) { c.visible = on; continue; }
     if (!c.isMesh || m.flames.includes(c)) continue;
@@ -7216,7 +7440,8 @@ $('meet').addEventListener('pointerdown', e => { if (e.target.id === 'meet') clo
 let playing = false, camSnap = true, acc = 0, last = performance.now(), frameN = 0, hudT = 0, mapT = 0;
 // automatic resolution: if frames get slow, render a little smaller; if there is room, go back up
 const PR_MAX = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2);
-let prNow = PR_MAX, perfAcc = 0, perfN = 0, perfCull = 0;
+let prNow = Math.min(PR_MAX, 1.25), perfAcc = 0, perfN = 0, perfCull = 0;
+renderer.setPixelRatio(prNow);
 function perfStep(dt) {
   perfAcc += dt; perfN++;
   if (perfAcc > 2) {
@@ -7234,6 +7459,7 @@ function perfStep(dt) {
     for (const R of STREET) for (const cr of R.crew) if (!(street && street.crew && street.crew.includes(cr))) show(cr.model, 230);
     for (const M of MEETS) for (const n of M.npcs) if (!(street && street.crew && street.crew.includes(n))) show(n.model, 200);
     for (const m of USED.models) show(m, 200);
+    cullScenery(cx, cz);
   }
 }
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
@@ -7580,7 +7806,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); bmStep(dt); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }
@@ -7601,6 +7827,52 @@ requestAnimationFrame(function introLoop(now) {
 });
 
 indexColliders();   // buildings added after the first index (stations, garage, lots) need to collide too
+// the city's towers, roof edges, neon, billboards and vending machines: one mesh per city quarter, one draw per material
+(function batchCity() {
+  const buckets = new Map();
+  for (const o of [...scene.children]) {
+    if (!o.isMesh || o.isInstancedMesh || !o.visible || o.children.length) continue;
+    const p = o.position; if (p.x < 660 || p.x > 1340 || p.z < -440 || p.z > 440) continue;
+    const g = o.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); if (g.boundingSphere.radius > 120) continue;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.some(m => !m || m.transparent || m.blending !== THREE.NormalBlending)) continue;
+    const key = (p.x < 1000 ? 0 : 1) + ',' + Math.floor((p.z + 440) / 300);
+    if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(o);
+  }
+  for (const list of buckets.values()) {
+    const per = new Map(); let shadow = false;
+    for (const o of list) {
+      o.updateMatrixWorld();
+      const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const groups = g.groups.length ? g.groups : [{ start: 0, count: g.attributes.position.count, materialIndex: 0 }];
+      for (const gr of groups) { const m = mats[gr.materialIndex]; if (!m) continue; if (!per.has(m)) per.set(m, []); per.get(m).push([g, gr.start, Math.min(gr.count, g.attributes.position.count - gr.start)]); }
+      shadow = shadow || o.castShadow; scene.remove(o);
+    }
+    const mats = [...per.keys()], parts = [...per.values()];
+    const uv = parts.every(a => a.every(([g]) => g.attributes.uv)), n = parts.reduce((t, a) => t + a.reduce((u, x) => u + x[2], 0), 0);
+    const P = new Float32Array(n * 3), Nn = new Float32Array(n * 3), U = uv ? new Float32Array(n * 2) : null, out = new THREE.BufferGeometry();
+    let v = 0;
+    parts.forEach((a, mi) => {
+      const v0 = v;
+      for (const [g, st, c] of a) {
+        P.set(g.attributes.position.array.subarray(st * 3, (st + c) * 3), v * 3); Nn.set(g.attributes.normal.array.subarray(st * 3, (st + c) * 3), v * 3);
+        if (U) U.set(g.attributes.uv.array.subarray(st * 2, (st + c) * 2), v * 2);
+        v += c;
+      }
+      out.addGroup(v0, v - v0, mi);
+    });
+    out.setAttribute('position', new THREE.BufferAttribute(P, 3)); out.setAttribute('normal', new THREE.BufferAttribute(Nn, 3)); if (U) out.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+    out.computeBoundingSphere();
+    const m = new THREE.Mesh(out, mats); m.castShadow = false; m.receiveShadow = true; scene.add(m);   // tower shadows in moonlight weren't worth a second pass over the city
+  }
+})();
+// building lots never change shape: draw each as one mesh per material instead of dozens of parts
+for (const S of SITE_GROUPS) {
+  mergeByMaterial(S.g, o => !!o.userData.keep);
+  S.g.traverse(o => { if (o.isMesh && o.material !== OUTLINE && o.material !== OUTLINE_I) o.receiveShadow = true; });
+}
 renderMoney(); renderXp();
 initCaps().catch(() => setNetNote('Playing solo.'));
 })();
