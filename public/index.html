@@ -825,6 +825,7 @@ const BODIES = [
   { id: 'raijin', name: 'Raijin GT-4', cls: 'JDM AWD legend', cost: 9500, s: { top: 1.28, accel: 1.3, grip: 1.26, turn: 1.04, drift: 1.0, drive: 'awd' } },
   { id: 'arashi', name: 'Arashi WRS', cls: 'JDM rally sedan', cost: 7200, s: { top: 1.22, accel: 1.28, grip: 1.24, turn: 1.12, drift: 1.04, drive: 'awd', offroad: true } },
   { id: 'falke4', name: 'Falke S4', cls: 'Euro sport sedan', cost: 8800, s: { top: 1.27, accel: 1.3, grip: 1.2, turn: 1.04, drift: 1.2 } },
+  { id: 'ostwind', name: 'Ostwind', cls: 'Euro sport wagon', cost: 6800, s: { top: 1.23, accel: 1.25, grip: 1.18, turn: 1.04, drift: 1.12, drive: 'awd' } },
   { id: 'falke2', name: 'Falke C2', cls: 'Euro sport coupe', cost: 9400, s: { top: 1.28, accel: 1.32, grip: 1.22, turn: 1.08, drift: 1.24 } },
   // barn finds: never sold, only found abandoned somewhere on the map
   { id: 'oni', name: 'Oni Group-R', cls: 'Barn find · rally legend', cost: 16000, find: 1, s: { top: 1.3, accel: 1.42, grip: 1.36, turn: 1.14, drift: 1.06, drive: 'awd', offroad: true } },
@@ -838,7 +839,7 @@ const KITS = [{ id: 'stock', name: 'Factory body', cost: 0 }, { id: 'street', na
 const WINGS = [{ id: 'none', name: 'No added wing', cost: 0 }, { id: 'duck', name: 'Ducktail spoiler', cost: 300 }, { id: 'gt', name: 'GT wing', cost: 750 }, { id: 'big', name: 'Big swan-neck wing', cost: 1300 }];
 const STICKERS = [{ id: 'none', name: 'No stickers', cost: 0 }, { id: 'banner', name: 'Windscreen banner', cost: 120 }, { id: 'hashiri', name: 'Hashiriya side decal', cost: 200 }, { id: 'num', name: 'Race number roundels', cost: 250 }, { id: 'kings', name: 'Neon Kings crew decal', cost: 0, crew: 'downtown' }, { id: 'devils', name: 'Dust Devils crew decal', cost: 0, crew: 'farm' }, { id: 'tengu', name: 'Tengu Club crew decal', cost: 0, crew: 'mountain' }];
 // kerb weight per car (kg): with acceleration this gives the power and power-to-weight shown in the garage
-const KG = { falke4: 1640, falke2: 1610, mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
+const KG = { ostwind: 1480, falke4: 1640, falke2: 1610, mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
 const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
 const UPGRADES = [
   { id: 'engine', name: 'Engine', d: 'Raises top speed' },
@@ -897,7 +898,7 @@ const UNLOCK = {
   i: { t38: 4, c30: 7, t52: 9, tsb: 11, t68: 15, h76: 22 },
   a: { cai: 2, ram: 6, itb: 13 },
   w: { star: 2, dish: 4, knob: 6, aero: 8, kagero: 9, kagerow: 9, mesh: 10, split: 12, slick: 14, y5: 16 },
-  car: { falke4: 18, falke2: 19, brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
+  car: { ostwind: 16, falke4: 18, falke2: 19, brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
 };
 const UP_LVL = [1, 4, 8, 13, 19];
 const MAX_PLAYER_LVL = 50, XP_CAP = 1e9, MONEY_CAP = 1e9;
@@ -2679,11 +2680,12 @@ const BODY_DEF = {
   suv: { wheels: [[0.88, 1.5, 0.45, 0.46, 1], [-0.88, 1.5, 0.45, 0.46, 1], [0.88, -1.5, 0.45, 0.46, 0], [-0.88, -1.5, 0.45, 0.46, 0]], back: -2.4, exhaustY: 0.6 },
   coupe: { wheels: [[0.87, 1.38, 0.4, 0.46, 1], [-0.87, 1.38, 0.4, 0.46, 1], [0.86, -1.38, 0.41, 0.48, 0], [-0.86, -1.38, 0.41, 0.48, 0]], back: -2.3, exhaustY: 0.4 },
   gt: { wheels: [[0.88, 1.55, 0.41, 0.44, 1], [-0.88, 1.55, 0.41, 0.44, 1], [0.86, -1.45, 0.42, 0.5, 0], [-0.86, -1.45, 0.42, 0.5, 0]], back: -2.4, exhaustY: 0.38 },
+  ostwind: { wheels: [[0.75, 1.35, 0.31, 0.24, 1], [-0.75, 1.35, 0.31, 0.24, 1], [0.75, -1.35, 0.31, 0.24, 0], [-0.75, -1.35, 0.31, 0.24, 0]], back: -2.38, exhaustY: 0.3 },
   falke4: { wheels: [[0.8065, 1.547, 0.343, 0.276, 1], [-0.8065, 1.547, 0.343, 0.276, 1], [0.8065, -1.31, 0.343, 0.276, 0], [-0.8065, -1.31, 0.343, 0.276, 0]], back: -2.38, exhaustY: 0.26 },
   falke2: { wheels: [[0.7985, 1.547, 0.343, 0.276, 1], [-0.7985, 1.547, 0.343, 0.276, 1], [0.7985, -1.31, 0.343, 0.276, 0], [-0.7985, -1.31, 0.343, 0.276, 0]], back: -2.38, exhaustY: 0.26 },
   super: { wheels: [[0.9, 1.45, 0.4, 0.46, 1], [-0.9, 1.45, 0.4, 0.46, 1], [0.86, -1.4, 0.42, 0.54, 0], [-0.86, -1.4, 0.42, 0.54, 0]], back: -2.35, exhaustY: 0.38 },
 };
-const HOOD = { falke4: [1, 1.45], falke2: [1, 1.45], arashi: [1, 1.5], oni: [1, 1.5], kaminari: [1, 1.4], hakone: [1, 1.4], shogun: [1, -1.5], tanuki: [1, 1.15], kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
+const HOOD = { ostwind: [1, 1.6], falke4: [1, 1.45], falke2: [1, 1.45], arashi: [1, 1.5], oni: [1, 1.5], kaminari: [1, 1.4], hakone: [1, 1.4], shogun: [1, -1.5], tanuki: [1, 1.15], kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
 // wheels: a tyre around a rim face on each side, with brake discs and calipers showing through the spokes
 function addRim(wh, W, r, w, lite) {
   const rim = toon(W.rim), dk = toon(0x2b2d42);
@@ -2766,6 +2768,8 @@ const CAR_SPECS = {
   falke4: { L: 4.794, W: 1.903, gc: 0.14, sh: 0.955, nose: 0.84, tail: 0.86, hoodZ: 0.95, deckZ: -1.58, roof: 1.433, roofF: 0.05, roofR: -0.78, cabW: 1.3, look: 'modern', doors: 4,
     glb: 'Falke4', glbFile: 'cars/falke.glb', stand: 'sedan', screen: [0.95, 0.05], door: [0.93, 0.62, 0.42], plateF: [0.27, 2.409], plateR: [0.6, -2.418],
     top: [[-2.397, 0.86], [-2.367, 0.95], [-2.3, 1.005], [-2.15, 1.02], [-1.58, 1.0], [-1.18, 1.25], [-0.78, 1.425], [-0.35, 1.433], [0.05, 1.425], [0.5, 1.19], [0.95, 0.905], [1.3, 0.875], [1.6, 0.85], [1.9, 0.81], [2.1, 0.77], [2.247, 0.735], [2.337, 0.685], [2.377, 0.635], [2.397, 0.6]] },
+  ostwind: { L: 4.78, W: 1.92, gc: 0.17, sh: 0.97, nose: 0.93, tail: 0.95, hoodZ: 1.05, deckZ: -2.27, roof: 1.46, roofF: 0.55, roofR: -1.0, cabW: 1.4, look: 'modern',
+    glb: '*', glbFile: 'cars/ostwind.glb', stand: 'coupe', screen: [1.05, 0.5], door: [0.97, 0.6, 0.35], plateR: [0.55, -2.405] },
   falke2: { L: 4.794, W: 1.887, gc: 0.14, sh: 0.955, nose: 0.84, tail: 0.86, hoodZ: 0.95, deckZ: -1.85, roof: 1.393, roofF: -0.02, roofR: -0.62, cabW: 1.3, look: 'modern',
     glb: 'Falke2', glbFile: 'cars/falke.glb', stand: 'coupe', screen: [0.95, -0.02], door: [0.925, 0.62, 0.2], plateF: [0.27, 2.409], plateR: [0.6, -2.418],
     top: [[-2.397, 0.86], [-2.367, 0.95], [-2.3, 1.005], [-2.15, 1.02], [-1.85, 1.0], [-1.3, 1.24], [-0.62, 1.385], [-0.3, 1.393], [-0.02, 1.385], [0.47, 1.17], [0.95, 0.905], [1.3, 0.875], [1.6, 0.85], [1.9, 0.81], [2.1, 0.77], [2.247, 0.735], [2.337, 0.685], [2.377, 0.635], [2.397, 0.6]] },
@@ -3281,17 +3285,32 @@ function glbHull(parts, t) {
 }
 const GLB = { ready: false, cars: {} };
 const GLB_PENDING = [];
-function glbPrepare(root) {
+// the side profile (highest point near the centre line) of a modelled body, for hood scoops, spoilers and stickers
+function glbProfile(parts) {
+  let z0 = Infinity, z1 = -Infinity;
+  for (const { geo: g } of parts) { const p = g.attributes.position.array; for (let k = 2; k < p.length; k += 3) { z0 = Math.min(z0, p[k]); z1 = Math.max(z1, p[k]); } }
+  const n = Math.max(2, Math.ceil((z1 - z0) / 0.1)), hi = new Array(n + 1).fill(-Infinity);
+  for (const { geo: g } of parts) { const p = g.attributes.position.array; for (let k = 0; k < p.length; k += 3) if (Math.abs(p[k]) < 0.35) { const i = Math.round((p[k + 2] - z0) / 0.1); if (p[k + 1] > hi[i]) hi[i] = p[k + 1]; } }
+  const out = []; hi.forEach((y, i) => { if (y > -Infinity) out.push([+(z0 + i * 0.1).toFixed(3), +y.toFixed(3)]); });
+  return out;
+}
+function glbPrepare(roots) {
   for (const id of Object.keys(CAR_SPECS)) {
-    const S = CAR_SPECS[id]; if (!S.glb) continue;
-    const car = root.getObjectByName(S.glb); if (!car) continue;
+    const S = CAR_SPECS[id]; if (!S.glb || !roots[S.glbFile]) continue;
+    // the car is either a named node in the file, or (glb: '*') the whole file
+    const car = S.glb === '*' ? roots[S.glbFile] : roots[S.glbFile].getObjectByName(S.glb); if (!car) continue;
     car.updateMatrixWorld(true);
-    const inv = new THREE.Matrix4().copy(car.matrixWorld).invert(), isWheel = o => /^Wheel_/.test(o.name), isMod = o => /^Mod_/.test(o.name);
-    const body = glbCollect(car, inv, o => isWheel(o) || isMod(o));
+    const inv = new THREE.Matrix4().copy(car.matrixWorld).invert(), isWheel = o => /^wheel_/i.test(o.name), isMod = o => /^Mod_/.test(o.name);
+    // plates in the model are left out: the game fits its own at the back
+    const body = glbCollect(car, inv, o => isWheel(o) || isMod(o) || (o.isMesh && /^plate$/i.test(o.userData.mat.name)));
     const cal = body.get('cal'); body.delete('cal');   // brake calipers belong to the wheels (they steer but don't spin)
     const mods = {}; car.traverse(o => { if (isMod(o) && o.parent === car) mods[o.name.slice(4)] = glbCollect(o, inv); });
-    const fl = car.getObjectByName('Wheel_FL'), winv = fl ? new THREE.Matrix4().copy(fl.matrixWorld).invert() : null;
-    const wheel = fl ? glbCollect(fl, winv, null, b => b === 'black' ? 'tire' : b === 'tail' || b === 'light' ? 'metal' : b) : null;
+    let fl = null; car.traverse(o => { if (!fl && /^wheel_fl$/i.test(o.name)) fl = o; });
+    let flMeshes = false; if (fl) fl.traverse(o => { if (o.isMesh) flMeshes = true; });
+    const winv = fl ? new THREE.Matrix4().copy(fl.matrixWorld).invert() : null;
+    // wheels modelled in the file are used as the factory wheels; empty wheel markers just mean "game wheels here"
+    const wheel = fl && flMeshes ? glbCollect(fl, winv, null, b => b === 'black' ? 'tire' : b === 'tail' || b === 'light' ? 'metal' : b) : null;
+    if (!S.top) S.top = glbProfile([...body.values()]);
     if (cal && fl) { const g = cal.geo, p = g.attributes.position.array, c = new THREE.Vector3().setFromMatrixPosition(fl.matrixWorld).applyMatrix4(inv); const ix = g.index.array, keep = [];
       // keep only the front-left caliper, moved to the wheel's own space
       for (let k = 0; k < ix.length; k += 3) { const x = p[ix[k] * 3], z = p[ix[k] * 3 + 2]; if (x > 0 && Math.abs(z - c.z) < 0.6) keep.push(ix[k], ix[k + 1], ix[k + 2]); }
@@ -3309,7 +3328,7 @@ function loadGlbCars() {
     fetch(f + '.b64.txt').then(r => { if (!r.ok) throw new Error(f + ' not found'); return r.text(); })
       .then(t => { const bin = atob(t.trim()), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }));
   Promise.all(files.map(f => get(f).then(parseGLB)))
-    .then(roots => { const all = new THREE.Group(); for (const r of roots) all.add(r); all.updateMatrixWorld(true); glbPrepare(all); glbSwap(); })
+    .then(roots => { const byFile = {}; files.forEach((f, k) => { byFile[f] = roots[k]; roots[k].updateMatrixWorld(true); }); glbPrepare(byFile); glbSwap(); })
     .catch(e => console.warn('car models not loaded, using stand-ins', e));
 }
 // cars built before the files arrived used a stand-in body; swap in the real one where they stand
@@ -3342,6 +3361,18 @@ function buildGlbBody(bodyId, S, def, add, M) {
   if (LK.wing === 'gt' || LK.wing === 'big') show.add('Wing');
   for (const x of show) if (T.mods[x]) put(T.mods[x]);
   const surf = z => ylook(S.top, z);
+  const zF = S.L / 2, zR = -S.L / 2;
+  if (kit !== 'stock' && !T.mods.FrontLip) {
+    outlineShell(add(rbox(S.W - 0.34, 0.05, 0.22, 0.02), P, 0, (S.gc || 0.15) + 0.02, zF - 0.17, 0), 0.012);
+    const zr = def.wheels[2][1] + def.wheels[2][2] + 0.1, zf = def.wheels[0][1] - def.wheels[0][2] - 0.1;
+    for (const sd of [-1, 1]) outlineShell(add(rbox(0.08, 0.1, zf - zr, 0.03), P, sd * (S.W / 2 - 0.07), (S.gc || 0.15) + 0.08, (zf + zr) / 2, 0), 0.012);
+  }
+  if ((LK.wing === 'gt' || LK.wing === 'big') && !T.mods.Wing) {
+    const z = zR + 0.35, base = surf(z) - 0.04, y = base + (LK.wing === 'big' ? 0.45 : 0.28), w = S.W - 0.16;
+    for (const sd of [-1, 1]) outlineShell(add(rbox(0.08, y - base, 0.18, 0.03), DARK, sd * w * 0.3, (y + base) / 2, z, 0), 0.02);
+    outlineShell(add(rbox(w, 0.08, 0.38, 0.04), P, 0, y + 0.03, z - 0.04, 0), 0.025);
+    for (const sd of [-1, 1]) add(rbox(0.05, 0.26, 0.46, 0.02), DARK, sd * w / 2, y, z - 0.04, 0);
+  }
   if (LK.wing === 'duck') { const d = add(rbox(S.W - 0.42, 0.06, 0.3, 0.03), P, 0, surf(-2.2) + 0.04, -2.2, 0); d.rotation.x = 0.25; outlineShell(d, 0.02); }
   if (kit === 'wide') for (const [x, z, r0, w0] of def.wheels) {
     const fg = geo('flare' + r0 + ',' + w0, () => { const F = [], ro = r0 + 0.24, ri = r0 + 0.07; for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ro, Math.sin(a) * ro]); } for (let k = 10; k >= 0; k--) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ri, Math.sin(a) * ri]); } return extrudeX(F, w0 + 0.16, 0.08, 0.04, 2); });
@@ -3410,7 +3441,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
     const r = r0 + (W.dr || 0), w = w0 * (W.dw || 1);
     const holder = new THREE.Group(); holder.position.set(x, r, z); holder.userData.wheel = true; wheelsG.add(holder);
     if (STANCE[stance] && STANCE[stance].camber) holder.rotation.z = Math.sign(x) * STANCE[stance].camber;
-    const gw = SP && SP.glb && (tune.w || 'stock') === 'stock' ? glbWheel(bodyId, x, front) : null;
+    const gw = SP && SP.glb && GLB.cars[bodyId] && GLB.cars[bodyId].wheel && (tune.w || 'stock') === 'stock' ? glbWheel(bodyId, x, front) : null;
     let wh;
     if (gw) { wh = gw.wh; holder.add(wh); if (gw.cal) holder.add(gw.cal); }
     else { wh = new THREE.Mesh(tyre(r, w, !LITE), DARK); wh.rotation.z = Math.PI / 2; wh.castShadow = true; outline(wh, 1.08); holder.add(wh); addRim(wh, W, r, w, LITE); }

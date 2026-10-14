@@ -15,7 +15,7 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 // ---------- what a valid car looks like (mirrors the game) ----------
 const PAINTS = ['cherry', 'tangerine', 'lemon', 'mint', 'sky', 'grape', 'bubblegum', 'snow', 'midnight'];
-const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki', 'falke4', 'falke2'];
+const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki', 'falke4', 'falke2', 'ostwind'];
 const ENGINES = ['i4', 'i5', 'v6', 'i6', 'v8', 'v10', 'v12', 'kuro6'];
 const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb', 'gt99'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
