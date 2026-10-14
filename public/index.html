@@ -4045,6 +4045,7 @@ function initStandalone() {
       else if (m.t === 'mk_sold' && typeof m.lid === 'string') { payoutSold(m.lid, Math.floor(num(m.price, 0)), cleanName(m.buyer)); send({ t: 'mk_ack', lid: m.lid }); }
       else if (m.t === 'mk_res') { const q = pend.get(m.rq); if (q) { pend.delete(m.rq); clearTimeout(q.timer); m.ok ? q.res(m) : q.rej(new Error(typeof m.err === 'string' ? m.err.slice(0, 160) : 'The market said no.')); } }
       else if (m.t === 'full') setNetNote('The island is full right now. You can still drive solo.');
+      else if (m.t === 'replaced') { replaced = true; setNetNote('You opened the game in another tab or window, so this one went offline. Reload to play here.'); }
     };
     ws.onclose = () => {
       authed = false;
@@ -4053,9 +4054,13 @@ function initStandalone() {
       if (up) { up = false; L.conn.forEach(f => f(false)); }
       const left = [...others.keys()].map(k => mk(k, {})); others.clear();
       if (left.length) fire({ left });
-      setTimeout(connect, retry = Math.min(retry * 2, 15000));
+      if (!replaced && !leaving) setTimeout(connect, retry = Math.min(retry * 2, 15000));
     };
   }
+  // closing or leaving the page: hang up properly so you don't stay behind as a ghost
+  let replaced = false, leaving = false;
+  addEventListener('pagehide', e => { if (e.persisted) return; leaving = true; try { if (ws) ws.close(1000, 'bye'); } catch (er) { } });
+  addEventListener('pageshow', e => { if (e.persisted && (!ws || ws.readyState > 1) && !replaced) { leaving = false; connect(); } });
   room = {
     onConnection(f) { L.conn.push(f); setTimeout(() => f(up), 0); return () => { }; },
     onPeers(f) { L.peers.push(f); return () => { }; },
@@ -4161,7 +4166,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, id: uid || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -7468,7 +7473,7 @@ let camYaw = 0;
 function nickProblem(n) {
   if (!/^[\p{L}\p{N} _.\-]{2,14}$/u.test(n)) return 'Pick a username first: 2 to 14 letters or numbers. Spaces, dots, dashes and underscores are fine too.';
   if (nameIsBad(n)) return "That username isn't allowed here. Please pick a friendly one.";
-  for (const r of remotes.values()) if (r.active && cleanName(r.pres && r.pres.n).toLowerCase() === n.toLowerCase()) return 'Someone on the island is already using that name. Try another.';
+  for (const r of remotes.values()) if (r.active && !(uid && r.pres && r.pres.id === uid) && cleanName(r.pres && r.pres.n).toLowerCase() === n.toLowerCase()) return 'Someone on the island is already using that name. Try another.';
   return '';
 }
 $('nick').addEventListener('input', () => { const h = $('nickHint'); h.className = 'hint'; h.textContent = '2 to 14 characters. Other racers see it above your car.'; });

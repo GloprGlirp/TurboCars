@@ -168,7 +168,8 @@ wss.on('connection', ws => {
       if (typeof m.presence.n === 'string' && nameIsBad(m.presence.n)) m.presence.n = 'Racer';
       if (m.presence.pl != null) m.presence.pl = cleanPlate(m.presence.pl) || null;
       if (m.presence.ft != null && (typeof m.presence.ft !== 'string' || !/^[0-9.]{1,60}$/.test(m.presence.ft))) m.presence.ft = null;
-      me.presence = m.presence;
+      m.presence.id = me.pid || null;   // only the signed-in id, never one a client made up
+      me.presence = m.presence; me.lastPres = Date.now();
       broadcast({ t: 'presence', peer: me.peer, presence: me.presence }, ws);
     } else if (m.t === 'emit' && m.topic === 'chat' && m.data && typeof m.data.text === 'string') {
       // chat: short, filtered, at most one message a second per player
@@ -188,6 +189,8 @@ wss.on('connection', ws => {
       if (state.auth[m.id] && state.auth[m.id] !== h) return;
       if (!state.auth[m.id]) { state.auth[m.id] = h; saveState(); }
       me.pid = m.id;
+      // the same player connecting again (new tab, reload, or a tab that never closed properly): the old connection goes
+      for (const [ows, oc] of clients) if (ows !== ws && oc.pid === me.pid) { send(ows, { t: 'replaced' }); oc.pid = null; try { ows.close(4000, 'replaced'); } catch (e) { } setTimeout(() => { try { ows.terminate(); } catch (e) { } }, 1500); }
       const mine = Object.values(state.listings).filter(l => l.seller === me.pid).map(l => l.lid);
       const unpaid = state.sold[me.pid] || [];
       send(ws, { t: 'auth_ok', mine: mine.concat(unpaid.map(s => s.lid)) });
@@ -250,11 +253,17 @@ wss.on('connection', ws => {
 
 // refill rate-limit tokens and drop dead connections
 setInterval(() => { for (const c of clients.values()) c.tokens = Math.min(80, c.tokens + 40); }, 1000);
+// a closed tab whose connection didn't say goodbye is gone within ~12 s
 setInterval(() => {
   for (const [ws, c] of clients) {
     if (!c.alive) { ws.terminate(); continue; }
-    c.alive = false; ws.ping();
+    c.alive = false; try { ws.ping(); } catch (e) { }
   }
-}, 15000);
+}, 6000);
+// a player who stopped sending for 20 s (tab in the background, closed, phone locked) leaves the world until they're back
+setInterval(() => {
+  const now = Date.now();
+  for (const [ws, c] of clients) if (c.lastPres && now - c.lastPres > 20000 && Object.keys(c.presence).length) { c.presence = {}; broadcast({ t: 'presence', peer: c.peer, presence: {} }, ws); }
+}, 4000);
 
 server.listen(PORT, () => console.log('Pebble Isle Rally running on http://localhost:' + PORT));
