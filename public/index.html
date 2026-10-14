@@ -1465,8 +1465,10 @@ function ribbonF(x, z) {
     HGT[i] = h;
   }
 }
+let TERRAIN = null, HGT0 = null, flatQueued = false;
 // exact same triangles as the terrain mesh, so wheels sit on what you see
-function gridH(x, z) {
+function gridH(x, z) { return gridHOf(HGT, x, z); }
+function gridHOf(HGT, x, z) {
   let gx = (x - WMIN) / WCELL, gz = (z - WMIN) / WCELL;
   if (gx < 0) gx = 0; if (gz < 0) gz = 0; if (gx > GN - 1.001) gx = GN - 1.001; if (gz > GN - 1.001) gz = GN - 1.001;
   const ix = gx | 0, iz = gz | 0, fx = gx - ix, fz = gz - iz, i = iz * GN + ix;
@@ -1510,7 +1512,7 @@ function terrainColor(x, z, h, i) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeVertexNormals();
-  const terrain = new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: softGrad }));
+  const terrain = new THREE.Mesh(g, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: softGrad })); TERRAIN = terrain;
   terrain.receiveShadow = true; scene.add(terrain);
   const water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), toon(0x163a6e));
   water.rotation.x = -Math.PI / 2; water.position.y = -0.5; scene.add(water);
@@ -2023,13 +2025,48 @@ const PROPS = {};   // id -> { site, pad, ... }
 const s2w = (s, lx, lz) => ({ x: s.x + lx * Math.cos(s.yaw) + lz * Math.sin(s.yaw), z: s.z - lx * Math.sin(s.yaw) + lz * Math.cos(s.yaw) });
 function siteGroup(s, w, d) {
   // sit the building on the highest ground under it, with a plinth so nothing floats on a slope
+  let pave = false;
   if (s.y > 0.6 || s.mainland) {
-    let hi = -1e9; for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]) { const p = s2w(s, a * w / 2, b * d / 2); hi = Math.max(hi, gridH(p.x, p.z)); }
-    s.y = hi + 0.15;
+    // level the ground under the lot (cut and fill), so you drive straight onto it instead of into a plinth
+    let sum = 0; const C = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]; for (const [a, b] of C) { const p = s2w(s, a * w / 2, b * d / 2); sum += gridH(p.x, p.z); }
+    s.y = sum / C.length; levelGround(s, w / 2 + 1.5, d / 2 + 1.5); pave = true;
   }
   const g = new THREE.Group(); g.position.set(s.x, s.y, s.z); g.rotation.y = s.yaw; scene.add(g);
-  if (s.y > 0.6) { const pl = new THREE.Mesh(rbox(w + 3, 6, d + 3, 0.5), toon(0xbdb4a2)); pl.position.y = -2.95; pl.receiveShadow = true; g.add(pl); }
+  if (pave) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(w + 3, d + 3), toon(0xbdb4a2)); pl.rotation.x = -Math.PI / 2; pl.position.y = 0.03; pl.receiveShadow = true; g.add(pl); }
   return g;
+}
+// sets the terrain under a site's footprint to the site height; the cell ring around it becomes a gentle slope
+function levelGround(s, hw, hd) {
+  if (!HGT0) HGT0 = HGT.slice();
+  const cs = Math.cos(s.yaw), sn = Math.sin(s.yaw), R = Math.hypot(hw, hd) + WCELL * 1.5;
+  const ix0 = Math.max(0, Math.floor((s.x - R - WMIN) / WCELL)), ix1 = Math.min(GN - 1, Math.ceil((s.x + R - WMIN) / WCELL));
+  const iz0 = Math.max(0, Math.floor((s.z - R - WMIN) / WCELL)), iz1 = Math.min(GN - 1, Math.ceil((s.z + R - WMIN) / WCELL));
+  const pos = TERRAIN && TERRAIN.geometry.attributes.position;
+  for (let iz = iz0; iz <= iz1; iz++) for (let ix = ix0; ix <= ix1; ix++) {
+    const i = iz * GN + ix; if (TYP[i] === T_ROAD || TYP[i] === T_NEAR) continue;
+    const dx = WMIN + ix * WCELL - s.x, dz = WMIN + iz * WCELL - s.z, lx = dx * cs - dz * sn, lz = dx * sn + dz * cs;
+    // every grid point of a cell that touches the lot, so the whole lot is flat
+    if (Math.max(0, Math.abs(lx) - hw) > WCELL * 1.05 || Math.max(0, Math.abs(lz) - hd) > WCELL * 1.05) continue;
+    HGT[i] = s.y; if (pos) pos.setY(i, s.y);
+  }
+  if (pos && !flatQueued) {
+    flatQueued = true;
+    // once everything is placed: new terrain shading, and trees/rocks/lamps follow the ground they stand on
+    queueMicrotask(() => {
+      flatQueued = false; pos.needsUpdate = true; TERRAIN.geometry.computeVertexNormals();
+      const M = new THREE.Matrix4();
+      scene.traverse(o => {
+        if (!o.isInstancedMesh || o.parent !== scene) return;
+        let moved = false;
+        for (let k = 0; k < o.count; k++) {
+          o.getMatrixAt(k, M); const e = M.elements, dh = gridH(e[12], e[14]) - gridHOf(HGT0, e[12], e[14]);
+          if (Math.abs(dh) > 0.01) { e[13] += dh; o.setMatrixAt(k, M); moved = true; }
+        }
+        if (moved) { o.instanceMatrix.needsUpdate = true; o.computeBoundingSphere && o.computeBoundingSphere(); }
+      });
+      for (const c of circles) if (c.y0 == null) { const dh = gridH(c.x, c.z) - gridHOf(HGT0, c.x, c.z); if (Math.abs(dh) > 0.3) c.y0 = gridH(c.x, c.z) - 0.5; }
+    });
+  }
 }
 function solid(s, lx0, lz0, lx1, lz1, h) {
   const a = s2w(s, lx0, lz0), b = s2w(s, lx1, lz1);
@@ -5702,7 +5739,7 @@ function buildStation(id, name, k, off) {
   // the shop: walk in through the door to pay at the counter
   const wallM = toon(0xe8e2d4), W = 14, D = 8, H = 4.2, zc = -6;
   part(g, rbox(W, 0.3, D, 0.1), toon(0xbdb4a2), 0, 0.05, zc, 0);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.8, D - 0.8), toon(0xdcd8ea)); floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.22, zc); g.add(floor);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.8, D - 0.8), toon(0xcfcadb, { emissive: 0x1e1a14 })); floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0.22, zc); g.add(floor);
   part(g, rbox(W, H, 0.4, 0.15), wallM, 0, H / 2, zc - D / 2 + 0.2, 0.05);
   for (const sx of [-1, 1]) part(g, rbox(0.4, H, D, 0.15), wallM, sx * (W / 2 - 0.2), H / 2, zc, 0.05);
   const door = 2.2, fw = (W - door) / 2;
@@ -5714,12 +5751,20 @@ function buildStation(id, name, k, off) {
   part(g, rbox(door, 1.0, 0.4, 0.1), wallM, 0, H - 0.5, zc + D / 2 - 0.2, 0);
   part(g, rbox(W + 0.8, 0.5, D + 0.8, 0.2), toon(0x2b2d42), 0, H + 0.25, zc, 0.05);
   const lamp = new THREE.Mesh(new THREE.PlaneGeometry(W - 3, D - 3), new THREE.MeshBasicMaterial({ color: 0xfff3d6 })); lamp.rotation.x = Math.PI / 2; lamp.position.set(0, H - 0.05, zc); g.add(lamp);
-  for (let k = 0; k < 3; k++) part(g, rbox(3.2, 2.0, 0.5, 0.08), toon([0xffd23f, 0x3fa7ff, 0xff7ac8][k]), -4 + k * 4, 1.2, zc - D / 2 + 0.7, 0);
+  // shelves along the back wall, with a gap behind the counter so you can see the clerk
+  for (const k of [-1, 1]) part(g, rbox(3.2, 2.0, 0.5, 0.08), toon(k < 0 ? 0xffd23f : 0xff7ac8), k * 4.6, 1.2, zc - D / 2 + 0.7, 0);
+  // warm light strips under the ceiling
+  for (const x of [-3.5, 3.5]) { const t = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 0.35), new THREE.MeshBasicMaterial({ color: 0xfff1d0 })); t.position.set(x, H - 0.12, zc); g.add(t); }
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(W - 1, D - 1), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffe2b0, transparent: true, opacity: 0.14, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.set(0, 0.24, zc); g.add(glow);
   signBoard(g, name.toUpperCase(), '#3ddc97', '#120e24', 0, H + 1.4, zc + D / 2 - 0.3, 8, 1.4);
   part(g, rbox(4.2, 1.1, 0.9, 0.12), toon(0x3b3f6b), 0, 0.75, -8.6, 0.04);
   part(g, rbox(4.4, 0.1, 1.0, 0.04), toon(0x3ddc97), 0, 1.33, -8.6, 0);
   for (const [x, c] of [[-5, 0xff7ac8], [5, 0x3fa7ff], [-5, 0xffd23f]]) part(g, rbox(1.4, 1.8, 0.6, 0.1), toon(c), x, 1.1, x < 0 && c === 0xffd23f ? -3.8 : -8.9, 0);
-  const clerk = buildPerson('#3ddc97'); const cp = s2w(s, 0, -9.4); clerk.root.position.set(cp.x, s.y + 0.2, cp.z); clerk.root.rotation.y = s.yaw; scene.add(clerk.root);
+  const clerk = buildPerson('#3ddc97'); const cp = s2w(s, 0, -9.4); clerk.root.position.set(cp.x, s.y + 0.22, cp.z); clerk.root.rotation.y = s.yaw; scene.add(clerk.root);
+  // a customer browsing the snacks
+  const cust = buildPerson(['#ff7ac8', '#3fa7ff', '#ffd23f'][k % 3]), cu = s2w(s, -3.3, -4.0); cust.root.position.set(cu.x, s.y + 0.22, cu.z); cust.root.rotation.y = s.yaw - Math.PI / 2; scene.add(cust.root);
+  circles.push({ x: cu.x, z: cu.z, r: 0.4, h: 2, y0: s.y });
+  st.npcs = [clerk, cust];
   solid(s, -W / 2, zc - D / 2, W / 2, zc - D / 2 + 0.4, H);
   solid(s, -W / 2, zc - D / 2, -W / 2 + 0.4, zc + D / 2, H);
   solid(s, W / 2 - 0.4, zc - D / 2, W / 2, zc + D / 2, H);
@@ -5737,6 +5782,14 @@ function buildStation(id, name, k, off) {
   st.local = (x, z) => { const dx = x - s.x, dz = z - s.z; return { lx: dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw), lz: dx * Math.sin(s.yaw) + dz * Math.cos(s.yaw) }; };
   st.pos = s2w(s, 0, 8);
   STATIONS.push(st);
+}
+// one warm light, moved into the shop you're closest to (one light costs far less than three)
+const shopLight = new THREE.PointLight(0xffe2b0, 0, 15, 1.4); scene.add(shopLight);
+function shopLightStep() {
+  let best = null, bd = 80;
+  for (const st of STATIONS) { const c = s2w(st.s, 0, -6), d = Math.hypot(player.x - c.x, player.z - c.z); if (d < bd) { bd = d; best = { st, c }; } }
+  if (!best) { shopLight.intensity = 0; return; }
+  shopLight.position.set(best.c.x, best.st.s.y + 3.6, best.c.z); shopLight.intensity = 1.1 * clamp((80 - bd) / 20, 0, 1);
 }
 buildStation('gas1', 'Pebble Fuel City', 0, 0.04);
 buildStation('gas2', 'Pebble Fuel Country', 1, -0.03);
@@ -7354,7 +7407,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }
