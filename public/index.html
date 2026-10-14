@@ -260,6 +260,8 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 .hint.err { color: var(--pop); }
 .hint.ok { color: #1f9c63; }
 .panel.wide { width: min(720px, 100%); }
+#searchHint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; background: #1d1a2e; color: #fff; border: 3px solid #fff; border-radius: 999px; padding: 6px 16px; font: 700 15px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
+#searchHint[hidden] { display: none; }
 #bigMap { display: block; width: 100%; max-width: 640px; aspect-ratio: 1; height: auto; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; background: #43b9ee; }
 .xp { gap: .45em; padding: .25em .7em; }
 .xp .lv { font-variant-numeric: tabular-nums; }
@@ -594,7 +596,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   <div class="panel sticker wide">
     <button class="btn small alt x" id="bCloseMap" type="button">Close</button>
     <h2>Map</h2>
-    <p class="lede">Diamonds are missions, the yellow dot is the garage, the red dot is the race pad, green is Pebble Motors, purple squares are businesses and houses are homes for sale. Jump to a spot to start driving there.</p>
+    <p class="lede">Diamonds are missions, the yellow dot is the garage, the red dot is the race pad, green is Pebble Motors, purple squares are businesses and houses are homes for sale. Dashed circles are search areas for hidden cars (?) and secret meetups (♪). <b>Tap the map to set a destination</b>: arrows on the road show the way (tap the pin again to clear it). Or jump straight to a spot below.</p>
     <canvas id="bigMap" width="800" height="800"></canvas>
     <div class="label">Fast travel</div>
     <div class="row" id="travelList"></div>
@@ -5309,6 +5311,7 @@ function drawMinimap() {
   const P = (x, z) => [MMC + (x - player.x) * S, MMC + (z - player.z) * S];
   const inView = (x, z) => Math.abs(x - player.x) < MM_VIEW * 0.62 && Math.abs(z - player.z) < MM_VIEW * 0.62;
   const dot = (x, z, col, r) => { if (!inView(x, z)) return; const [px, py] = P(x, z); mg.fillStyle = col; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, py, r, 0, TAU); mg.fill(); mg.stroke(); };
+  mg.save(); mg.beginPath(); mg.arc(MMC, MMC, MMS / 2, 0, TAU); mg.clip(); drawSearch(mg, P, S, inView); mg.restore();
   mapIcons(mg, P, 1.1, inView); fuelIcons(mg, P, 1.1, inView);
   if (race && race.phase !== 'done' && !player.fin) { const q = TP[CP_IDX[player.nextCp]], [px, py] = P(q.x, q.z); mg.strokeStyle = '#3fa7ff'; mg.lineWidth = 4; mg.beginPath(); mg.arc(px, py, 11, 0, TAU); mg.stroke(); }
   if (mission && mission.gates && mission.gateI < mission.gates.length) {
@@ -5327,7 +5330,124 @@ function drawMinimap() {
   for (const n of npcs) dot(n.x, n.z, n.police ? '#3060ff' : '#e7e2f2', n.police ? 5 : 3.5);
   const fl = Math.floor(performance.now() / 160) % 2;
   for (const c of cops) dot(c.x, c.z, fl ? '#ff3040' : '#3060ff', 6);
+  if (nav) {
+    mg.save(); mg.beginPath(); mg.arc(MMC, MMC, MMS / 2, 0, TAU); mg.clip(); drawNav(mg, P, 0.8, inView); mg.restore();
+    if (!inView(nav.x, nav.z)) { const a = Math.atan2(nav.z - player.z, nav.x - player.x), rr = MMS / 2 - 14; mg.save(); mg.translate(MMC + Math.cos(a) * rr, MMC + Math.sin(a) * rr); mg.rotate(a); mg.fillStyle = '#3ff4ff'; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.moveTo(9, 0); mg.lineTo(-7, -7); mg.lineTo(-7, 7); mg.closePath(); mg.fill(); mg.stroke(); mg.restore(); }
+  }
   drawArrow(mg, MMC, MMC, player.yaw, 1);
+}
+
+// ---------- navigation: tap the map to set a destination, then follow the arrows on the road ----------
+let NAV_G = null, nav = null;   // nav: { x, z, pts, cum, i, rt }
+function navGraph() {
+  if (NAV_G) return NAV_G;
+  const N = [], adj = [], H = new Map(), C = 20, ends = new Set();
+  const node = (x, z, r) => { const id = N.length; N.push({ x, z, r }); adj.push([]); const k = Math.floor(x / C) + ',' + Math.floor(z / C); if (!H.has(k)) H.set(k, []); H.get(k).push(id); return id; };
+  const link = (a, b) => { const d = Math.hypot(N[a].x - N[b].x, N[a].z - N[b].z); adj[a].push(b, d); adj[b].push(a, d); };
+  TRAFFIC_ROADS.forEach((r, ri) => {
+    const P = r.pts, step = Math.max(1, Math.round(10 / (r.step || 2.5))), ids = [];
+    for (let i = 0; i < P.length; i += step) ids.push(node(P[i].x, P[i].z, ri));
+    if (!r.closed && (P.length - 1) % step) ids.push(node(P[P.length - 1].x, P[P.length - 1].z, ri));
+    for (let k = 1; k < ids.length; k++) link(ids[k - 1], ids[k]);
+    if (r.closed) link(ids[ids.length - 1], ids[0]); else { ends.add(ids[0]); ends.add(ids[ids.length - 1]); }
+  });
+  // junctions: where two roads cross, or one ends at another
+  for (let a = 0; a < N.length; a++) {
+    const R = ends.has(a) ? 26 : 9, best = new Map(), cx = Math.floor(N[a].x / C), cz = Math.floor(N[a].z / C), n = Math.ceil(R / C);
+    for (let u = cx - n; u <= cx + n; u++) for (let v = cz - n; v <= cz + n; v++) for (const b of H.get(u + ',' + v) || []) {
+      if (N[b].r === N[a].r) continue;
+      const d = Math.hypot(N[a].x - N[b].x, N[a].z - N[b].z);
+      if (d < R && (!best.has(N[b].r) || d < best.get(N[b].r)[1])) best.set(N[b].r, [b, d]);
+    }
+    for (const [b] of best.values()) link(a, b);
+  }
+  return (NAV_G = { N, adj });
+}
+function navRoute(sx, sz, tx, tz) {
+  const { N, adj } = navGraph(), n = N.length;
+  const nearest = (x, z) => { let b = 0, bd = Infinity; for (let i = 0; i < n; i++) { const d = (N[i].x - x) ** 2 + (N[i].z - z) ** 2; if (d < bd) { bd = d; b = i; } } return b; };
+  const s = nearest(sx, sz), t = nearest(tx, tz);
+  const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1), heap = [[0, s]]; dist[s] = 0;
+  const push = it => { heap.push(it); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  while (heap.length) {
+    const [d, u] = pop(); if (d > dist[u]) continue; if (u === t) break;
+    const A = adj[u]; for (let k = 0; k < A.length; k += 2) { const v = A[k], nd = d + A[k + 1]; if (nd < dist[v]) { dist[v] = nd; prev[v] = u; push([nd, v]); } }
+  }
+  const pts = [];
+  if (dist[t] < Infinity) for (let u = t; u >= 0; u = prev[u]) pts.push({ x: N[u].x, z: N[u].z });
+  pts.reverse();
+  if (!pts.length || Math.hypot(pts[pts.length - 1].x - tx, pts[pts.length - 1].z - tz) > 12) pts.push({ x: tx, z: tz });   // last bit off the road
+  // start where you are when you're off the road
+  if (Math.hypot(pts[0].x - sx, pts[0].z - sz) > 12) pts.unshift({ x: sx, z: sz });
+  const cum = [0]; for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].z - pts[k - 1].z));
+  return { pts, cum };
+}
+function setNav(x, z) {
+  const r = navRoute(player.x, player.z, x, z);
+  nav = { x, z, pts: r.pts, cum: r.cum, i: 0, rt: 0 };
+  toast('Route set · ' + (r.cum[r.cum.length - 1] / 1000).toFixed(1) + ' km');
+}
+function clearNav(msg) { nav = null; navArrows.visible = false; if (msg) toast(msg); }
+// glowing chevrons lying on the road
+const NAV_N = 22, NAV_GAP = 7;
+const navArrows = (() => {
+  const s = new THREE.Shape([[-1.1, 0.3], [0, -0.85], [1.1, 0.3], [1.1, 0.85], [0, -0.25], [-1.1, 0.85]].map(([x, y]) => new THREE.Vector2(x, y)));
+  const g = new THREE.ShapeGeometry(s).rotateX(-Math.PI / 2);
+  const m = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4 }), NAV_N);
+  m.frustumCulled = false; m.visible = false; m.renderOrder = 3;
+  for (let k = 0; k < NAV_N; k++) m.setColorAt(k, new THREE.Color(0x3ff4ff));
+  scene.add(m); return m;
+})();
+// a point on the route at distance s along it, and the direction there
+function navAt(s) {
+  const { pts, cum } = nav; let k = nav.i;
+  while (k < pts.length - 2 && cum[k + 1] < s) k++;
+  const a = pts[k], b = pts[Math.min(k + 1, pts.length - 1)], L = (cum[k + 1] - cum[k]) || 1, f = clamp((s - cum[k]) / L, 0, 1);
+  return { x: lerp(a.x, b.x, f), z: lerp(a.z, b.z, f), yaw: Math.atan2(b.x - a.x, b.z - a.z) };
+}
+const navM = new THREE.Matrix4(), navQ = new THREE.Quaternion(), navC = new THREE.Color(), navUp = new THREE.Vector3(0, 1, 0);
+function navStep(dt) {
+  if (!nav || race) { navArrows.visible = false; return; }
+  const px = player.x, pz = player.z;
+  if (Math.hypot(nav.x - px, nav.z - pz) < 14) { clearNav('Destination reached'); return; }
+  // where along the route you are now (only looking a little ahead, so loops don't confuse it)
+  const { pts, cum } = nav; let best = Infinity, bs = 0, bi = nav.i;
+  for (let k = Math.max(0, nav.i - 3); k < Math.min(pts.length - 1, nav.i + 30); k++) {
+    const a = pts[k], b = pts[k + 1], dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz || 1, f = clamp(((px - a.x) * dx + (pz - a.z) * dz) / L2, 0, 1);
+    const d = Math.hypot(a.x + dx * f - px, a.z + dz * f - pz); if (d < best) { best = d; bi = k; bs = cum[k] + f * Math.sqrt(L2); }
+  }
+  nav.i = bi; nav.rt -= dt;
+  // wrong way or way off the route: work out a new one
+  if (best > 40 && nav.rt <= 0) { nav.rt = 2; const r = navRoute(px, pz, nav.x, nav.z); Object.assign(nav, { pts: r.pts, cum: r.cum, i: 0 }); return; }
+  const total = cum[cum.length - 1], t = performance.now() / 1000;
+  navArrows.visible = true;
+  for (let k = 0; k < NAV_N; k++) {
+    const s = bs + 6 + k * NAV_GAP;
+    if (s > total) { navM.makeScale(0, 0, 0); navArrows.setMatrixAt(k, navM); continue; }
+    const p = navAt(s), y = surfaceHeight(p.x, p.z, player.y) + 0.14;
+    navQ.setFromAxisAngle(navUp, p.yaw); navM.compose(new THREE.Vector3(p.x, y, p.z), navQ, new THREE.Vector3(2.0, 1, 2.0)); navArrows.setMatrixAt(k, navM);
+    // a pulse running along the arrows, fading out in the distance
+    const wave = 0.55 + 0.45 * Math.max(0, Math.sin(t * 5 - k * 0.7)), fade = 1 - k / NAV_N;
+    navArrows.setColorAt(k, navC.setHex(0x3ff4ff).multiplyScalar(wave * (0.35 + 0.65 * fade)));
+  }
+  navArrows.instanceMatrix.needsUpdate = true; if (navArrows.instanceColor) navArrows.instanceColor.needsUpdate = true;
+}
+// route and pin on a 2D map
+function drawNav(g, P, sc, inView) {
+  if (!nav) return;
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  for (const [w, col] of [[7 * sc, '#1d1a2e'], [3.5 * sc, '#3ff4ff']]) {
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath();
+    for (let k = Math.max(0, nav.i); k < nav.pts.length; k++) { const [x, y] = P(nav.pts[k].x, nav.pts[k].z); k === nav.i ? g.moveTo(x, y) : g.lineTo(x, y); }
+    g.stroke();
+  }
+  if (inView(nav.x, nav.z)) {
+    const [x, y] = P(nav.x, nav.z);
+    g.fillStyle = '#3ff4ff'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(x, y); g.arc(x, y - 14 * sc, 8 * sc, Math.PI * 0.75, Math.PI * 2.25); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#1d1a2e'; g.beginPath(); g.arc(x, y - 14 * sc, 3 * sc, 0, TAU); g.fill();
+  }
 }
 
 // full map with fast travel
@@ -5350,7 +5470,7 @@ function travelTo(t) {
   Object.assign(player, { x: t.x, z: t.z, yaw: t.yaw, y: surfaceHeight(t.x, t.z), vx: 0, vz: 0, vy: 0, yr: 0, grounded: true, hintI: -1 });
   camSnap = true; closePanels(); toast(t.name);
 }
-function openMap() {
+function drawBigMap() {
   const c = $('bigMap'), g = c.getContext('2d'), W = c.width;
   g.drawImage(worldMap, 0, 0, W, W);
   const S = W / (WMAX - WMIN), P = (x, z) => [(x - WMIN) * S, (z - WMIN) * S];
@@ -5358,8 +5478,28 @@ function openMap() {
   g.font = '700 20px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round';
   for (const [t, x, z] of [['Pebble Isle', 0, 470], ['Pebble City', 1020, -470], ['Pebble Peak', 0, -1420], ['Farm roads', -1000, 120]]) { const [px, py] = P(x, z); g.lineWidth = 6; g.strokeStyle = '#1d1a2e'; g.strokeText(t, px, py); g.fillStyle = '#ffffff'; g.fillText(t, px, py); }
   for (const r of remotes.values()) if (r.model) { const [px, py] = P(r.x, r.z); g.fillStyle = PAINT[r.paint] ? PAINT[r.paint].hex : '#fff'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3; g.beginPath(); g.arc(px, py, 7, 0, TAU); g.fill(); g.stroke(); }
+  drawSearch(g, P, S, null);
+  drawNav(g, P, 1.3, () => true);
   const [ppx, ppy] = P(player.x, player.z); drawArrow(g, ppx, ppy, player.yaw, 1.3);
+}
+// tap the big map: set a destination there (tap the pin again, or right-click, to clear it)
+{
+  const c = $('bigMap');
+  const toWorld = e => { const r = c.getBoundingClientRect(); return { x: WMIN + (e.clientX - r.left) / r.width * (WMAX - WMIN), z: WMIN + (e.clientY - r.top) / r.height * (WMAX - WMIN) }; };
+  c.style.cursor = 'crosshair';
+  c.addEventListener('click', e => {
+    const w = toWorld(e);
+    if (nav && Math.hypot(w.x - nav.x, w.z - nav.z) < 45) clearNav('Route cleared'); else setNav(w.x, w.z);
+    drawBigMap(); renderTravelList();
+  });
+  c.addEventListener('contextmenu', e => { e.preventDefault(); if (nav) { clearNav('Route cleared'); drawBigMap(); renderTravelList(); } });
+}
+function openMap() {
+  drawBigMap(); renderTravelList(); openPanel('mapPanel');
+}
+function renderTravelList() {
   const list = $('travelList'); list.textContent = '';
+  if (nav) list.append(btn('✖ Clear route', '', () => { clearNav('Route cleared'); drawBigMap(); renderTravelList(); }));
   const dp = PROPS.dealer.pad, ds = DEALER.site, dyaw = Math.atan2(ds.x - dp.x, ds.z - dp.z);
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
   { const up = PROPS.usedlot.pad, us = USED.s, uy = Math.atan2(us.x - up.x, us.z - up.z); spots.push({ name: "Shiro's Used Cars", x: up.x - Math.sin(uy) * 6, z: up.z - Math.cos(uy) * 6, yaw: uy }); }
@@ -5367,7 +5507,6 @@ function openMap() {
   for (const t of spots) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small alt'; b.textContent = t.name; b.addEventListener('click', () => travelTo(t)); list.append(b); }
   for (const M of MEETS) if ((save.meets || []).includes(M.id)) { const b = btn('🅿 ' + M.name, 'alt', () => travelTo({ name: M.name, x: M.x, z: M.z, yaw: M.s.yaw })); list.append(b); }
   for (const id of [...save.homes, ...BIZ.filter(d => save.biz[d.id]).map(d => d.id)]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn small'; b.textContent = (HOME_BY[id] || BIZ_BY[id]).name; b.addEventListener('click', () => propTravel(id)); list.append(b); }
-  openPanel('mapPanel');
 }
 
 // =====================================================================
@@ -6246,6 +6385,38 @@ function harborSite() {
   const c = s2w(s, 0, 2);
   MEETS.push({ id: 'harbor', name: 'Harbor', x: c.x, z: c.z, y: s.y, r: 22, route: 'harbor', s, rumor: 'Down at the harbor, between the containers, crews race for pink slips after midnight.' });
   meetNpcs(MEETS[2], [[-8, 8, 2.6], [8, 8, -2.6], [-2, -4, 0.2]], 'downtown');
+}
+// search areas: a circle on the map around each barn find and meetup you haven't found yet.
+// The circle is off-centre on purpose, so it says roughly where, not exactly where.
+const SEARCH_R = { find: 130, meet: 100 };
+function searchAreas() {
+  const out = [], got = save.finds || [], seen = save.meets || [];
+  const off = (id, R) => { let h = 7; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0; const a = (h % 360) * Math.PI / 180, d = R * (0.2 + (h % 7) * 0.05); return [Math.cos(a) * d, Math.sin(a) * d]; };
+  for (const f of FINDS) if (!got.includes(f.id) && f.x != null) { const [dx, dz] = off(f.id, SEARCH_R.find); out.push({ kind: 'find', id: f.id, x: f.x + dx, z: f.z + dz, r: SEARCH_R.find, tx: f.x, tz: f.z }); }
+  for (const M of MEETS) if (!seen.includes(M.id) && !(M.id === 'roof' && !seen.includes('garage'))) { const [dx, dz] = off(M.id, SEARCH_R.meet); out.push({ kind: 'meet', id: M.id, x: M.x + dx, z: M.z + dz, r: SEARCH_R.meet, tx: M.x, tz: M.z }); }
+  return out;
+}
+function drawSearch(g, P, pxPerM, inView) {
+  for (const A of searchAreas()) {
+    if (inView && !inView(A.x, A.z) && Math.hypot(A.x - player.x, A.z - player.z) > A.r + MM_VIEW) continue;
+    const [x, y] = P(A.x, A.z), r = A.r * pxPerM, find = A.kind === 'find';
+    g.fillStyle = find ? 'rgba(255,201,60,.22)' : 'rgba(255,63,164,.2)'; g.strokeStyle = find ? '#ffc93c' : '#ff3fa4'; g.lineWidth = 2.5;
+    g.setLineDash([7, 5]); g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.stroke(); g.setLineDash([]);
+    if (r > 9) { g.font = '900 ' + Math.round(Math.min(22, r * 0.9)) + 'px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 4; g.strokeStyle = '#1d1a2e'; g.strokeText(find ? '?' : '♪', x, y); g.fillStyle = find ? '#ffc93c' : '#ff3fa4'; g.fillText(find ? '?' : '♪', x, y); }
+  }
+}
+// inside a search area: a hot/cold hint tells you how close you are
+const searchHint = (() => { const d = document.createElement('div'); d.id = 'searchHint'; d.hidden = true; document.body.append(d); return d; })();
+let searchT = 0, searchIn = null;
+function searchStep(dt) {
+  searchT -= dt; if (searchT > 0) return; searchT = 0.25;
+  let hit = null;
+  if (playing && !race && !panelOpen) for (const A of searchAreas()) if (Math.hypot(player.x - A.x, player.z - A.z) < A.r) { hit = A; break; }
+  if (!hit) { searchHint.hidden = true; searchIn = null; return; }
+  if (searchIn !== hit.id) { searchIn = hit.id; toast(hit.kind === 'find' ? 'You are in a barn find search area. Look around!' : 'You are in a meetup search area. Look around!'); }
+  const d = Math.hypot(player.x - hit.tx, player.z - hit.tz), heat = d < 25 ? ['Very hot', '#ff3040'] : d < 55 ? ['Hot', '#ff7b3f'] : d < 95 ? ['Warm', '#ffc93c'] : ['Cold', '#3fa7ff'];
+  searchHint.hidden = false;
+  searchHint.innerHTML = '🔍 ' + (hit.kind === 'find' ? 'Barn find' : 'Meetup') + ' nearby · <b style="color:' + heat[1] + '">' + heat[0] + '</b>';
 }
 function atMeet() { for (const M of MEETS) if (Math.hypot(player.x - M.x, player.z - M.z) < M.r && Math.abs(player.y - M.y) < 2.5) return M; return null; }
 let meetSeen = null;
@@ -7409,7 +7580,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }
