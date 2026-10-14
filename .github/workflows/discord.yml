@@ -1,0 +1,15 @@
+name: Discord update post
+on:
+  push:
+    branches: [main]
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post the update to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          COMMITS: ${{ toJson(github.event.commits) }}
+          REPO: ${{ github.repository }}
+        run: python3 .github/scripts/discord_post.py
