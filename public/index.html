@@ -4087,7 +4087,15 @@ function initStandalone() {
       } else if (m.t === 'msg') {
         for (const f of (L.topics[m.topic] || [])) f({ topic: m.topic, data: m.data, peer: m.peer, by: null, isMe: false, sameTab: false, kind: 'viewer', guest: false });
       } else if (m.t === 'records') setRecords(m.records);
-      else if (m.t === 'auth_ok') { authed = true; reconcileEscrow(new Set(Array.isArray(m.mine) ? m.mine : [])); if (!$('market').hidden) renderMarket(); }
+      else if (m.t === 'auth_ok') { authed = true; send({ t: 'save_get' }); reconcileEscrow(new Set(Array.isArray(m.mine) ? m.mine : [])); if (!$('market').hidden) renderMarket(); }
+      else if (m.t === 'save' || m.t === 'save_fix') {
+        // the server's copy of your save is the real one
+        if (m.save && typeof m.save === 'object') {
+          const nick = save.nick; save = sanitizeSave(m.save); if (!save.nick) save.nick = nick;
+          try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { }
+          applySave(); if (m.t === 'save_fix') toast('The server corrected your progress');
+        } else flushSave();   // nothing stored yet: send ours
+      }
       else if (m.t === 'mk_listings') setListings(m.listings);
       else if (m.t === 'mk_sold' && typeof m.lid === 'string') { payoutSold(m.lid, Math.floor(num(m.price, 0)), cleanName(m.buyer)); send({ t: 'mk_ack', lid: m.lid }); }
       else if (m.t === 'mk_res') { const q = pend.get(m.rq); if (q) { pend.delete(m.rq); clearTimeout(q.timer); m.ok ? q.res(m) : q.rej(new Error(typeof m.err === 'string' ? m.err.slice(0, 160) : 'The market said no.')); } }
@@ -4120,8 +4128,8 @@ function initStandalone() {
     onSnapshot(next) { recCb = () => next({ docs: recList.map(r => ({ id: r.id, data: () => r })) }); recCb(); return () => { }; },
     doc(id) { return { get: async () => { const r = recList.find(x => x.id === id); return { exists: !!r, data: () => r }; }, set: async rec => send({ t: 'record', id, rec }) }; },
   };
-  // saves already live in localStorage; the per-player save doc is a no-op here
-  db = { collection(path) { return path === 'records' ? recordsRef : { doc() { return { get: async () => ({ exists: false }), set: async () => { } }; } }; } };
+  // saves live in localStorage and on the server, which keeps the real copy (see save_get / save_put)
+  db = { collection(path) { return path === 'records' ? recordsRef : { doc() { return { get: async () => ({ exists: false }), set: async data => { if (authed && /^data\/users\//.test(path)) send({ t: 'save_put', save: data }); } }; } }; } };
   const request = o => new Promise((res, rej) => {
     if (!ws || ws.readyState !== 1 || !authed) { rej(new Error('The market is offline right now.')); return; }
     const rq = ++rqN; const timer = setTimeout(() => { pend.delete(rq); rej(new Error('The server took too long to answer. Try again.')); }, 9000);

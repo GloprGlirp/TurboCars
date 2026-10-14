@@ -132,8 +132,42 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// ---------- player saves ----------
+// The server keeps the real copy of every save. Editing the browser's storage changes nothing, and money and XP
+// can only grow as fast as the game can pay out (a refilling allowance; market sales add to it).
+state.saves = state.saves || {};
+const SAVE_LIMITS = { firstMoney: 200000, firstXp: 60000, moneyRate: 60, moneyBucket: 60000, xpRate: 40, xpBucket: 12000, maxCars: 40, bytes: 300 * 1024 };
+const levelOfXp = xp => { let L = 1; while (L < 50 && xp >= Math.round(200 * Math.pow(L, 1.55))) L++; return L; };
+function cleanSave(o) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+  let s; try { const txt = JSON.stringify(o); if (txt.length > SAVE_LIMITS.bytes) return null; s = JSON.parse(txt); } catch (e) { return null; }
+  s.money = Math.max(0, Math.min(1e9, Math.floor(Number(s.money) || 0)));
+  s.xp = Math.max(0, Math.min(1e9, Math.floor(Number(s.xp) || 0)));
+  // every car goes through the same check as market cars: known parts only, upgrades 0 to 5
+  s.cars = (Array.isArray(s.cars) ? s.cars : []).slice(0, SAVE_LIMITS.maxCars).map(c => { const v = cleanCar(c); return v ? Object.assign({}, c, v) : null; }).filter(Boolean);
+  return s;
+}
+function storeSave(pid, incoming) {
+  const s = cleanSave(incoming); if (!s) return null;
+  const now = Date.now(), prev = state.saves[pid], L = SAVE_LIMITS; let fixed = false;
+  if (!prev) {
+    if (s.money > L.firstMoney) { s.money = L.firstMoney; fixed = true; }
+    if (s.xp > L.firstXp) { s.xp = L.firstXp; fixed = true; }
+    state.saves[pid] = { save: s, at: now, mb: L.moneyBucket, xb: L.xpBucket, credit: 0 };
+  } else {
+    const dt = Math.max(0, (now - prev.at) / 1000);
+    let mb = Math.min(L.moneyBucket, prev.mb + dt * L.moneyRate) + (prev.credit || 0), xb = Math.min(L.xpBucket, prev.xb + dt * L.xpRate);
+    const dm = s.money - prev.save.money, dx = s.xp - prev.save.xp;
+    if (dm > mb) { s.money = prev.save.money + Math.floor(mb); mb = 0; fixed = true; } else if (dm > 0) mb -= dm;
+    if (dx > xb) { s.xp = prev.save.xp + Math.floor(xb); xb = 0; fixed = true; } else if (dx > 0) xb -= dx;
+    state.saves[pid] = { save: s, at: now, mb, xb, credit: 0 };
+  }
+  saveState();
+  return { s, fixed };
+}
+
 // ---------- live room ----------
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 320 * 1024 });
 const clients = new Map(); // ws -> { peer, pid, presence, tokens, alive }
 
 function send(ws, msg) { if (ws.readyState === 1) ws.send(JSON.stringify(msg)); }
@@ -169,6 +203,7 @@ wss.on('connection', ws => {
       if (m.presence.pl != null) m.presence.pl = cleanPlate(m.presence.pl) || null;
       if (m.presence.ft != null && (typeof m.presence.ft !== 'string' || !/^[0-9.]{1,60}$/.test(m.presence.ft))) m.presence.ft = null;
       m.presence.id = me.pid || null;   // only the signed-in id, never one a client made up
+      if (me.pid && state.saves[me.pid]) m.presence.lv = levelOfXp(state.saves[me.pid].save.xp);   // the level others see comes from the server's copy
       me.presence = m.presence; me.lastPres = Date.now();
       broadcast({ t: 'presence', peer: me.peer, presence: me.presence }, ws);
     } else if (m.t === 'emit' && m.topic === 'chat' && m.data && typeof m.data.text === 'string') {
@@ -236,10 +271,15 @@ wss.on('connection', ws => {
       delete state.listings[m.lid];
       const sale = { lid: l.lid, price: l.price, buyer: safeName(m.nick) };
       (state.sold[l.seller] = state.sold[l.seller] || []).push(sale);
+      if (state.saves[l.seller]) state.saves[l.seller].credit = (state.saves[l.seller].credit || 0) + l.price;
       saveState();
       reply(m.rq, true, { car: l.car, price: l.price });
       broadcast({ t: 'mk_listings', listings: listingsOut() });
       toPlayer(l.seller, Object.assign({ t: 'mk_sold' }, sale));
+    } else if (m.t === 'save_get' && me.pid) {
+      const e = state.saves[me.pid]; send(ws, { t: 'save', save: e ? e.save : null });
+    } else if (m.t === 'save_put' && me.pid && m.save) {
+      const r = storeSave(me.pid, m.save); if (r && r.fixed) send(ws, { t: 'save_fix', save: r.s });
     } else if (m.t === 'mk_ack' && me.pid && typeof m.lid === 'string') {
       const list = state.sold[me.pid];
       if (list) { state.sold[me.pid] = list.filter(s => s.lid !== m.lid); if (!state.sold[me.pid].length) delete state.sold[me.pid]; saveState(); }
