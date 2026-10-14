@@ -61,7 +61,6 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 #game canvas { filter: saturate(1.15) contrast(1.06); }
 #grain { position: fixed; inset: -60px; pointer-events: none; opacity: .14; mix-blend-mode: overlay; background-size: 220px 220px; animation: grain .45s steps(5) infinite; }
 @keyframes grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-31px, 17px); } 40% { transform: translate(23px, -29px); } 60% { transform: translate(-13px, 37px); } 80% { transform: translate(41px, 9px); } 100% { transform: translate(-7px, -21px); } }
-#wxFlash { position: fixed; inset: 0; pointer-events: none; background: #c8ccff; opacity: 0; mix-blend-mode: screen; }
 #meetHud { position: absolute; left: 50%; top: calc(64px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); padding: 6px 14px; font-weight: 800; font-size: .9rem; text-align: center; max-width: min(560px, calc(100vw - 32px)); background: #ffe0f1; }
 #meetHud b { font-family: var(--font-display); font-weight: 400; letter-spacing: .04em; }
 #dynoCanvas { width: 100%; height: auto; border: 3px solid var(--ink); border-radius: 12px; display: block; background: #120e24; }
@@ -329,7 +328,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
 </style>
 
 <div id="game"></div>
-<div id="speedLines" aria-hidden="true"></div><div id="grain" aria-hidden="true"></div><div id="wxFlash" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
+<div id="speedLines" aria-hidden="true"></div><div id="grain" aria-hidden="true"></div><div id="vhs" aria-hidden="true"></div>
 <div id="sirenGlow"></div>
 
 <div id="hud" hidden>
@@ -1287,7 +1286,7 @@ const toShape = P => new THREE.Shape(cleanPts(P).map(p => new THREE.Vector2(p[0]
 // a side profile (z forward, y up) extruded across the car's width with rounded edges
 function extrudeX(P, width, bt, bs, segs) {
   const depth = Math.max(0.01, width - 2 * bt);
-  const g = new THREE.ExtrudeGeometry(toShape(P), { depth, bevelEnabled: bt > 0, bevelThickness: bt, bevelSize: bs, bevelOffset: -bs, bevelSegments: segs || 3, curveSegments: 4, steps: 1 });
+  const g = new THREE.ExtrudeGeometry(toShape(P), { depth, bevelEnabled: bt > 0, bevelThickness: bt, bevelSize: bs, bevelOffset: -bs, bevelSegments: Math.min(segs || 2, 2), curveSegments: 3, steps: 1 });
   g.translate(0, 0, -depth / 2); g.rotateY(-Math.PI / 2);
   return smoothNormals(g, 40);
 }
@@ -1304,7 +1303,7 @@ function rbox(w, h, d, r) {
   r = Math.min(r == null ? 0.08 : r, w * 0.45, h * 0.45, d * 0.45);
   return geo('rb' + [w, h, d, r].join(','), () => {
     const depth = Math.max(0.005, d - 2 * r);
-    const g = new THREE.ExtrudeGeometry(toShape(rrect(w, h, r)), { depth, bevelEnabled: true, bevelThickness: r, bevelSize: r, bevelOffset: -r, bevelSegments: 3, curveSegments: 3 });
+    const g = new THREE.ExtrudeGeometry(toShape(rrect(w, h, r)), { depth, bevelEnabled: true, bevelThickness: r, bevelSize: r, bevelOffset: -r, bevelSegments: 2, curveSegments: 2 });
     g.translate(0, 0, -depth / 2);
     return smoothNormals(g, 50);
   });
@@ -2004,14 +2003,14 @@ for (let tries = 0, placed = 0; tries < 3000 && placed < 140; tries++) {
     m.castShadow = !!castShadow; m.receiveShadow = true; scene.add(m); if (o) scene.add(o); return m;
   };
   const crownCols = [new THREE.Color(0x3fbf63), new THREE.Color(0x2fa36b), new THREE.Color(0xffb3d1)];   // a third of them are cherry trees
-  const trunkG = cyl(0.6, 0.8, 3, 12);
+  const trunkG = cyl(0.6, 0.8, 3, 7);
   inst(trunkG, freshToon(0x8a5a44), [...treeSpots.round, ...treeSpots.pine], (d, it) => { d.position.set(it.x, (it.y || 0) + 1.5 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.setScalar(it.s); }, true, 1.1);
-  const crown = inst(new THREE.SphereGeometry(3.3, 20, 14), freshToon(0xffffff), treeSpots.round, (d, it) => { d.position.set(it.x, (it.y || 0) + 5.6 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.set(it.s, it.s * 0.95, it.s); }, true, 1.06);
+  const crown = inst(new THREE.SphereGeometry(3.3, 11, 8), freshToon(0xffffff), treeSpots.round, (d, it) => { d.position.set(it.x, (it.y || 0) + 5.6 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.set(it.s, it.s * 0.95, it.s); }, true, 1.06);
   treeSpots.round.forEach((it, k) => crown.setColorAt(k, crownCols[it.c]));
   if (crown.instanceColor) crown.instanceColor.needsUpdate = true;
   const pineCols = [new THREE.Color(0x2a9a5c), new THREE.Color(0x1f8a5a), new THREE.Color(0x3bb26d)];
-  const p1 = inst(new THREE.ConeGeometry(3.4, 5.5, 16), freshToon(0xffffff), treeSpots.pine, (d, it) => { d.position.set(it.x, (it.y || 0) + 5 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.setScalar(it.s); }, true, 1.07);
-  const p2 = inst(new THREE.ConeGeometry(2.5, 4.4, 16), p1.material, treeSpots.pine, (d, it) => { d.position.set(it.x, (it.y || 0) + 8.2 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.setScalar(it.s); }, true, 1.08);
+  const p1 = inst(new THREE.ConeGeometry(3.4, 5.5, 9), freshToon(0xffffff), treeSpots.pine, (d, it) => { d.position.set(it.x, (it.y || 0) + 5 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.setScalar(it.s); }, true, 1.07);
+  const p2 = inst(new THREE.ConeGeometry(2.5, 4.4, 9), p1.material, treeSpots.pine, (d, it) => { d.position.set(it.x, (it.y || 0) + 8.2 * it.s, it.z); d.rotation.set(0, 0, 0); d.scale.setScalar(it.s); }, true, 1.08);
   treeSpots.pine.forEach((it, k) => { p1.setColorAt(k, pineCols[it.c]); p2.setColorAt(k, pineCols[it.c]); });
   if (p1.instanceColor) p1.instanceColor.needsUpdate = true; if (p2.instanceColor) p2.instanceColor.needsUpdate = true;
   inst(smoothNormals(new THREE.IcosahedronGeometry(1, 1), 80), freshToon(0xb7b0cf), treeSpots.rock, (d, it) => { d.position.set(it.x, (it.y || 0) + it.s * 0.45, it.z); d.rotation.set(0.3, it.ry, 0.2); d.scale.set(it.s * 1.2, it.s * 0.8, it.s); }, true, 1.08);
@@ -2720,7 +2719,7 @@ const tyre = (r, w, open) => geo('ty' + r + ',' + w + (open ? 'o' : ''), () => {
   for (let k = 0; k <= 4; k++) { const a = -Math.PI / 2 + k * Math.PI / 8; pts.push(new THREE.Vector2(r - c + Math.cos(a) * c, -w / 2 + c + Math.sin(a) * c)); }
   for (let k = 0; k <= 4; k++) { const a = k * Math.PI / 8; pts.push(new THREE.Vector2(r - c + Math.cos(a) * c, w / 2 - c + Math.sin(a) * c)); }
   pts.push(new THREE.Vector2(r0, w / 2));
-  return new THREE.LatheGeometry(pts, 26);
+  return new THREE.LatheGeometry(pts, open ? 18 : 14);
 });
 // number plates: Japanese layout, small region line on top and the owner's text below
 const PLATE_DEF = ['PI 21-07', 'PI 48-19', 'PI 33-86', 'PI 13-20', 'PI 77-01', 'PI 90-42', 'PI 26-58', 'PI 64-11'];
@@ -2985,6 +2984,56 @@ function addUnderglow(root, hex, L, W) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W * 1.9, L * 1.35), new THREE.MeshBasicMaterial({ map: glowTex, color: hex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -3 }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.07; root.add(m); return m;
 }
+// bake every mesh under a group into one mesh per material, in the group's own space
+// cars built the same way (only paint or plate text differ) share the merged geometry, so memory stays low
+const MERGE_CACHE = new Map();
+function mergeByMaterial(group, keep, key) {
+  group.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(group.matrixWorld).invert(), buckets = new Map(), victims = [];
+  const skip = o => { for (let p = o; p && p !== group; p = p.parent) if (keep(p)) return true; return false; };
+  const cached = key && MERGE_CACHE.get(key);
+  group.traverse(o => {
+    if (o === group || !o.isMesh || o.isInstancedMesh || Array.isArray(o.material) || !o.visible || skip(o)) return;
+    const b = buckets.get(o.material) || { list: [], shadow: false, verts: 0 }; buckets.set(o.material, b);
+    b.verts += o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count;
+    o.__mw = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld);
+    if (!cached) b.list.push((o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)));
+    b.shadow = b.shadow || o.castShadow;
+    victims.push(o);
+  });
+  for (const o of victims) { for (const c of [...o.children]) if (skip(c) || keep(c)) { o.remove(c); group.add(c); } if (o.parent) o.parent.remove(o); }
+  if (cached && cached.length === buckets.size && [...buckets.values()].every((b, i) => b.verts === cached[i].verts)) {
+    [...buckets.entries()].forEach(([mat, b], i) => { const m = new THREE.Mesh(cached[i].geo, mat); m.castShadow = b.shadow; group.add(m); });
+    return;
+  }
+  if (cached) { group.updateMatrixWorld(true); return mergeByMaterialSlow(group, victims, inv, buckets); }
+  const made = [];
+  for (const [mat, b] of buckets) {
+    if (b.list.length === 1 && victims.length < 2) { const m = new THREE.Mesh(b.list[0], mat); m.castShadow = b.shadow; group.add(m); continue; }
+    // only keep what the material uses: no uvs without a texture, no normals for unlit materials
+    const names = ['position', 'normal', 'uv'].filter(n => b.list.every(g => g.attributes[n]) && (n !== 'uv' || mat.map) && (n !== 'normal' || !mat.isMeshBasicMaterial));
+    const out = new THREE.BufferGeometry();
+    for (const n of names) {
+      const size = b.list[0].attributes[n].itemSize, total = b.list.reduce((s, g) => s + g.attributes[n].count, 0), arr = new Float32Array(total * size);
+      let off = 0; for (const g of b.list) { arr.set(g.attributes[n].array, off); off += g.attributes[n].count * size; }
+      out.setAttribute(n, new THREE.BufferAttribute(arr, size));
+    }
+    out.computeBoundingSphere();
+    const m = new THREE.Mesh(out, mat); m.castShadow = b.shadow; group.add(m); made.push({ geo: out, verts: b.verts });
+  }
+  if (key && made.length === buckets.size) MERGE_CACHE.set(key, made);
+}
+// rare case: the cache didn't fit this car (a paint matching a trim colour), so build its own geometry
+function mergeByMaterialSlow(group, victims, inv, buckets) {
+  for (const [mat, b] of buckets) b.list = [];
+  for (const o of victims) { const b = buckets.get(o.material); b.list.push((o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.__mw || o.matrixWorld))); }
+  for (const [mat, b] of buckets) {
+    const names = ['position', 'normal', 'uv'].filter(n => b.list.every(g => g.attributes[n]) && (n !== 'uv' || mat.map) && (n !== 'normal' || !mat.isMeshBasicMaterial));
+    const out = new THREE.BufferGeometry();
+    for (const n of names) { const size = b.list[0].attributes[n].itemSize, total = b.list.reduce((s2, g) => s2 + g.attributes[n].count, 0), arr = new Float32Array(total * size); let off = 0; for (const g of b.list) { arr.set(g.attributes[n].array, off); off += g.attributes[n].count * size; } out.setAttribute(n, new THREE.BufferAttribute(arr, size)); }
+    out.computeBoundingSphere(); const m = new THREE.Mesh(out, mat); m.castShadow = b.shadow; group.add(m);
+  }
+}
 function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   tune = tune || DEFAULT_TUNE;
   let def = BODY_DEF[bodyId] || BODY_DEF.bubble;
@@ -3050,8 +3099,12 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   if (BEAMS) { const bm = new THREE.Mesh(geo('beamG', () => new THREE.PlaneGeometry(5, 16)), beamMat); bm.rotation.x = -Math.PI / 2; bm.position.set(0, 0.09, len / 2 + 8); root.add(bm); }
   if (neon && NEON[neon] && NEON[neon].hex) addUnderglow(root, NEON[neon].hex, len, wid);
   const flash = new THREE.Group(); flash.visible = false; tilt.add(flash);
+  if (!buildCar.noMerge) {
+    const keep = new Set([flash, ...flames, ...bfs]), lk = look || {}, t = tune || DEFAULT_TUNE;
+    mergeByMaterial(tilt, o => keep.has(o), ['car', bodyId, stance || 'stock', LITE ? 1 : 0, lk.kit, lk.wing, lk.stk, t.e, t.i, t.a, t.w, t.y].join('|'));
+    for (const h of wheelsG.children) { const wh = h.children.find(o => o.isMesh && o.geometry && o.geometry.type === 'LatheGeometry'); if (wh) { const wk = [t.w, t.y, LITE ? 1 : 0, wh.geometry.parameters ? 'x' : '', Math.sign(h.position.x), h.position.z > 0 ? 1 : 0, bodyId].join('|'); mergeByMaterial(wh, () => false, 'rim|' + wk); mergeByMaterial(h, o => o === wh, 'hub|' + wk); } }
+  }
   for (const sd of [-1, 1]) { const g = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xfff6dc, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); g.scale.set(2.6, 2.6, 1); g.position.set(sd * (wid / 2 - 0.4), SP ? SP.nose - 0.2 : 0.8, len / 2 + 0.25); flash.add(g); }
-  const smoke = [];
   return { root, tilt, wheelsG, wheels, steer, flames, def, spec: SP, bfs, bfT: 0, flash, flashT: 0 };
 }
 
@@ -3083,7 +3136,9 @@ player.gear = 1; player.manual = !!save.manual;
 let playerModel = null;
 function rebuildPlayerModel() {
   if (playerModel) scene.remove(playerModel.root);
+  buildCar.noMerge = true;   // your own car stays in parts (first person hides some of them)
   playerModel = buildCar(ac().m, PAINT[ac().paint].hex, ac().tune, ac().neon, ac().stance, ac().plate, ac().look);
+  buildCar.noMerge = false;
   applyEngineSound();
   scene.add(playerModel.root);
   player.stats = statsFor(ac());
@@ -5613,87 +5668,18 @@ function claimFind(f) {
   toast('You found the ' + BODY[f.id].name + '! Restored and in your garage (' + save.finds.length + '/' + FINDS.length + ')', true);
 }
 // =====================================================================
-// weather: always night, but rain, storms and fog roll through. Wet roads mirror the city lights.
-// The forecast comes from the clock, so everyone online gets the same weather.
+// weather: always night; now and then fog rolls in. Same for everyone (it comes from the clock).
 // =====================================================================
-const WX_KINDS = ['clear', 'rain', 'clear', 'fog', 'storm', 'clear', 'rain', 'fog'], WX_SLOT = 300000;
-const WX_NAME = { clear: 'Clear night', rain: 'Rain', storm: 'Thunderstorm', fog: 'Fog' };
+const WX_KINDS = ['clear', 'clear', 'fog', 'clear', 'clear', 'fog'], WX_SLOT = 300000;
 const weatherKind = t => WX_KINDS[Math.floor(((fuelNoise(Math.floor(t / WX_SLOT), 97) + 1) / 2) * WX_KINDS.length) % WX_KINDS.length];
-const WX = { kind: weatherKind(Date.now()), rain: 0, fog: 0, wet: 0, flash: 0 };
-WX.rain = WX.kind === 'rain' ? 0.6 : WX.kind === 'storm' ? 1 : 0; WX.fog = WX.kind === 'fog' ? 1 : WX.kind === 'storm' ? 0.3 : 0; WX.wet = WX.rain > 0 ? 1 : 0;
-const RAIN_N = 1600;
-const rainGeo = new THREE.BufferGeometry(), rainPos = new Float32Array(RAIN_N * 6);
-for (let i = 0; i < RAIN_N; i++) { const x = rand(-40, 40), y = rand(-6, 30), z = rand(-40, 40); rainPos.set([x, y, z, x - 0.05, y - 0.9, z], i * 6); }
-rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
-const rainLines = new THREE.LineSegments(rainGeo, new THREE.LineBasicMaterial({ color: 0xb8c4ff, transparent: true, opacity: 0.5, depthWrite: false }));
-rainLines.frustumCulled = false; rainLines.visible = false; scene.add(rainLines);
-// wet-road reflections: a soft streak under each light, stretched towards the camera
-const STREAK_N = 170;
-const streakTex = canvasTex(64, 256, (c, w, h) => { const g = c.createLinearGradient(0, h, 0, 0); g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.35, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); const m = c.createLinearGradient(0, 0, w, 0); m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(0.5, 'rgba(0,0,0,0)'); m.addColorStop(1, 'rgba(0,0,0,1)'); c.globalCompositeOperation = 'destination-out'; c.fillStyle = m; c.fillRect(0, 0, w, h); });
-const streakMat = new THREE.MeshBasicMaterial({ map: streakTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, polygonOffset: true, polygonOffsetFactor: -4, vertexColors: false });
-const streaks = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), streakMat, STREAK_N);
-streaks.instanceMatrix.setUsage(THREE.DynamicDrawUsage); streaks.frustumCulled = false; streaks.visible = false; scene.add(streaks);
-const REFL = [];
-function buildRefl() {
-  for (const sp of lampSpots) if (!sp.dead) REFL.push({ x: sp.lx, z: sp.lz, y: surfaceHeight(sp.lx, sp.lz) + 0.15, col: new THREE.Color(0xffd9a0), w: 1.3, l: 15 });
-  for (const n of NEON_SPOTS) REFL.push({ x: n.x, z: n.z, y: surfaceHeight(n.x, n.z) + 0.15, col: new THREE.Color(n.col), w: 1.1, l: 12 });
-}
-for (let i = 0; i < STREAK_N; i++) streaks.setColorAt(i, new THREE.Color(0xffffff));
-let rainAudio = null, wxShown = WX.kind;
-function rainSound(level) {
-  if (!AC) return;
-  if (!rainAudio) {
-    const len = AC.sampleRate * 2, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-    const src = AC.createBufferSource(); src.buffer = buf; src.loop = true;
-    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.6;
-    const g = AC.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(master); src.start();
-    rainAudio = { g };
-  }
-  rainAudio.g.gain.setTargetAtTime(level * 0.22, AC.currentTime, 0.5);
-}
-const _v3 = new THREE.Vector3(), _dum = new THREE.Object3D(); _dum.rotation.order = 'YXZ';
+const WX = { kind: weatherKind(Date.now()), fog: 0 };
+WX.fog = WX.kind === 'fog' ? 1 : 0;
+let wxShown = WX.kind;
 function weatherStep(dt) {
   const k = weatherKind(Date.now()); WX.kind = k;
-  if (k !== wxShown && playing) { wxShown = k; toast(k === 'clear' ? 'The rain stopped. Roads stay wet for a while' : k === 'fog' ? 'Fog is rolling in' : k === 'storm' ? 'Thunderstorm! Roads are slippery' : 'It started raining. Watch your grip'); }
-  const tr = k === 'rain' ? 0.6 : k === 'storm' ? 1 : 0, tf = k === 'fog' ? 1 : k === 'storm' ? 0.3 : 0;
-  WX.rain += (tr - WX.rain) * Math.min(1, dt / 8); WX.fog += (tf - WX.fog) * Math.min(1, dt / 10);
-  WX.wet = WX.rain > 0.15 ? Math.min(1, WX.wet + dt / 40) : Math.max(0, WX.wet - dt / 200);
-  wetGrip = 1 - 0.13 * WX.wet;
-  scene.fog.near = lerp(260, 40, WX.fog) * (1 - WX.rain * 0.35); scene.fog.far = lerp(1500, 300, WX.fog) * (1 - WX.rain * 0.4);
-  // rain falls in a box that follows the camera
-  rainLines.visible = WX.rain > 0.02;
-  if (rainLines.visible) {
-    rainLines.material.opacity = 0.25 + 0.4 * WX.rain; rainGeo.setDrawRange(0, Math.floor(RAIN_N * WX.rain) * 2);
-    const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z, fall = 34 * dt, drift = 3 * dt;
-    for (let i = 0; i < RAIN_N; i++) {
-      const o = i * 6; let y = rainPos[o + 1] - fall, x = rainPos[o] - drift * 0.2;
-      if (y < -8) { y = rand(14, 30); x = rand(-40, 40); rainPos[o + 2] = rand(-40, 40); }
-      rainPos[o] = x; rainPos[o + 1] = y; rainPos[o + 3] = x - 0.05; rainPos[o + 4] = y - 0.9; rainPos[o + 5] = rainPos[o + 2];
-    }
-    rainGeo.attributes.position.needsUpdate = true; rainLines.position.set(cx, cy - 6, cz);
-  }
-  // lightning
-  if (k === 'storm' && Math.random() < dt * 0.08) { WX.flash = 0.25; setTimeout(() => sfx('bump', 0.35), 600 + Math.random() * 1500); }
-  if (WX.flash > 0) WX.flash -= dt;
-  $('wxFlash').style.opacity = WX.flash > 0 ? String(Math.min(0.55, WX.flash * 3) * (Math.random() < 0.7 ? 1 : 0.3)) : '0';
-  // wet look: darker, shinier tarmac and stretched light streaks
-  lampPool.opacity = 0.16 + 0.24 * WX.wet;
-  const rc = 1 - 0.3 * WX.wet; mainRoadMat.color.setScalar(rc); roadMat.color.setScalar(rc);
-  streaks.visible = WX.wet > 0.03; streakMat.opacity = 0.5 * WX.wet;
-  if (streaks.visible && !REFL.length) buildRefl();
-  if (streaks.visible) {
-    const cx = camera.position.x, cz = camera.position.z;
-    let n = 0;
-    for (const r of REFL) {
-      const dx = cx - r.x, dz = cz - r.z, d = Math.hypot(dx, dz);
-      if (d > 170 || d < 4 || n >= STREAK_N) continue;
-      const ux = dx / d, uz = dz / d, L = Math.min(r.l, d * 0.8);
-      _dum.position.set(r.x + ux * L / 2, r.y, r.z + uz * L / 2); _dum.rotation.set(-Math.PI / 2, Math.atan2(-ux, -uz), 0); _dum.scale.set(r.w, L, 1); _dum.updateMatrix();
-      streaks.setMatrixAt(n, _dum.matrix); streaks.setColorAt(n, r.col); n++;
-    }
-    streaks.count = n; streaks.instanceMatrix.needsUpdate = true; if (streaks.instanceColor) streaks.instanceColor.needsUpdate = true;
-  }
-  rainSound(playing ? WX.rain : 0);
+  if (k !== wxShown && playing) { wxShown = k; toast(k === 'fog' ? 'Fog is rolling in' : 'The fog lifts'); }
+  WX.fog += ((k === 'fog' ? 1 : 0) - WX.fog) * Math.min(1, dt / 10);
+  scene.fog.near = lerp(260, 45, WX.fog); scene.fog.far = lerp(1500, 330, WX.fog);
 }
 
 // =====================================================================
@@ -6507,7 +6493,7 @@ const TUT = [
   { icon: '🚨', title: 'Watch out for the police', text: 'Go over 120 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
   { icon: '⛽', title: 'Fuel, classes and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Every car has a class from 150 to Unlimited: races only put you against cars of your class. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
     keys: [['E', 'Pump fuel or pay'], ['V', 'Wardrobe']] },
-  { icon: '🌧', title: 'Crews, meetups and your engine', text: 'Rival crews own Downtown, the Farmlands and the Mountain Pass: beat three of their racers, then the boss, and the district pays you. Crew racers cruise around: sit behind one and flash your lights to race. Hidden meetups wait in the city. Weather changes: wet roads are slippery. Nitro and heat wear your engine; cooling and forged parts help, repairs are in the garage.',
+  { icon: '🌧', title: 'Crews, meetups and your engine', text: 'Rival crews own Downtown, the Farmlands and the Mountain Pass: beat three of their racers, then the boss, and the district pays you. Crew racers cruise around: sit behind one and flash your lights to race. Hidden meetups wait in the city. Some nights the fog rolls in. Nitro and heat wear your engine; cooling and forged parts help, repairs are in the garage.',
     keys: [['L', 'Flash lights / challenge'], ['X', 'Rev the engine']] },
   { icon: '💬', title: 'Play together', text: 'Chat with everyone on the island, sell cars to other players on the Market and set lap records. Everything else lives in the Menu at the top left. Have fun!', hl: 'bMenu',
     keys: [['T', 'Chat'], ['H', 'Honk']] },
@@ -6796,7 +6782,29 @@ $('meet').addEventListener('pointerdown', e => { if (e.target.id === 'meet') clo
 // =====================================================================
 // main loop
 // =====================================================================
-let playing = false, camSnap = true, acc = 0, last = performance.now(), frameN = 0;
+let playing = false, camSnap = true, acc = 0, last = performance.now(), frameN = 0, hudT = 0, mapT = 0;
+// automatic resolution: if frames get slow, render a little smaller; if there is room, go back up
+const PR_MAX = Math.min(window.devicePixelRatio || 1, isTouch ? 1.5 : 2);
+let prNow = PR_MAX, perfAcc = 0, perfN = 0, perfCull = 0;
+function perfStep(dt) {
+  perfAcc += dt; perfN++;
+  if (perfAcc > 2) {
+    const avg = perfAcc / perfN; perfAcc = 0; perfN = 0;
+    let pr = prNow;
+    if (avg > 1 / 45 && prNow > 0.6) pr = Math.max(0.6, prNow * 0.85);
+    else if (avg < 1 / 80 && prNow < PR_MAX) pr = Math.min(PR_MAX, prNow * 1.12);
+    if (Math.abs(pr - prNow) > 0.01) { prNow = pr; renderer.setPixelRatio(prNow); renderer.setSize(host.clientWidth || innerWidth, host.clientHeight || innerHeight); }
+  }
+  // parked show cars far away are hidden
+  perfCull -= dt;
+  if (perfCull <= 0) {
+    perfCull = 0.5;
+    const cx = camera.position.x, cz = camera.position.z, show = (m, d) => { if (m && m.root) m.root.visible = Math.hypot(m.root.position.x - cx, m.root.position.z - cz) < d; };
+    for (const R of STREET) for (const cr of R.crew) if (!(street && street.crew && street.crew.includes(cr))) show(cr.model, 230);
+    for (const M of MEETS) for (const n of M.npcs) if (!(street && street.crew && street.crew.includes(n))) show(n.model, 200);
+    for (const m of USED.models) show(m, 200);
+  }
+}
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let camYaw = 0;
 
@@ -7141,7 +7149,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { updateHud(now); drawMinimap(); sendPresence(now); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }
