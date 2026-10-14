@@ -5765,6 +5765,8 @@ function buildStation(id, name, k, off) {
   const cust = buildPerson(['#ff7ac8', '#3fa7ff', '#ffd23f'][k % 3]), cu = s2w(s, -3.3, -4.0); cust.root.position.set(cu.x, s.y + 0.22, cu.z); cust.root.rotation.y = s.yaw - Math.PI / 2; scene.add(cust.root);
   circles.push({ x: cu.x, z: cu.z, r: 0.4, h: 2, y0: s.y });
   st.npcs = [clerk, cust];
+  // two posts in front of the door: you walk in, the car stays outside
+  for (const sx of [-0.75, 0.75]) { part(g, cyl(0.16, 0.16, 1.0, 10), toon(0xffd23f), sx, 0.5, zc + D / 2 + 1.0, 0.03); const q = s2w(s, sx, zc + D / 2 + 1.0); circles.push({ x: q.x, z: q.z, r: 0.18, h: 1.0, y0: s.y }); }
   solid(s, -W / 2, zc - D / 2, W / 2, zc - D / 2 + 0.4, H);
   solid(s, -W / 2, zc - D / 2, -W / 2 + 0.4, zc + D / 2, H);
   solid(s, W / 2 - 0.4, zc - D / 2, W / 2, zc + D / 2, H);
