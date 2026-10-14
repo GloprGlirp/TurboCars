@@ -22,7 +22,7 @@ const INTAKES = ['stock', 'cai', 'ram', 'itb'];
 const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5', 'kagero', 'kagerow'];
 const TYRES = ['street', 'sport', 'drift', 'semi', 'slick'];
 const PARTS = { g: ['stock', 'short', 'long'], k: ['stock', 's1', 's2'], c: ['stock', 'rad', 'ic', 'full', 'ice'], p: ['stock', 'pist', 'rods', 'built', 'ti'], z: ['stock', 'irid', 'cold'], b: ['stock', 'pads', 'bbk', 'race'], x: ['stock', 's1', 's2', 'pro', 'bm'] };
-const LOOK = { kit: ['stock', 'street', 'wide'], wing: ['none', 'duck', 'gt', 'big'], stk: ['none', 'banner', 'hashiri', 'num', 'kings', 'devils', 'tengu'] };
+const LOOK = { pl: ['lit', 'off'], kit: ['stock', 'street', 'wide'], wing: ['none', 'duck', 'gt', 'big'], stk: ['none', 'banner', 'hashiri', 'num', 'kings', 'devils', 'tengu'] };
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
 // ---------- word filter for usernames and chat (German + English) ----------

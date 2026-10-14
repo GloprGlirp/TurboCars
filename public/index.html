@@ -521,6 +521,8 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="label">Custom licence plate · $250</div>
       <div class="platerow"><input type="text" id="plateIn" maxlength="8" autocomplete="off" spellcheck="false" placeholder="GLOP 99"><button class="btn small" id="bPlate" type="button">Register</button></div>
       <p class="hint" id="plateHint">Up to 8 letters, numbers, spaces or dashes.</p>
+      <div class="label">Plate light</div>
+      <div class="row" id="plateLight"></div>
     </div>
     <div data-pane="mine" hidden>
       <div class="label" id="myCarsLabel">Your cars</div>
@@ -1071,7 +1073,7 @@ function sanitizeCar(o, keepId) {
   { const e = o.ecu && typeof o.ecu === 'object' ? o.ecu : {}; c.ecu = { boost: clamp(num(e.boost, 0), -1.25, 1.25), timing: clamp(num(e.timing, 0), -1.25, 1.25), rev: clamp(num(e.rev, 0), -1.25, 1.25) }; }
   c.wear = clamp(num(o.wear, 0), 0, 1);
   const lk = o.look && typeof o.look === 'object' ? o.look : {};
-  c.look = { kit: KITS.some(x => x.id === lk.kit) ? lk.kit : 'stock', wing: WINGS.some(x => x.id === lk.wing) ? lk.wing : 'none', stk: STICKERS.some(x => x.id === lk.stk) ? lk.stk : 'none' };
+  c.look = { pl: lk.pl === 'off' ? 'off' : 'lit', kit: KITS.some(x => x.id === lk.kit) ? lk.kit : 'stock', wing: WINGS.some(x => x.id === lk.wing) ? lk.wing : 'none', stk: STICKERS.some(x => x.id === lk.stk) ? lk.stk : 'none' };
   c.lookOwn = Array.isArray(o.lookOwn) ? o.lookOwn.filter(x => typeof x === 'string' && /^[a-z]{2,5}:[a-z0-9]{1,10}$/.test(x)).slice(0, 40) : [];
   const pl = cleanPlate(o.plate); c.plate = pl && !nameIsBad(pl) ? pl : '';
   c.fuel = clamp(num(o.fuel, 1), 0, 1); c.oct = clamp(num(o.oct, 95), 95, 98);
@@ -2879,8 +2881,9 @@ const tyre = (r, w, open) => geo('ty' + r + ',' + w + (open ? 'o' : ''), () => {
 // number plates: Japanese layout, small region line on top and the owner's text below
 const PLATE_DEF = ['PI 21-07', 'PI 48-19', 'PI 33-86', 'PI 13-20', 'PI 77-01', 'PI 90-42', 'PI 26-58', 'PI 64-11'];
 function cleanPlate(t) { return String(t == null ? '' : t).toUpperCase().replace(/[^A-Z0-9 \-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 8); }
-function plateMat(text) {
+function plateMat(text, lit) {
   text = cleanPlate(text) || PLATE_DEF[0];
+  if (lit === false) return geo('plateD:' + text, () => new THREE.MeshToonMaterial({ map: plateMat(text, true).map, gradientMap: gradTex }));
   return geo('plateM:' + text, () => new THREE.MeshBasicMaterial({ map: canvasTex(256, 100, (c, w, h) => {
     c.fillStyle = '#f4f2ea'; roundRect(c, 2, 2, w - 4, h - 4, 10); c.fill(); c.strokeStyle = '#2c6a3e'; c.lineWidth = 4; roundRect(c, 5, 5, w - 10, h - 10, 8); c.stroke();
     c.fillStyle = '#2c6a3e'; c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -2888,8 +2891,8 @@ function plateMat(text) {
     c.font = '48px "Lilita One", "Arial Black", sans-serif'; c.fillText(text, w / 2, 66, w - 26);
   }) }));
 }
-const lookCode = l => l ? [l.kit, l.wing, l.stk].join('.') : '';
-function lookDecode(str) { const a = String(str || '').split('.'); return { kit: KITS.some(x => x.id === a[0]) ? a[0] : 'stock', wing: WINGS.some(x => x.id === a[1]) ? a[1] : 'none', stk: STICKERS.some(x => x.id === a[2]) ? a[2] : 'none' }; }
+const lookCode = l => l ? [l.kit, l.wing, l.stk, l.pl === 'off' ? 'o' : ''].join('.') : '';
+function lookDecode(str) { const a = String(str || '').split('.'); return { pl: a[3] === 'o' ? 'off' : 'lit', kit: KITS.some(x => x.id === a[0]) ? a[0] : 'stock', wing: WINGS.some(x => x.id === a[1]) ? a[1] : 'none', stk: STICKERS.some(x => x.id === a[2]) ? a[2] : 'none' }; }
 function stickerTex(id) {
   return canvasTex(256, 172, (c, w, h) => {
     c.clearRect(0, 0, w, h); c.textAlign = 'center'; c.textBaseline = 'middle';
@@ -2964,12 +2967,12 @@ function buildSleek(bodyId, S, def, add, M) {
   const LW = S.lamp === 'round' ? [0.36, 0.36] : S.lamp === 'slit' ? [0.6, 0.13] : [0.5, 0.22];
   const ly = S.nose - Math.max(K.rn, 0.12) * 0.75, ty = S.tail - Math.max(K.rt, 0.12) * 0.8, lx = S.W / 2 - 0.16 - LW[0] / 2;
   const bar = has('tailbar') || S.look === 'super';
-  const plateM = plateMat(M.plate);
+  const plateM = plateMat(M.plate, (M.look || {}).pl !== 'off');
   const plate = (y, z, back) => { const m = add(geo('plateG2', () => new THREE.PlaneGeometry(0.44, 0.17)), plateM, 0, y, z, 0); m.castShadow = false; if (back) m.rotation.y = Math.PI; return m; };
   // where the nose / tail surface sits at height y, and how far it leans back there
   const faceAt = (y, front) => {
     const T = front ? K.top : K.top.slice().reverse(), z0 = front ? K.zF : K.zR;
-    for (let k = 1; k < T.length; k++) { const p = T[k - 1], q = T[k]; if ((y - p[1]) * (y - q[1]) <= 0 && Math.abs(q[1] - p[1]) > 1e-4) { const t = (y - p[1]) / (q[1] - p[1]); return [lerp(p[0], q[0], t), Math.atan2(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1]))]; } }
+    for (let k = 1; k < T.length; k++) { const p = T[k - 1], q = T[k]; if (front ? p[0] < 0 : p[0] > 0) break; if ((y - p[1]) * (y - q[1]) <= 0 && Math.abs(q[1] - p[1]) > 1e-4) { const t = (y - p[1]) / (q[1] - p[1]); return [lerp(p[0], q[0], t), Math.atan2(Math.abs(q[0] - p[0]), Math.abs(q[1] - p[1]))]; } }
     return [z0, 0];
   };
   const pz = K.pf(K.zF - 0.05);
@@ -3016,7 +3019,7 @@ function buildSleek(bodyId, S, def, add, M) {
   if (S.look === 'classic') {
     for (const z of [K.zF - 0.06, K.zR + 0.06]) addS(rbox(S.W - 0.08, 0.22, 0.34, 0.09), GREY, 0, S.gc + 0.3, z, 0.03);
     add(rbox(S.W * 0.34, Math.min(0.24, (S.nose - S.gc) * 0.3), 0.1, 0.04), DARK, 0, lerp(S.gc + 0.42, ly, 0.55), K.zF - 0.01, 0);
-    plate(S.gc + 0.3, K.zF + 0.115); plate(S.gc + 0.3, K.zR - 0.115, true);
+    plate(S.gc + 0.3, K.zR - 0.115, true);
   } else {
     const MESH = toon(0x101018), sup = S.look === 'super', mod = S.look === 'modern';
     // front: slim upper grille between the lamps, a wide lower intake with a plate on it, fog lamps and a lip
@@ -3024,14 +3027,13 @@ function buildSleek(bodyId, S, def, add, M) {
     const iy = S.gc + 0.17, iz = faceAt(iy, true)[0];
     add(rbox(S.W * 0.62 * pz, 0.15, 0.06, 0.05), MESH, 0, iy, iz - 0.012, 0);
     for (const s of [-1, 1]) { const f = add(cyl(0.045, 0.045, 0.03, 12), sup ? MESH : LIGHT, s * S.W * 0.36 * pz, iy, iz - 0.005, 0); f.rotation.x = Math.PI / 2; }
-    if (!sup) plate(iy + 0.005, iz + 0.025);
     addS(rbox(S.W * pz - 0.12, 0.045, 0.34, 0.02), DARK, 0, S.gc + 0.02, K.zF - 0.14, 0.015);
     // sills between the wheels
     if (K.arches.length >= 2) { const zr = K.arches[0][0] + K.arches[0][2] + 0.04, zf = K.arches[K.arches.length - 1][0] - K.arches[K.arches.length - 1][2] - 0.04; if (zf - zr > 0.6) for (const s of [-1, 1]) add(rbox(0.07, 0.09, zf - zr, 0.03), DARK, s * (S.W / 2 * K.vf(S.gc + 0.06) - 0.01), S.gc + 0.05, (zf + zr) / 2, 0); }
     // rear: plate recess, diffuser with fins, reflectors
     const ry = S.gc + (S.tail - S.gc) * 0.52, rz = faceAt(ry, false)[0];
-    add(rbox(0.5, 0.21, 0.04, 0.03), MESH, 0, ry, rz + 0.008, 0);
-    plate(ry, rz - 0.018, true);
+    add(rbox(0.5, 0.21, 0.04, 0.03), MESH, 0, ry, rz - 0.095, 0);
+    plate(ry, rz - 0.118, true);
     add(rbox(S.W * 0.7, 0.14, 0.3, 0.04), MESH, 0, S.gc + 0.1, K.zR + 0.12, 0);
     for (let k = -2; k <= 2; k++) add(rbox(0.025, 0.12, 0.26, 0.01), DARK, k * S.W * 0.12, S.gc + 0.06, K.zR + 0.1, 0);
     for (const s of [-1, 1]) add(rbox(0.16, 0.04, 0.03, 0.01), TAIL, s * S.W * 0.4 * K.pf(K.zR), S.gc + 0.2, faceAt(S.gc + 0.2, false)[0] + 0.005, 0);
@@ -3345,9 +3347,8 @@ function buildGlbBody(bodyId, S, def, add, M) {
     const fg = geo('flare' + r0 + ',' + w0, () => { const F = [], ro = r0 + 0.24, ri = r0 + 0.07; for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ro, Math.sin(a) * ro]); } for (let k = 10; k >= 0; k--) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ri, Math.sin(a) * ri]); } return extrudeX(F, w0 + 0.16, 0.08, 0.04, 2); });
     outlineShell(add(fg, P, x + Math.sign(x) * 0.04, r0, z, 0), 0.03);
   }
-  // number plates, front and back
-  const plateM = plateMat(M.plate), pg = geo('plateG2', () => new THREE.PlaneGeometry(0.44, 0.17));
-  const fp = add(pg, plateM, 0, S.plateF[0], S.plateF[1], 0); fp.castShadow = false;
+  // number plate at the back
+  const plateM = plateMat(M.plate, LK.pl !== 'off'), pg = geo('plateG2', () => new THREE.PlaneGeometry(0.44, 0.17));
   const rp = add(pg, plateM, 0, S.plateR[0], S.plateR[1], 0); rp.rotation.y = Math.PI; rp.castShadow = false;
   if (LK.stk && LK.stk !== 'none') {
     const sm = geo('stk:' + LK.stk, () => new THREE.MeshBasicMaterial({ map: stickerTex(LK.stk), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
@@ -4373,6 +4374,12 @@ function renderGarage() {
   { const ci = $('carInfo'); ci.textContent = ''; const pi = perfIndex(st), pw = carPower(ac());
     ci.append(classBadge(pi), el('span', '', pw.hp + ' hp · ' + pw.kg + ' kg · ' + (pw.hp / pw.kg * 1000).toFixed(0) + ' hp/t'), el('span', '', 'Fuel ' + Math.round((ac().fuel ?? 1) * 100) + '% · ' + Math.round(ac().oct || 95) + ' octane')); }
   if (document.activeElement !== $('plateIn')) $('plateIn').value = ac().plate || '';
+  { const box = $('plateLight'), car = ac(); car.look = car.look || {}; box.textContent = '';
+    for (const [id, name] of [['lit', 'Lit up'], ['off', 'Plain, dark at night']]) {
+      const on = (car.look.pl === 'off' ? 'off' : 'lit') === id;
+      const b = btn(name, on ? '' : 'alt', () => { car.look.pl = id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage(); });
+      b.setAttribute('aria-pressed', String(on)); box.append(b);
+    } }
   const sb = $('statBars'); sb.textContent = '';
   statBar(sb, 'Top speed', st.top / STAT_MAX.top, Math.round(st.top * SPEED_UNIT) + '');
   statBar(sb, 'Acceleration', st.accel * (1 + st.boostAcc) / STAT_MAX.accel, (st.accel * (1 + st.boostAcc)).toFixed(0));
