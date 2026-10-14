@@ -3157,7 +3157,12 @@ function glbPrepare(root) {
 }
 function loadGlbCars() {
   const files = [...new Set(Object.values(CAR_SPECS).filter(s => s.glbFile).map(s => s.glbFile))];
-  Promise.all(files.map(f => fetch(f).then(r => { if (!r.ok) throw new Error(f + ' ' + r.status); return r.arrayBuffer(); }).then(parseGLB)))
+  // the .glb itself, or (where only text files can be hosted) the same file as base64 next to it
+  const isGlb = b => b.byteLength > 12 && new DataView(b).getUint32(0, true) === 0x46546c67;
+  const get = f => fetch(f).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null).then(b => b && isGlb(b) ? b :
+    fetch(f + '.b64.txt').then(r => { if (!r.ok) throw new Error(f + ' not found'); return r.text(); })
+      .then(t => { const bin = atob(t.trim()), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }));
+  Promise.all(files.map(f => get(f).then(parseGLB)))
     .then(roots => { const all = new THREE.Group(); for (const r of roots) all.add(r); all.updateMatrixWorld(true); glbPrepare(all); glbSwap(); })
     .catch(e => console.warn('car models not loaded, using stand-ins', e));
 }
