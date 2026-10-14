@@ -802,6 +802,8 @@ const BODIES = [
   { id: 'yoru', name: 'Yoru RS', cls: 'JDM sports car', cost: 6500, s: { top: 1.2, accel: 1.18, grip: 1.08, turn: 1.2, drift: 1.28 } },
   { id: 'raijin', name: 'Raijin GT-4', cls: 'JDM AWD legend', cost: 9500, s: { top: 1.28, accel: 1.3, grip: 1.26, turn: 1.04, drift: 1.0, drive: 'awd' } },
   { id: 'arashi', name: 'Arashi WRS', cls: 'JDM rally sedan', cost: 7200, s: { top: 1.22, accel: 1.28, grip: 1.24, turn: 1.12, drift: 1.04, drive: 'awd', offroad: true } },
+  { id: 'falke4', name: 'Falke S4', cls: 'Euro sport sedan', cost: 8800, s: { top: 1.27, accel: 1.3, grip: 1.2, turn: 1.04, drift: 1.2 } },
+  { id: 'falke2', name: 'Falke C2', cls: 'Euro sport coupe', cost: 9400, s: { top: 1.28, accel: 1.32, grip: 1.22, turn: 1.08, drift: 1.24 } },
   // barn finds: never sold, only found abandoned somewhere on the map
   { id: 'oni', name: 'Oni Group-R', cls: 'Barn find · rally legend', cost: 16000, find: 1, s: { top: 1.3, accel: 1.42, grip: 1.36, turn: 1.14, drift: 1.06, drive: 'awd', offroad: true } },
   { id: 'kaminari', name: 'Kaminari TT', cls: 'Barn find · twin-turbo coupe', cost: 18000, find: 1, s: { top: 1.4, accel: 1.36, grip: 1.24, turn: 1.12, drift: 1.32 } },
@@ -814,7 +816,7 @@ const KITS = [{ id: 'stock', name: 'Factory body', cost: 0 }, { id: 'street', na
 const WINGS = [{ id: 'none', name: 'No added wing', cost: 0 }, { id: 'duck', name: 'Ducktail spoiler', cost: 300 }, { id: 'gt', name: 'GT wing', cost: 750 }, { id: 'big', name: 'Big swan-neck wing', cost: 1300 }];
 const STICKERS = [{ id: 'none', name: 'No stickers', cost: 0 }, { id: 'banner', name: 'Windscreen banner', cost: 120 }, { id: 'hashiri', name: 'Hashiriya side decal', cost: 200 }, { id: 'num', name: 'Race number roundels', cost: 250 }, { id: 'kings', name: 'Neon Kings crew decal', cost: 0, crew: 'downtown' }, { id: 'devils', name: 'Dust Devils crew decal', cost: 0, crew: 'farm' }, { id: 'tengu', name: 'Tengu Club crew decal', cost: 0, crew: 'mountain' }];
 // kerb weight per car (kg): with acceleration this gives the power and power-to-weight shown in the garage
-const KG = { mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
+const KG = { falke4: 1640, falke2: 1610, mini: 780, bubble: 1050, brick: 1250, zippy: 980, van: 1650, buggy: 820, koi: 950, kaze: 1150, pickup: 1800, muscle: 1550, truck: 2600, falcon: 1450, cruiser: 1700, tempest: 1300, vento: 1350, rocket: 1200, hatch: 1180, sedan: 1500, suv: 1900, coupe: 1400, gt: 1550, super: 1450, kitsune: 960, hikari: 1220, sakura: 1420, yoru: 1280, raijin: 1480, arashi: 1290, oni: 1250, kaminari: 1420, hakone: 1080, shogun: 1300, tanuki: 720 };
 const BODY = Object.fromEntries(BODIES.map(b => [b.id, b]));
 const UPGRADES = [
   { id: 'engine', name: 'Engine', d: 'Raises top speed' },
@@ -871,7 +873,7 @@ const UNLOCK = {
   i: { t38: 4, c30: 7, t52: 9, tsb: 11, t68: 15, h76: 22 },
   a: { cai: 2, ram: 6, itb: 13 },
   w: { star: 2, dish: 4, knob: 6, aero: 8, kagero: 9, kagerow: 9, mesh: 10, split: 12, slick: 14, y5: 16 },
-  car: { brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
+  car: { falke4: 18, falke2: 19, brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
 };
 const UP_LVL = [1, 4, 8, 13, 19];
 const MAX_PLAYER_LVL = 50, XP_CAP = 1e9, MONEY_CAP = 1e9;
@@ -2531,9 +2533,11 @@ const BODY_DEF = {
   suv: { wheels: [[0.88, 1.5, 0.45, 0.46, 1], [-0.88, 1.5, 0.45, 0.46, 1], [0.88, -1.5, 0.45, 0.46, 0], [-0.88, -1.5, 0.45, 0.46, 0]], back: -2.4, exhaustY: 0.6 },
   coupe: { wheels: [[0.87, 1.38, 0.4, 0.46, 1], [-0.87, 1.38, 0.4, 0.46, 1], [0.86, -1.38, 0.41, 0.48, 0], [-0.86, -1.38, 0.41, 0.48, 0]], back: -2.3, exhaustY: 0.4 },
   gt: { wheels: [[0.88, 1.55, 0.41, 0.44, 1], [-0.88, 1.55, 0.41, 0.44, 1], [0.86, -1.45, 0.42, 0.5, 0], [-0.86, -1.45, 0.42, 0.5, 0]], back: -2.4, exhaustY: 0.38 },
+  falke4: { wheels: [[0.8065, 1.547, 0.343, 0.276, 1], [-0.8065, 1.547, 0.343, 0.276, 1], [0.8065, -1.31, 0.343, 0.276, 0], [-0.8065, -1.31, 0.343, 0.276, 0]], back: -2.38, exhaustY: 0.26 },
+  falke2: { wheels: [[0.7985, 1.547, 0.343, 0.276, 1], [-0.7985, 1.547, 0.343, 0.276, 1], [0.7985, -1.31, 0.343, 0.276, 0], [-0.7985, -1.31, 0.343, 0.276, 0]], back: -2.38, exhaustY: 0.26 },
   super: { wheels: [[0.9, 1.45, 0.4, 0.46, 1], [-0.9, 1.45, 0.4, 0.46, 1], [0.86, -1.4, 0.42, 0.54, 0], [-0.86, -1.4, 0.42, 0.54, 0]], back: -2.35, exhaustY: 0.38 },
 };
-const HOOD = { arashi: [1, 1.5], oni: [1, 1.5], kaminari: [1, 1.4], hakone: [1, 1.4], shogun: [1, -1.5], tanuki: [1, 1.15], kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
+const HOOD = { falke4: [1, 1.45], falke2: [1, 1.45], arashi: [1, 1.5], oni: [1, 1.5], kaminari: [1, 1.4], hakone: [1, 1.4], shogun: [1, -1.5], tanuki: [1, 1.15], kitsune: [1, 1.4], hikari: [1, 1.2], sakura: [1, 1.6], yoru: [1, 1.15], raijin: [1, 1.3], hatch: [1, 1.45], sedan: [1, 1.65], suv: [1, 1.6], coupe: [1, 1.35], gt: [1, 1.45], super: [1, -1.55], mini: [1.3, 1.0], brick: [1.42, 1.6], van: [1.57, 1.85], koi: [1.1, 1.15], pickup: [1.5, 1.8], cruiser: [1.27, 1.7], tempest: [1.3, 1.5], rocket: [0.98, -1.6], bubble: [1.42, 1.25], buggy: [1.2, -1.55], muscle: [1.2, 1.25], truck: [2.45, 1.45], zippy: [1.33, 1.15], kaze: [1.06, 1.4], falcon: [1.02, 1.5], vento: [1.12, -1.45] };
 // wheels: a tyre around a rim face on each side, with brake discs and calipers showing through the spokes
 function addRim(wh, W, r, w, lite) {
   const rim = toon(W.rim), dk = toon(0x2b2d42);
@@ -2612,6 +2616,13 @@ const CAR_SPECS = {
   coupe: { L: 4.6, W: 2.1, gc: 0.3, sh: 0.98, nose: 0.78, tail: 0.98, hoodZ: 0.65, deckZ: -1.45, roof: 1.45, roofF: 0.0, roofR: -0.85, cabW: 1.74, look: 'sport', x: ['wing2'] },
   gt: { L: 4.85, W: 2.1, gc: 0.28, sh: 1.0, nose: 0.8, tail: 0.96, hoodZ: 0.3, deckZ: -1.7, roof: 1.4, roofF: -0.4, roofR: -1.05, cabW: 1.7, look: 'sport', lamp: 'slit', x: ['ducktail', 'vents', 'tailbar'] },
   super: { L: 4.7, W: 2.16, gc: 0.26, sh: 0.9, nose: 0.56, tail: 0.96, hoodZ: 0.7, deckZ: -1.1, roof: 1.25, roofF: 0.15, roofR: -0.55, cabW: 1.6, flares: 1, look: 'super', lamp: 'slit', x: ['ducktail'] },
+  // modelled cars from cars/*.glb (a stand-in body is shown for the second it takes to load)
+  falke4: { L: 4.794, W: 1.903, gc: 0.14, sh: 0.955, nose: 0.84, tail: 0.86, hoodZ: 0.95, deckZ: -1.58, roof: 1.433, roofF: 0.05, roofR: -0.78, cabW: 1.3, look: 'modern', doors: 4,
+    glb: 'Falke4', glbFile: 'cars/falke.glb', stand: 'sedan', screen: [0.95, 0.05], door: [0.93, 0.62, 0.42], plateF: [0.27, 2.409], plateR: [0.6, -2.418],
+    top: [[-2.397, 0.86], [-2.367, 0.95], [-2.3, 1.005], [-2.15, 1.02], [-1.58, 1.0], [-1.18, 1.25], [-0.78, 1.425], [-0.35, 1.433], [0.05, 1.425], [0.5, 1.19], [0.95, 0.905], [1.3, 0.875], [1.6, 0.85], [1.9, 0.81], [2.1, 0.77], [2.247, 0.735], [2.337, 0.685], [2.377, 0.635], [2.397, 0.6]] },
+  falke2: { L: 4.794, W: 1.887, gc: 0.14, sh: 0.955, nose: 0.84, tail: 0.86, hoodZ: 0.95, deckZ: -1.85, roof: 1.393, roofF: -0.02, roofR: -0.62, cabW: 1.3, look: 'modern',
+    glb: 'Falke2', glbFile: 'cars/falke.glb', stand: 'coupe', screen: [0.95, -0.02], door: [0.925, 0.62, 0.2], plateF: [0.27, 2.409], plateR: [0.6, -2.418],
+    top: [[-2.397, 0.86], [-2.367, 0.95], [-2.3, 1.005], [-2.15, 1.02], [-1.85, 1.0], [-1.3, 1.24], [-0.62, 1.385], [-0.3, 1.393], [-0.02, 1.385], [0.47, 1.17], [0.95, 0.905], [1.3, 0.875], [1.6, 0.85], [1.9, 0.81], [2.1, 0.77], [2.247, 0.735], [2.337, 0.685], [2.377, 0.635], [2.397, 0.6]] },
   truck: { L: 4.25, W: 2.4, gc: 1.45, sh: 2.5, nose: 2.35, tail: 2.5, hoodZ: 1.05, deckZ: -0.55, roof: 3.5, roofF: 0.85, roofR: -0.5, cabW: 2.12, noArch: 1, flares: 1, look: 'classic', x: ['bed', 'monster'] },
 };
 // builds (once per body style) the rounded body, glass cabin and roof panel
@@ -3034,8 +3045,192 @@ function mergeByMaterialSlow(group, victims, inv, buckets) {
     out.computeBoundingSphere(); const m = new THREE.Mesh(out, mat); m.castShadow = b.shadow; group.add(m);
   }
 }
+// ---- cars made in Blender or by script: .glb files in cars/, loaded once and turned into toon parts ----
+// glTF: metres, y up, nose towards +z, wheels named Wheel_FL/FR/RL/RR, add-ons in groups named Mod_<Name>.
+function parseGLB(buf) {
+  const dv = new DataView(buf);
+  if (dv.getUint32(0, true) !== 0x46546c67) throw new Error('not a .glb file');
+  const jlen = dv.getUint32(12, true), json = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, jlen))), bin = 20 + jlen + 8;
+  const TY = { 5126: Float32Array, 5125: Uint32Array, 5123: Uint16Array, 5121: Uint8Array }, N = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+  const acc = i => {
+    const a = json.accessors[i], v = json.bufferViews[a.bufferView], T = TY[a.componentType], n = N[a.type], es = T.BYTES_PER_ELEMENT;
+    const off = bin + (v.byteOffset || 0) + (a.byteOffset || 0), st = v.byteStride || n * es;
+    if (st === n * es) return new T(buf.slice(off, off + a.count * n * es));
+    const out = new T(a.count * n);   // interleaved data: copy it out element by element
+    for (let k = 0; k < a.count; k++) out.set(new T(buf.slice(off + k * st, off + k * st + n * es)), k * n);
+    return out;
+  };
+  const mats = (json.materials || []).map(m => ({ name: m.name || '', color: (m.pbrMetallicRoughness && m.pbrMetallicRoughness.baseColorFactor) || [1, 1, 1, 1], emissive: m.emissiveFactor || [0, 0, 0] }));
+  const meshes = (json.meshes || []).map(me => me.primitives.filter(p => p.mode == null || p.mode === 4).map(p => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(acc(p.attributes.POSITION), 3));
+    if (p.indices != null) { const ix = acc(p.indices); g.setIndex(new THREE.BufferAttribute(ix instanceof Uint8Array ? Uint16Array.from(ix) : ix, 1)); }
+    if (p.attributes.NORMAL != null) g.setAttribute('normal', new THREE.BufferAttribute(acc(p.attributes.NORMAL), 3)); else g.computeVertexNormals();
+    const m = new THREE.Mesh(g); m.userData.mat = mats[p.material] || { name: '', color: [1, 1, 1, 1], emissive: [0, 0, 0] }; return m;
+  }));
+  const nodes = (json.nodes || []).map(n => {
+    const o = new THREE.Group(); o.name = n.name || '';
+    if (n.matrix) new THREE.Matrix4().fromArray(n.matrix).decompose(o.position, o.quaternion, o.scale);
+    else { if (n.translation) o.position.fromArray(n.translation); if (n.rotation) o.quaternion.fromArray(n.rotation); if (n.scale) o.scale.fromArray(n.scale); }
+    if (n.mesh != null) for (const m of meshes[n.mesh]) o.add(m.parent ? m.clone() : m);
+    return o;
+  });
+  (json.nodes || []).forEach((n, i) => (n.children || []).forEach(c => nodes[i].add(nodes[c])));
+  const root = new THREE.Group();
+  for (const i of (json.scenes[json.scene || 0] || { nodes: [] }).nodes) root.add(nodes[i]);
+  root.updateMatrixWorld(true);
+  return root;
+}
+// which toon material each glTF material becomes
+function glbBucket(name) {
+  if (name.startsWith('Paint')) return 'paint';
+  if (name.startsWith('Rim')) return 'rim';
+  if (name.startsWith('Caliper')) return 'cal';
+  return { Glass: 'glass', Trim: 'trim', Light_Housing: 'trim', Black: 'black', Seam: 'black', Carbon: 'carbon', Chrome: 'metal', DarkChrome: 'metal', BrakeDisc: 'metal', Tire: 'tire', Light_Front: 'light', Light_Rear: 'tail', Light_RearGlass: 'tailglass', glass: 'glass', paint: 'paint', trim: 'trim', chrome: 'metal', light_front: 'light', light_rear: 'tail', plate: 'black' }[name] || 'trim';
+}
+// bake every mesh under a node into one indexed geometry per bucket, in the space of `inv`
+function glbCollect(node, inv, skip, remap) {
+  const lists = new Map();
+  node.traverse(o => {
+    if (!o.isMesh) return;
+    for (let p = o; p && p !== node; p = p.parent) if (skip && skip(p)) return;
+    let b = glbBucket(o.userData.mat.name); if (remap) b = remap(b);
+    const g = o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+    if (o.matrixWorld.determinant() * inv.determinant() < 0 && g.index) { const ix = g.index.array; for (let k = 0; k < ix.length; k += 3) { const t = ix[k + 1]; ix[k + 1] = ix[k + 2]; ix[k + 2] = t; } }
+    if (!lists.has(b)) lists.set(b, { geos: [], color: o.userData.mat.color }); lists.get(b).geos.push(g);
+  });
+  const out = new Map();
+  for (const [b, { geos, color }] of lists) {
+    let nv = 0, ni = 0; for (const g of geos) { nv += g.attributes.position.count; ni += g.index ? g.index.count : g.attributes.position.count; }
+    const P = new Float32Array(nv * 3), Nn = new Float32Array(nv * 3), I = new Uint32Array(ni); let v = 0, i = 0;
+    for (const g of geos) {
+      P.set(g.attributes.position.array, v * 3); Nn.set(g.attributes.normal.array, v * 3);
+      const c = g.attributes.position.count;
+      if (g.index) for (const x of g.index.array) I[i++] = x + v; else for (let k = 0; k < c; k++) I[i++] = k + v;
+      v += c;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(Nn, 3)); g.setIndex(new THREE.BufferAttribute(I, 1));
+    g.computeBoundingBox(); g.computeBoundingSphere();
+    out.set(b, { geo: g, hex: new THREE.Color(color[0], color[1], color[2]).convertLinearToSRGB().getHex() });
+  }
+  return out;
+}
+// an outline shell: every point pushed out along the averaged normal of all faces that touch that spot
+function glbHull(parts, t) {
+  let nv = 0, ni = 0; for (const { geo: g } of parts) { nv += g.attributes.position.count; ni += g.index.count; }
+  const P = new Float32Array(nv * 3), I = new Uint32Array(ni), key = new Map(), id = new Int32Array(nv);
+  let v = 0, i = 0;
+  for (const { geo: g } of parts) { P.set(g.attributes.position.array, v * 3); for (const x of g.index.array) I[i++] = x + v; v += g.attributes.position.count; }
+  for (let k = 0; k < nv; k++) { const kk = Math.round(P[k * 3] * 500) + ',' + Math.round(P[k * 3 + 1] * 500) + ',' + Math.round(P[k * 3 + 2] * 500); if (!key.has(kk)) key.set(kk, key.size); id[k] = key.get(kk); }
+  const acc = new Float32Array(key.size * 3), a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let k = 0; k < ni; k += 3) {
+    const [p, q, r] = [I[k], I[k + 1], I[k + 2]];
+    a.fromArray(P, p * 3); b.fromArray(P, q * 3).sub(a); c.fromArray(P, r * 3).sub(a); b.cross(c);   // area-weighted face normal
+    for (const x of [p, q, r]) { acc[id[x] * 3] += b.x; acc[id[x] * 3 + 1] += b.y; acc[id[x] * 3 + 2] += b.z; }
+  }
+  const out = new Float32Array(nv * 3);
+  for (let k = 0; k < nv; k++) { a.fromArray(acc, id[k] * 3).normalize(); out[k * 3] = P[k * 3] + a.x * t; out[k * 3 + 1] = P[k * 3 + 1] + a.y * t; out[k * 3 + 2] = P[k * 3 + 2] + a.z * t; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(out, 3)); g.setIndex(new THREE.BufferAttribute(I, 1)); g.computeBoundingSphere();
+  return g;
+}
+const GLB = { ready: false, cars: {} };
+const GLB_PENDING = [];
+function glbPrepare(root) {
+  for (const id of Object.keys(CAR_SPECS)) {
+    const S = CAR_SPECS[id]; if (!S.glb) continue;
+    const car = root.getObjectByName(S.glb); if (!car) continue;
+    car.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(car.matrixWorld).invert(), isWheel = o => /^Wheel_/.test(o.name), isMod = o => /^Mod_/.test(o.name);
+    const body = glbCollect(car, inv, o => isWheel(o) || isMod(o));
+    const cal = body.get('cal'); body.delete('cal');   // brake calipers belong to the wheels (they steer but don't spin)
+    const mods = {}; car.traverse(o => { if (isMod(o) && o.parent === car) mods[o.name.slice(4)] = glbCollect(o, inv); });
+    const fl = car.getObjectByName('Wheel_FL'), winv = fl ? new THREE.Matrix4().copy(fl.matrixWorld).invert() : null;
+    const wheel = fl ? glbCollect(fl, winv, null, b => b === 'black' ? 'tire' : b === 'tail' || b === 'light' ? 'metal' : b) : null;
+    if (cal && fl) { const g = cal.geo, p = g.attributes.position.array, c = new THREE.Vector3().setFromMatrixPosition(fl.matrixWorld).applyMatrix4(inv); const ix = g.index.array, keep = [];
+      // keep only the front-left caliper, moved to the wheel's own space
+      for (let k = 0; k < ix.length; k += 3) { const x = p[ix[k] * 3], z = p[ix[k] * 3 + 2]; if (x > 0 && Math.abs(z - c.z) < 0.6) keep.push(ix[k], ix[k + 1], ix[k + 2]); }
+      const g2 = g.clone(); g2.setIndex(new THREE.BufferAttribute(new Uint32Array(keep), 1)); g2.translate(-c.x, -c.y, -c.z); g2.computeBoundingSphere(); wheel.set('cal', { geo: g2, hex: cal.hex }); }
+    const shell = car.getObjectByName('Shell'), hullParts = shell ? [...glbCollect(shell, inv).values()] : [...body.values()];
+    GLB.cars[id] = { body, mods, wheel, hull: glbHull(hullParts, 0.026), tyreHull: wheel && wheel.get('tire') ? glbHull([wheel.get('tire')], 0.018) : null };
+  }
+  GLB.ready = true;
+}
+function loadGlbCars() {
+  const files = [...new Set(Object.values(CAR_SPECS).filter(s => s.glbFile).map(s => s.glbFile))];
+  Promise.all(files.map(f => fetch(f).then(r => { if (!r.ok) throw new Error(f + ' ' + r.status); return r.arrayBuffer(); }).then(parseGLB)))
+    .then(roots => { const all = new THREE.Group(); for (const r of roots) all.add(r); all.updateMatrixWorld(true); glbPrepare(all); glbSwap(); })
+    .catch(e => console.warn('car models not loaded, using stand-ins', e));
+}
+// cars built before the files arrived used a stand-in body; swap in the real one where they stand
+function glbSwap() {
+  for (const m of GLB_PENDING.splice(0)) {
+    const [args, nm, lite] = m.__glb, old = m.root, par = old.parent, L0 = LITE, N0 = buildCar.noMerge;
+    LITE = lite; buildCar.noMerge = nm;
+    let n; try { n = buildCar(...args); } finally { LITE = L0; buildCar.noMerge = N0; }
+    for (const c of [...old.children]) if (!m.__own.has(c)) n.root.add(c);          // name tags, beeps and the like
+    for (const c of [...m.tilt.children]) if (!m.__ownT.has(c)) n.tilt.add(c);
+    n.root.position.copy(old.position); n.root.quaternion.copy(old.quaternion); n.root.scale.copy(old.scale); n.root.visible = old.visible;
+    n.tilt.position.copy(m.tilt.position); n.tilt.rotation.copy(m.tilt.rotation);
+    if (par) { par.remove(old); par.add(n.root); }
+    delete m.fpParts; delete m.fpWheel; delete m.eye; delete m.__glb; delete m.__own; delete m.__ownT;
+    Object.assign(m, n);
+  }
+  try { syncFp(); } catch (e) { /* not ready */ }
+}
+// the toon body of a glb car, plus the look chosen in the garage
+function buildGlbBody(bodyId, S, def, add, M) {
+  const T = GLB.cars[bodyId], { P, GLASS, DARK, GREY, LIGHT, TAIL } = M, LK = M.look || {};
+  const MAT = { paint: P, glass: toon(0x3d5f80), trim: toon(0x16161f), black: toon(0x101018), carbon: toon(0x2a2a33), metal: GREY, light: LIGHT, tail: TAIL, tailglass: toon(0x6a1424, { emissive: 0x3a0610 }), tire: DARK };
+  const put = parts => { for (const [b, { geo: g, hex }] of parts) add(g, MAT[b] || toon(hex), 0, 0, 0, 0); };
+  put(T.body);
+  if (!LITE) { const h = new THREE.Mesh(T.hull, OUTLINE); h.castShadow = false; M.tilt.add(h); }
+  const kit = LK.kit || 'stock', show = new Set();
+  if (kit !== 'stock') ['FrontLip', 'SideSkirts', 'Diffuser'].forEach(x => show.add(x));
+  if (kit === 'wide') ['FrontIntakes', 'Canards', 'HoodVents'].forEach(x => show.add(x));
+  if (LK.wing === 'gt' || LK.wing === 'big') show.add('Wing');
+  for (const x of show) if (T.mods[x]) put(T.mods[x]);
+  const surf = z => ylook(S.top, z);
+  if (LK.wing === 'duck') { const d = add(rbox(S.W - 0.42, 0.06, 0.3, 0.03), P, 0, surf(-2.2) + 0.04, -2.2, 0); d.rotation.x = 0.25; outlineShell(d, 0.02); }
+  if (kit === 'wide') for (const [x, z, r0, w0] of def.wheels) {
+    const fg = geo('flare' + r0 + ',' + w0, () => { const F = [], ro = r0 + 0.24, ri = r0 + 0.07; for (let k = 0; k <= 10; k++) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ro, Math.sin(a) * ro]); } for (let k = 10; k >= 0; k--) { const a = k / 10 * Math.PI; F.push([Math.cos(a) * ri, Math.sin(a) * ri]); } return extrudeX(F, w0 + 0.16, 0.08, 0.04, 2); });
+    outlineShell(add(fg, P, x + Math.sign(x) * 0.04, r0, z, 0), 0.03);
+  }
+  // number plates, front and back
+  const plateM = plateMat(M.plate), pg = geo('plateG2', () => new THREE.PlaneGeometry(0.44, 0.17));
+  const fp = add(pg, plateM, 0, S.plateF[0], S.plateF[1], 0); fp.castShadow = false;
+  const rp = add(pg, plateM, 0, S.plateR[0], S.plateR[1], 0); rp.rotation.y = Math.PI; rp.castShadow = false;
+  if (LK.stk && LK.stk !== 'none') {
+    const sm = geo('stk:' + LK.stk, () => new THREE.MeshBasicMaterial({ map: stickerTex(LK.stk), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+    if (LK.stk === 'banner') {
+      const [za, zb] = S.screen, ya = surf(za), yb = surf(zb), t = 0.86, ang = Math.atan2(yb - ya, za - zb);
+      const b = add(geo('bannerG', () => new THREE.PlaneGeometry(1, 0.16)), sm, 0, lerp(ya, yb, t) + 0.012, lerp(za, zb, t), 0); b.scale.x = 1.05; b.rotation.x = -(Math.PI / 2 - ang); b.castShadow = false;
+    } else for (const sd of [-1, 1]) { const p2 = add(geo('stkG', () => new THREE.PlaneGeometry(0.62, 0.42)), sm, sd * S.door[0], S.door[1], S.door[2], 0); p2.rotation.y = sd * Math.PI / 2; p2.castShadow = false; }
+  }
+  return { surf };
+}
+// factory wheel from the glb: tyre, rim, brake parts and caliper; right-hand wheels are mirrored
+function glbWheel(bodyId, x, front) {
+  const T = GLB.cars[bodyId].wheel, wh = new THREE.Group(), MAT = { tire: toon(0x22232e), metal: toon(0x8f8aa6) };
+  for (const [b, { geo: g, hex }] of T) {
+    if (b === 'cal') continue;
+    const m = new THREE.Mesh(g, MAT[b] || toon(hex)); m.castShadow = b === 'tire'; wh.add(m);
+  }
+  if (!LITE && GLB.cars[bodyId].tyreHull) wh.add(new THREE.Mesh(GLB.cars[bodyId].tyreHull, OUTLINE));
+  if (x < 0) wh.scale.x = -1;
+  let cal = null;
+  if (T.get('cal') && !LITE) { cal = new THREE.Mesh(T.get('cal').geo, toon(T.get('cal').hex)); if (x < 0) cal.scale.x = -1; }
+  return { wh, cal };
+}
+
 function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   tune = tune || DEFAULT_TUNE;
+  { const S0 = CAR_SPECS[bodyId];
+    if (S0 && S0.glb && !GLB.cars[bodyId]) {
+      // model file not here (yet): build the stand-in, and swap it once the file has loaded
+      const m = buildCar(S0.stand, paintHex, tune, neon, stance, plateText, look);
+      if (!GLB.ready) { m.__glb = [[bodyId, paintHex, tune, neon, stance, plateText, look], !!buildCar.noMerge, LITE]; m.__own = new Set(m.root.children); m.__ownT = new Set(m.tilt.children); GLB_PENDING.push(m); }
+      return m;
+    } }
   let def = BODY_DEF[bodyId] || BODY_DEF.bubble;
   const root = new THREE.Group();
   const tilt = new THREE.Group(); root.add(tilt);
@@ -3048,7 +3243,7 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
   let K = null;
   if (SP) {
     def = Object.assign({}, def, { back: -SP.L / 2 + 0.02, exhaustY: SP.gc + 0.12 });
-    K = buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText, look });
+    K = SP.glb ? buildGlbBody(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText, look, tilt }) : buildSleek(bodyId, SP, def, add, { P, GLASS, DARK, GREY, LIGHT, TAIL, plate: plateText, look });
   } else {
     add(rbox(2.0, 0.55, 3.7), P, 0, 0.95, 0, 1.05);
     add(rbox(1.4, 0.5, 1.1), DARK, 0, 1.45, -0.3, 1.06);
@@ -3064,9 +3259,11 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
     const r = r0 + (W.dr || 0), w = w0 * (W.dw || 1);
     const holder = new THREE.Group(); holder.position.set(x, r, z); holder.userData.wheel = true; wheelsG.add(holder);
     if (STANCE[stance] && STANCE[stance].camber) holder.rotation.z = Math.sign(x) * STANCE[stance].camber;
-    const wh = new THREE.Mesh(tyre(r, w, !LITE), DARK); wh.rotation.z = Math.PI / 2; wh.castShadow = true; outline(wh, 1.08); holder.add(wh);
-    addRim(wh, W, r, w, LITE);
-    if (!LITE) { const cal = new THREE.Mesh(rbox(0.1, r * 0.42, r * 0.34, 0.04), toon(W.cal || 0x8f8aa6)); cal.position.set(Math.sign(x) * Math.min(0.1, w * 0.2), r * 0.36, front ? -r * 0.2 : r * 0.2); holder.add(cal); }
+    const gw = SP && SP.glb && (tune.w || 'stock') === 'stock' ? glbWheel(bodyId, x, front) : null;
+    let wh;
+    if (gw) { wh = gw.wh; holder.add(wh); if (gw.cal) holder.add(gw.cal); }
+    else { wh = new THREE.Mesh(tyre(r, w, !LITE), DARK); wh.rotation.z = Math.PI / 2; wh.castShadow = true; outline(wh, 1.08); holder.add(wh); addRim(wh, W, r, w, LITE); }
+    if (!LITE && !gw) { const cal = new THREE.Mesh(rbox(0.1, r * 0.42, r * 0.34, 0.04), toon(W.cal || 0x8f8aa6)); cal.position.set(Math.sign(x) * Math.min(0.1, w * 0.2), r * 0.36, front ? -r * 0.2 : r * 0.2); holder.add(cal); }
     // tyre compound: a coloured line on the sidewall
     const Y = TYRE[tune.y]; if (Y && Y.ring && !LITE) { const ring = new THREE.Mesh(geo('tring' + r, () => new THREE.TorusGeometry(r * 0.86, 0.012, 5, 30)), toon(Y.ring)); ring.rotation.y = Math.PI / 2; ring.position.x = Math.sign(x) * (w / 2 + 0.003); holder.add(ring); }
     wheels.push({ mesh: wh, r }); if (front) steer.push(holder);
@@ -3077,7 +3274,9 @@ function buildCar(bodyId, paintHex, tune, neon, stance, plateText, look) {
     add(box(0.95, 0.42, 0.8), GREY, 0, hood[0] + 0.2, hood[1], 1.06);
     add(box(0.85, 0.3, 0.55), DARK, 0, hood[0] + 0.55, hood[1] + 0.05, 1.08);
   } else if (A.scoop) add(box(0.75, 0.26, 0.95), DARK, 0, hood[0] + 0.12, hood[1], 1.08);
-  for (let k = 0; k < E.tips; k++) {
+  // modelled cars bring their own tailpipes: only invisible markers for the backfire flames
+  if (SP && SP.glb) for (const tx of [-0.55, -0.42, 0.42, 0.55]) { const tp = new THREE.Object3D(); tp.position.set(tx, 0.255, -SP.L / 2 + 0.05); tp.userData.tip = true; tilt.add(tp); }
+  else for (let k = 0; k < E.tips; k++) {
     const tx = E.tips === 1 ? 0.6 : E.tips === 2 ? (k ? 0.55 : -0.55) : (k < 2 ? -1 : 1) * (0.42 + (k % 2) * 0.32);
     const tp = new THREE.Mesh(cyl(0.13, 0.13, 0.4, 10), GREY); tp.rotation.x = Math.PI / 2; tp.position.set(tx, def.exhaustY, def.back + 0.08); tp.userData.tip = true; tilt.add(tp);
   }
@@ -3146,6 +3345,7 @@ function rebuildPlayerModel() {
   try { syncFp(); } catch (e) { /* not set up yet */ }
   try { updateClassHud(); } catch (e) { /* hud not ready */ }
 }
+loadGlbCars();
 rebuildPlayerModel();
 const playerBeep = makeBeep(); playerModel.root.add(playerBeep);
 const headlight = new THREE.SpotLight(0xffeccc, 1.6, 80, 0.5, 0.9, 1.4); scene.add(headlight, headlight.target);
@@ -4276,7 +4476,7 @@ function classBotStats(targetPI) {
   const st = player.stats, s = Math.sqrt(targetPI / Math.max(60, perfIndex(st)));
   return botStats(Math.max(20, st.top * s), Math.max(12, st.accel * (1 + st.boostAcc * 0.6) * s));
 }
-const CLASS_CARS = [['mini', 'bubble', 'kitsune'], ['kaze', 'hatch', 'hikari'], ['falcon', 'tempest', 'sakura'], ['coupe', 'yoru', 'arashi'], ['raijin', 'gt', 'vento'], ['super', 'rocket', 'raijin'], ['super', 'rocket', 'vento']];
+const CLASS_CARS = [['mini', 'bubble', 'kitsune'], ['kaze', 'hatch', 'hikari'], ['falcon', 'tempest', 'sakura'], ['coupe', 'yoru', 'arashi', 'falke4'], ['raijin', 'gt', 'vento', 'falke2'], ['super', 'rocket', 'raijin'], ['super', 'rocket', 'vento']];
 function updateClassHud() { const pi = perfIndex(player.stats), k = classOf(pi), b = $('hudClass'); b.textContent = className(k); b.style.background = CLASS_COL[k]; b.title = 'Class ' + className(k) + ' · PI ' + pi; }
 function queuedList() {
   const list = [];
@@ -5307,7 +5507,7 @@ function walkStep(inp, dt) {
 // =====================================================================
 // Pebble Motors: display cars, the lot and the sales desk
 // =====================================================================
-const DISPLAY_CARS = ['raijin', 'super', 'yoru', 'hikari', 'arashi', 'kitsune'];
+const DISPLAY_CARS = ['raijin', 'super', 'yoru', 'hikari', 'arashi', 'falke2'];
 BEAMS = false;
 const displayModels = DISPLAY_CARS.map((id, k) => {
   const m = buildCar(id, PAINTS[[0, 8, 5, 4, 7, 1][k] % PAINTS.length].hex, { e: 'i4', i: 'na', a: 'stock', w: ['y5', 'aero', 'split', 'star', 'stock', 'mesh'][k], has: [] });
@@ -5974,7 +6174,7 @@ function harborSite() {
   part(g, rbox(46, 0.5, 0.6, 0.1), toon(0xffd23f), 0, 0.3, 16.8, 0);
   for (let k = -3; k <= 3; k++) part(g, cyl(0.25, 0.3, 0.6, 10), toon(0x2b2d42), k * 6.5, 0.3, 16.2, 0);
   const CC = [0xff4f5e, 0x3fa7ff, 0xffd23f, 0x3ddc97, 0xff9a3c, 0x9b6bff];
-  const stack = (lx, lz, n, rot) => { for (let k = 0; k < n; k++) { const c = part(g, rbox(6, 2.5, 2.4, 0.06), toon(CC[(Math.abs(lx * 7 + lz * 3) + k) % CC.length]), lx, 1.25 + k * 2.5, lz, 0.03); c.rotation.y = rot; } solid(s, lx - 3.2, lz - 1.4, lx + 3.2, lz + 1.4, n * 2.5); };
+  const stack = (lx, lz, n, rot) => { for (let k = 0; k < n; k++) { const c = part(g, rbox(6, 2.5, 2.4, 0.06), toon(CC[Math.floor(Math.abs(lx * 7 + lz * 3) + k) % CC.length]), lx, 1.25 + k * 2.5, lz, 0.03); c.rotation.y = rot; } solid(s, lx - 3.2, lz - 1.4, lx + 3.2, lz + 1.4, n * 2.5); };
   stack(-18, -12, 3, 0); stack(-18, -8.5, 2, 0); stack(-10, -14, 1, 0); stack(16, -12, 2, 0); stack(16, -8.5, 3, 0);
   // a dock crane
   for (const lx of [-6, 6]) for (const lz of [6, 14]) part(g, rbox(0.8, 16, 0.8, 0.1), toon(0xff9a3c), lx, 8, lz, 0);
@@ -6546,7 +6746,7 @@ const STREET = [
 ];
 const STREET_BY = Object.fromEntries(STREET.map(s => [s.id, s]));
 const CREW = ['Kaito', 'Ryo', 'Mika', 'Shin', 'Yuki', 'Daichi', 'Haru', 'Ren', 'Sora'];
-const CREW_CARS = ['hikari', 'kitsune', 'yoru', 'raijin', 'arashi', 'kaze', 'coupe', 'sakura', 'hikari'];
+const CREW_CARS = ['hikari', 'kitsune', 'yoru', 'raijin', 'arashi', 'kaze', 'coupe', 'sakura', 'hikari', 'falke4', 'falke2'];
 // headings, gates and the start grid for a route (the fixed ones and street duels made on the fly)
 function prepRoute(R) {
   const P = R.pts;

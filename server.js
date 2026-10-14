@@ -4,6 +4,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const zlib = require('zlib');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 
@@ -14,7 +15,7 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 
 // ---------- what a valid car looks like (mirrors the game) ----------
 const PAINTS = ['cherry', 'tangerine', 'lemon', 'mint', 'sky', 'grape', 'bubblegum', 'snow', 'midnight'];
-const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki'];
+const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki', 'falke4', 'falke2'];
 const ENGINES = ['i4', 'i5', 'v6', 'i6', 'v8', 'v10', 'v12'];
 const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
@@ -105,16 +106,28 @@ const listingsOut = () => Object.values(state.listings).sort((a, b) => b.at - a.
 const hashKey = k => crypto.createHash('sha256').update(String(k)).digest('hex');
 
 // ---------- static files ----------
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.glb': 'model/gltf-binary' };
+// files are gzipped once and kept in memory: the page and the car models load a lot faster
+const zcache = new Map();
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   if (urlPath === '/health') { res.writeHead(200, { 'content-type': 'text/plain' }); res.end('ok'); return; }
   const file = path.normalize(path.join(PUBLIC, urlPath === '/' ? 'index.html' : urlPath));
   if (!file.startsWith(PUBLIC)) { res.writeHead(403); res.end(); return; }
-  fs.readFile(file, (err, data) => {
-    if (err) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Not found'); return; }
-    res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' });
-    res.end(data);
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Not found'); return; }
+    const type = TYPES[path.extname(file)] || 'application/octet-stream', gz = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+    const hit = zcache.get(file);
+    const reply = e => {
+      const h = { 'content-type': type, 'cache-control': path.extname(file) === '.glb' ? 'public, max-age=3600' : 'no-cache', vary: 'accept-encoding' };
+      if (gz) h['content-encoding'] = 'gzip';
+      res.writeHead(200, h); res.end(gz ? e.gz : e.raw);
+    };
+    if (hit && hit.mtime === st.mtimeMs) return reply(hit);
+    fs.readFile(file, (err2, raw) => {
+      if (err2) { res.writeHead(404, { 'content-type': 'text/plain' }); res.end('Not found'); return; }
+      zlib.gzip(raw, (err3, z) => { const e = { raw, gz: err3 ? null : z, mtime: st.mtimeMs }; if (!e.gz) { res.writeHead(200, { 'content-type': type }); res.end(raw); return; } zcache.set(file, e); reply(e); });
+    });
   });
 });
 
