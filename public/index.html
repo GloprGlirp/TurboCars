@@ -356,7 +356,6 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
         <button class="mbtn" id="bChat" type="button">Chat<kbd>T</kbd></button>
         <button class="mbtn" id="bCam" type="button">Camera<kbd>C</kbd></button>
         <button class="mbtn" id="bRecords" type="button">Records</button>
-        <button class="mbtn" id="bCodes" type="button">Codes</button>
         <button class="mbtn" id="bMute" type="button">Sound on</button>
         <button class="mbtn" id="bWardrobe" type="button">Wardrobe<kbd>V</kbd></button>
         <button class="mbtn" id="bTut" type="button">Tutorial</button>
@@ -905,7 +904,7 @@ function levelOf(xp) { let L = 1; while (L < MAX_PLAYER_LVL && xp >= xpNeed(L + 
 const reqLevel = (slot, id) => (UNLOCK[slot] && UNLOCK[slot][id]) || 1;
 // redeem codes are stored hashed so they don't sit in the page source as plain text
 function codeHash(str) { let h = 0x811c9dc5; for (const ch of str) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16); }
-const CODES = { de6c98df: { id: 'gloppy999', money: 999999, xp: 9999999 } };
+const CODES = {};   // code redemption is switched off
 const ENGINE = Object.fromEntries(ENGINES.map(x => [x.id, x]));
 const IND = Object.fromEntries(INDUCTIONS.map(x => [x.id, x]));
 const INTAKE = Object.fromEntries(INTAKES.map(x => [x.id, x]));
@@ -4224,6 +4223,7 @@ function renderXp() {
   $('xpPill').title = (save.xp - a).toLocaleString('en-US') + ' / ' + (b - a).toLocaleString('en-US') + ' XP to level ' + (L + 1);
 }
 function redeemCode() {
+  return;   // codes can't be redeemed any more
   const raw = $('codeIn').value.trim().toUpperCase(), h = $('codeHint');
   const def = raw ? CODES[codeHash(raw)] : null;
   if (!def) { h.className = 'hint err'; h.textContent = raw ? "That code doesn't work. Check the spelling and try again." : 'Type a code first.'; return; }
@@ -4290,7 +4290,6 @@ $('bCloseMarket').addEventListener('click', closePanels);
 $('mkSell').addEventListener('click', () => mkList());
 $('mkCar').addEventListener('change', () => { const c = save.cars.find(x => x.id === $('mkCar').value); if (c) $('mkPrice').value = carValue(c); });
 $('bCloseMap').addEventListener('click', closePanels);
-$('bCodes').addEventListener('click', () => { openPanel('codes'); const h = $('codeHint'); h.className = 'hint'; h.textContent = "Codes aren't case sensitive."; setTimeout(() => $('codeIn').focus(), 50); });
 $('bCloseCodes').addEventListener('click', closePanels);
 $('bRedeem').addEventListener('click', redeemCode);
 $('bQuitMission').addEventListener('click', () => quitMission());
