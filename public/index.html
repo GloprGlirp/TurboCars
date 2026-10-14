@@ -268,6 +268,8 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 @media (max-width: 560px) { .ecurow { grid-template-columns: 1fr 3.4em; } .ecurow .n, .ecurow .lo, .ecurow .hi { grid-column: 1; grid-row: auto; } .ecurow input { grid-column: 1; grid-row: auto; } .ecurow b { grid-column: 2; grid-row: 1; } }
 #searchHint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; background: #1d1a2e; color: #fff; border: 3px solid #fff; border-radius: 999px; padding: 6px 16px; font: 700 15px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
 #searchHint[hidden] { display: none; }
+#circuitHint { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 6; background: #ff4f5e; color: #fff; border: 3px solid #1d1a2e; border-radius: 999px; padding: 5px 14px; font: 800 14px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
+#circuitHint[hidden] { display: none; }
 #bigMap { display: block; width: 100%; max-width: 640px; aspect-ratio: 1; height: auto; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; background: #43b9ee; }
 .xp { gap: .45em; padding: .25em .7em; }
 .xp .lv { font-variant-numeric: tabular-nums; }
@@ -570,6 +572,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="mlist" id="usedList"></div>
   </div>
 </div>
+<div id="circuitHint" hidden></div>
 <div id="bmPanel" class="overlay" hidden>
   <div class="panel sticker">
     <button class="btn small alt x" id="bCloseBM" type="button">Close</button>
@@ -1456,7 +1459,7 @@ function baseH(x, z) {
 const MAIN_ROADS = [];
 function makeRoad(name, ctrl, w, opts) {
   opts = opts || {};
-  const curve = new THREE.CatmullRomCurve3(ctrl.map(q => new THREE.Vector3(q[0], 0, q[1])), false, 'centripetal');
+  const curve = new THREE.CatmullRomCurve3(ctrl.map(q => new THREE.Vector3(q[0], 0, q[1])), !!opts.closed, 'centripetal');
   const n = Math.max(2, Math.round(curve.getLength() / 2.5));
   const pts = curve.getSpacedPoints(n).map(v => ({ x: v.x, z: v.z, h: 0 }));
   if (opts.flat != null) pts.forEach(q => { q.h = opts.flat; });
@@ -1477,6 +1480,9 @@ function makeRoad(name, ctrl, w, opts) {
 const NORTH = makeRoad('north', [[0, -326], [0, -470], [0, -620], [55, -690], [165, -745], [225, -820], [165, -880], [-30, -892], [-185, -930], [-235, -995], [-150, -1045], [35, -1048], [185, -1090], [235, -1160], [160, -1212], [-25, -1215], [-150, -1255], [-120, -1320], [0, -1335]], 11, { kind: 'touge', grade: 0.13 });
 const WEST = makeRoad('country', [[-243, 0], [-420, 0], [-610, 0], [-770, -150], [-985, -265], [-1220, -170], [-1320, 120], [-1190, 420], [-950, 640], [-700, 900], [-420, 1120], [-120, 1180], [120, 1060], [160, 880], [60, 720], [0, 560], [0, 400], [0, 241]], 13, { kind: 'country', grade: 0.1 });
 const EAST = makeRoad('east', [[323, 0], [480, 0], [600, 0], [700, 0]], 13, { kind: 'causeway', grade: 0.06 });
+// Pebble Circuit: a closed race track in the south-east, reached by a road off the coast highway
+const CIRCUIT = makeRoad('circuit', [[1060, 950], [1180, 950], [1280, 955], [1330, 1000], [1335, 1080], [1290, 1130], [1220, 1120], [1170, 1080], [1100, 1090], [1050, 1150], [1080, 1220], [1030, 1270], [950, 1260], [900, 1200], [880, 1100], [890, 1010], [930, 962], [990, 951]], 16, { kind: 'circuit', flat: 3, closed: true });
+makeRoad('circuit-link', [[885, 560], [925, 700], [965, 840], [1012, 944]], 13, { kind: 'country', grade: 0.08 });
 const SPUR = makeRoad('spur', [[900, 400], [885, 560], [760, 720], [520, 860], [300, 905], [160, 880]], 13, { kind: 'country', grade: 0.1 });
 for (let x = 700; x <= 1300; x += 100) makeRoad('st', [[x, -400], [x, 0], [x, 400]], 14, { kind: 'city', flat: 0.45 });
 for (let z = -400; z <= 400; z += 100) makeRoad('av', [[700, z], [1000, z], [1300, z]], 14, { kind: 'city', flat: 0.45 });
@@ -1615,6 +1621,12 @@ const r2m = ribbon(ROAD_W / 2, ROAD_W / 2 + 1.8, 0.065, 5, curbMat);
 [r0, r1m, r2m].forEach(m => { m.material.side = THREE.DoubleSide; });
 
 const mainRoadMat = new THREE.MeshToonMaterial({ map: roadTex, gradientMap: gradTex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
+const circuitTex = canvasTex(128, 256, (g, w, h) => {
+  g.fillStyle = '#4f4a63'; g.fillRect(0, 0, w, h);
+  g.fillStyle = 'rgba(255,255,255,.05)'; for (let i = 0; i < 160; i++) g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+  g.fillStyle = '#f7f4ff'; g.fillRect(4, 0, 4, h); g.fillRect(w - 8, 0, 4, h);
+}, true);
+const circuitMat = new THREE.MeshToonMaterial({ map: circuitTex, gradientMap: gradTex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 });
 function mainRibbon(road, lift) {
   const pts = road.pts, hw = road.w / 2, pos = [], uv = [], idx = [];
   let dist = 0;
@@ -1631,7 +1643,7 @@ function mainRibbon(road, lift) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, mainRoadMat); m.receiveShadow = true; scene.add(m);
+  const m = new THREE.Mesh(g, road.kind === 'circuit' ? circuitMat : mainRoadMat); m.receiveShadow = true; scene.add(m);
 }
 MAIN_ROADS.forEach(r => mainRibbon(r, r.name === 'av' ? ROAD_LIFT + 0.02 : ROAD_LIFT));
 // guard rails along the mountain pass
@@ -1843,6 +1855,9 @@ for (const m of MISSIONS) blockers.push({ x: m.marker.x, z: m.marker.z, r: 9 });
 
 // --- property sites: the dealership, businesses and homes for sale ---
 const RESERVED = [];   // {x,z,r}: random trees, rocks and houses keep out
+// the circuit's grandstand, pad and board: keep trees and houses off them
+{ const s0 = CIRCUIT.pts[0], s1 = CIRCUIT.pts[1], yw = Math.atan2(s1.x - s0.x, s1.z - s0.z), fx = Math.sin(yw), fz = Math.cos(yw), rx = Math.cos(yw), rz = -Math.sin(yw);
+  for (const [f, r, rad] of [[70, -22, 36], [40, -22, 30], [100, -22, 30], [-8, 15, 14], [-8, 21, 10]]) RESERVED.push({ x: s0.x + fx * f + rx * r, z: s0.z + fz * f + rz * r, r: rad }); }
 const SITES = {};      // id -> {x, z, yaw, y}
 const snapYaw = a => Math.round(a / (Math.PI / 2)) * (Math.PI / 2);
 // city blocks are 100 m squares between the streets; a site takes a whole block
@@ -2633,7 +2648,7 @@ const coins = [];
   let placed = 0;
   for (let tries = 0; tries < 2000 && placed < 34; tries++) { const a = rand(0, TAU), r = rand(66, 375); const x = r * Math.cos(a), z = r * Math.sin(a); if (!free(x, z, 2, 2)) continue; blockers.push({ x, z, r: 4 }); addCoin(x, 1.6, z, 20); placed++; }
   for (const rp of ramps) { const fx = Math.sin(rp.yaw), fz = Math.cos(rp.yaw); for (let k = 0; k < 3; k++) { const d = rp.l / 2 + 7 + k * 5; addCoin(rp.x + fx * d, 4.8 + rp.h * 0.4 - k * 0.6, rp.z + fz * d, 30); } }
-  for (const road of MAIN_ROADS) { if (road.kind === 'city') continue; for (let k = 50; k < road.pts.length - 30; k += 150) { const q = road.pts[k]; addCoin(q.x, q.h + 1.6, q.z, road.kind === 'touge' ? 40 : 25); } }
+  for (const road of MAIN_ROADS) { if (road.kind === 'city' || road.kind === 'circuit') continue; for (let k = 50; k < road.pts.length - 30; k += 150) { const q = road.pts[k]; addCoin(q.x, q.h + 1.6, q.z, road.kind === 'touge' ? 40 : 25); } }
   for (let k = 0; k < 16; k++) { const x = 700 + 100 * Math.floor(rand(0, 7)), z = -400 + 100 * Math.floor(rand(0, 9)); addCoin(x < 1300 ? x + 40 : x - 40, 2.05, z, 25); }
 }
 
@@ -4057,6 +4072,7 @@ function initStandalone() {
       if (!m || typeof m !== 'object') return;
       if (m.t === 'hello') {
         peerId = String(m.peer); up = true; retry = 1000; L.conn.forEach(f => f(true));
+        if (typeof m.now === 'number' && Number.isFinite(m.now)) srvOff = m.now - Date.now();
         const joined = [mk(peerId, mine)];
         for (const p of (m.peers || [])) { others.set(p.peer, p.presence); joined.push(mk(p.peer, p.presence)); }
         fire({ joined });
@@ -4197,7 +4213,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, id: uid || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, id: uid || null, cr: circuit.signed || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -5204,7 +5220,7 @@ const TRAFFIC_ROADS = [], TRAFFIC_SPOTS = [];
 {
   const add = (pts, closed, speed, lane, kind) => { let len = 0; for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); TRAFFIC_ROADS.push({ pts, closed, speed, lane, kind, step: len / (pts.length - 1) }); };
   add(TP.map(q => ({ x: q.x, z: q.z, h: 0 })), true, 17, 3.6, 'ring');
-  for (const r of MAIN_ROADS) add(r.pts, false, r.kind === 'city' ? 13 : r.kind === 'touge' ? 12 : 18, r.w / 4 + 0.3, r.kind);
+  for (const r of MAIN_ROADS) if (r.kind !== 'circuit') add(r.pts, false, r.kind === 'city' ? 13 : r.kind === 'touge' ? 12 : 18, r.w / 4 + 0.3, r.kind);
   TRAFFIC_ROADS.forEach((r, ri) => { for (let i = 4; i < r.pts.length - 4; i += 6) TRAFFIC_SPOTS.push(ri * 100000 + i); });
 }
 const spotOf = code => { const r = TRAFFIC_ROADS[(code / 100000) | 0], i = code % 100000; return { r, i, q: r.pts[i] }; };
@@ -5464,6 +5480,7 @@ function mapIcons(ctx, P, scale, inView) {
   pin(PROPS.dealer.pad.x, PROPS.dealer.pad.z, '#3ddc97', 8 * scale);
   // Shiro's Used Cars: a yellow square with a $ on it
   if (PROPS.usedlot && inView(PROPS.usedlot.pad.x, PROPS.usedlot.pad.z)) { const [x, y] = P(PROPS.usedlot.pad.x, PROPS.usedlot.pad.z), r = 7 * scale; ctx.fillStyle = '#ffd23f'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#1d1a2e'; ctx.font = '900 ' + Math.round(11 * scale) + 'px Nunito, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', x, y + 1); ctx.textBaseline = 'alphabetic'; }
+  if (CIRCUIT_R.pad && inView(CIRCUIT_R.pad.x, CIRCUIT_R.pad.z)) { const [x, y] = P(CIRCUIT_R.pad.x, CIRCUIT_R.pad.z), r = 7 * scale; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 2; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) { ctx.fillStyle = (a + b) % 2 ? '#1d1a2e' : '#ffffff'; ctx.fillRect(x - r + a * r * 2 / 3, y - r + b * r * 2 / 3, r * 2 / 3, r * 2 / 3); } ctx.strokeRect(x - r, y - r, r * 2, r * 2); }
   for (const R of STREET) if (inView(R.pad.x, R.pad.z)) { const [x, y] = P(R.pad.x, R.pad.z), r = 7 * scale; ctx.fillStyle = '#ff3fa4'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, rr = k % 2 ? r * 0.45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); ctx.fill(); ctx.stroke(); }
   for (const d of BIZ) { const pd = PROPS[d.id].pad; if (!inView(pd.x, pd.z)) continue; const [x, y] = P(pd.x, pd.z), r = 6 * scale; ctx.fillStyle = save.biz[d.id] ? '#9b6bff' : '#d9ccf5'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.rect(x - r, y - r, r * 2, r * 2); ctx.fill(); ctx.stroke(); }
   for (const h of HOMES) { const pd = PROPS[h.id].pad; if (!inView(pd.x, pd.z)) continue; const [x, y] = P(pd.x, pd.z), r = 7 * scale; ctx.fillStyle = save.homes.includes(h.id) ? '#3ddc97' : '#ffffff'; ctx.strokeStyle = '#1d1a2e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x + r * 0.7, y); ctx.lineTo(x + r * 0.7, y + r * 0.8); ctx.lineTo(x - r * 0.7, y + r * 0.8); ctx.lineTo(x - r * 0.7, y); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
@@ -5663,7 +5680,7 @@ function drawBigMap() {
   const S = W / (WMAX - WMIN), P = (x, z) => [(x - WMIN) * S, (z - WMIN) * S];
   mapIcons(g, P, 1.3, () => true); fuelIcons(g, P, 1.3, () => true);
   g.font = '700 20px Nunito, system-ui, sans-serif'; g.textAlign = 'center'; g.lineJoin = 'round';
-  for (const [t, x, z] of [['Pebble Isle', 0, 470], ['Pebble City', 1020, -470], ['Pebble Peak', 0, -1420], ['Farm roads', -1000, 120]]) { const [px, py] = P(x, z); g.lineWidth = 6; g.strokeStyle = '#1d1a2e'; g.strokeText(t, px, py); g.fillStyle = '#ffffff'; g.fillText(t, px, py); }
+  for (const [t, x, z] of [['Pebble Isle', 0, 470], ['Pebble City', 1020, -470], ['Pebble Peak', 0, -1420], ['Farm roads', -1000, 120], ['Pebble Circuit', 1110, 1330]]) { const [px, py] = P(x, z); g.lineWidth = 6; g.strokeStyle = '#1d1a2e'; g.strokeText(t, px, py); g.fillStyle = '#ffffff'; g.fillText(t, px, py); }
   for (const r of remotes.values()) if (r.model) { const [px, py] = P(r.x, r.z); g.fillStyle = PAINT[r.paint] ? PAINT[r.paint].hex : '#fff'; g.strokeStyle = '#1d1a2e'; g.lineWidth = 3; g.beginPath(); g.arc(px, py, 7, 0, TAU); g.fill(); g.stroke(); }
   drawSearch(g, P, S, null);
   drawNav(g, P, 1.3, () => true);
@@ -5688,6 +5705,9 @@ function openMap() {
 function renderTravelList() {
   const list = $('travelList'); list.textContent = '';
   if (nav) list.append(btn('✖ Clear route', '', () => { clearNav('Route cleared'); drawBigMap(); renderTravelList(); }));
+  { const id = circuitNext(), left = circuitTime(id) - netNow(), n = circuitEntrants(id).length;
+    list.append(btn(circuit.signed ? '🏁 Leave circuit race' : '🏁 Sign up: circuit race in ' + fmtClock(left) + ' (' + n + '/' + CIRCUIT_MAX + ')', circuit.signed ? 'alt' : '', () => { circuitSign(); renderTravelList(); }, !circuit.signed && (!!street || n >= CIRCUIT_MAX)));
+    const q = CIRCUIT_R.pad; list.append(btn('🏁 Pebble Circuit', 'alt', () => travelTo({ name: 'Pebble Circuit', x: q.x - 8, z: q.z - 4, yaw: circuit.start.yaw }))); }
   const dp = PROPS.dealer.pad, ds = DEALER.site, dyaw = Math.atan2(ds.x - dp.x, ds.z - dp.z);
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
   { const up = PROPS.usedlot.pad, us = USED.s, uy = Math.atan2(us.x - up.x, us.z - up.z); spots.push({ name: "Shiro's Used Cars", x: up.x - Math.sin(uy) * 6, z: up.z - Math.cos(uy) * 6, yaw: uy }); }
@@ -6632,7 +6652,7 @@ function bmStep(dt) {
   }
   bmT -= dt; if (bmT > 0) return; bmT = 0.5;
   if (!BM.model) bmBuild();
-  const S = bmState(Date.now()), spots = bmSpots();
+  const S = bmState(netNow()), spots = bmSpots();
   if (S.open && (!BM.open || BM.p !== S.p)) {
     const sp = spots[Math.floor(bmHash(S.p, 9) * spots.length) % spots.length];
     Object.assign(BM, { p: S.p, open: true, x: sp.x, z: sp.z, y: surfaceHeight(sp.x, sp.z), name: sp.name, offer: bmOffer(S.p) });
@@ -6878,6 +6898,7 @@ $('wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardro
 function nearProp() {
   const p = player;
   if (BM.open && Math.hypot(p.x - BM.x, p.z - BM.z) < (onFoot ? 4.2 : 7)) return { kind: 'bm', text: 'to trade with the black market dealer' };
+  if (CIRCUIT_R.pad && Math.hypot(p.x - CIRCUIT_R.pad.x, p.z - CIRCUIT_R.pad.z) < 6 && !street) return { kind: 'circuit', text: circuit.signed ? 'to leave the circuit race' : 'to sign up for the next circuit race (' + fmtClock(circuitTime(circuitNext()) - netNow()) + ')' };
   { const fd = findAt(); if (fd) return { kind: 'find', f: fd, text: 'to restore this abandoned ' + BODY[fd.id].name };
     if (onFoot) { const cs = counterAt(); if (cs) return { kind: 'pay', st: cs, text: fuelDebt && fuelDebt.st === cs ? 'to pay $' + fuelDebt.amount.toFixed(2) + ' for your fuel' : 'to talk to the cashier' }; }
     else if (!police.stars) { const ps = pumpAt(); if (ps) return { kind: 'pump', st: ps, text: 'to fill up at ' + ps.name }; if ((ac().fuel ?? 1) <= 0.001) return { kind: 'tow', text: 'to call roadside fuel · $120 for 10 L' }; } }
@@ -6901,6 +6922,7 @@ function nearProp() {
 function openProp(pr) {
   if (pr.kind === 'find') { claimFind(pr.f); return; }
   if (pr.kind === 'bm') { openBM(); return; }
+  if (pr.kind === 'circuit') { circuitSign(); return; }
   if (pr.kind === 'used') { openUsed(); return; }
   if (pr.kind === 'pump') { openFuel(pr.st); return; }
   if (pr.kind === 'pay') { payFuel(pr.st); return; }
@@ -7271,6 +7293,143 @@ for (const R of STREET) {
   });
 }
 
+// =====================================================================
+// Pebble Circuit: a 3-lap race every 10 minutes for up to 12 players (alone you race 5 bots)
+// =====================================================================
+const CIRCUIT_LAPS = 3, CIRCUIT_EVERY = 600000, CIRCUIT_MAX = 12, CIRCUIT_CLOSE = 20000;
+let srvOff = 0;   // server clock minus ours, so every player starts the race at the same moment
+const netNow = () => Date.now() + srvOff;
+const fmtClock = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const CIRCUIT_R = (() => {
+  const loop = roadSlice(CIRCUIT, 0, CIRCUIT.pts.length - 1, 6), pts = [];
+  for (let l = 0; l < CIRCUIT_LAPS; l++) for (const q of loop) pts.push({ x: q.x, z: q.z });
+  pts.push({ x: loop[0].x, z: loop[0].z });
+  const R = prepRoute({ id: 'circuit', name: 'Pebble Circuit GP', where: 'Pebble Circuit', fee: 0, prize: 0, lvl: 1, pts, crew: [] });
+  R.loopLen = loop.length; R.laps = CIRCUIT_LAPS;
+  return R;
+})();
+const circuit = { signed: null, started: null, warned: 0, hintT: 0, boardT: 0 };
+// scenery: start line, grid boxes, gantry, grandstand, curbs, sign-up pad with a live board
+{
+  const P = CIRCUIT.pts, s0 = P[0], s1 = P[1], yaw0 = Math.atan2(s1.x - s0.x, s1.z - s0.z), y0 = s0.h + ROAD_LIFT;
+  const fx = Math.sin(yaw0), fz = Math.cos(yaw0), rx = Math.cos(yaw0), rz = -Math.sin(yaw0);
+  const g = new THREE.Group(); g.position.set(s0.x, y0, s0.z); g.rotation.y = yaw0; scene.add(g);
+  // chequered start line across the track
+  const chk = canvasTex(256, 32, (c, w, h) => { for (let x = 0; x < w / 16; x++) for (let y = 0; y < 2; y++) { c.fillStyle = (x + y) % 2 ? '#1d1a2e' : '#f4f2fa'; c.fillRect(x * 16, y * 16, 16, 16); } });
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(16, 2), new THREE.MeshBasicMaterial({ map: chk, polygonOffset: true, polygonOffsetFactor: -6 }));
+  line.rotation.x = -Math.PI / 2; line.position.y = 0.04; g.add(line);
+  // grid boxes for 12 cars
+  const boxTex = canvasTex(64, 128, (c, w, h) => { c.strokeStyle = '#f4f2fa'; c.lineWidth = 6; c.beginPath(); c.moveTo(3, h); c.lineTo(3, 3); c.lineTo(w - 3, 3); c.lineTo(w - 3, h); c.stroke(); });
+  const boxM = new THREE.MeshBasicMaterial({ map: boxTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6 });
+  for (let k = 0; k < CIRCUIT_MAX; k++) {
+    const q = CIRCUIT_R.slot(k), b = new THREE.Mesh(geo('gridBoxG', () => new THREE.PlaneGeometry(2.6, 5)), boxM);
+    b.rotation.set(-Math.PI / 2, 0, q.yaw + Math.PI); b.position.set(q.x, y0 + 0.04, q.z); scene.add(b);
+  }
+  // start gantry with the start lights
+  const steel = toon(0x3a3d52);
+  for (const sd of [-1, 1]) part(g, rbox(0.7, 7.5, 0.7, 0.1), steel, sd * 9.6, 3.75, -1.5, 0);
+  part(g, rbox(20, 1.1, 1.2, 0.2), steel, 0, 7.4, -1.5, 0.04);
+  signBoard(g, 'PEBBLE CIRCUIT', '#ff4f5e', '#ffffff', 0, 8.9, -1.5, 9, 1.5);
+  const lampOff = new THREE.MeshBasicMaterial({ color: 0x4a1018 });
+  for (let k = 0; k < 5; k++) { const l = new THREE.Mesh(geo('stLamp', () => new THREE.SphereGeometry(0.28, 12, 8)), lampOff); l.position.set(-2.4 + k * 1.2, 7.4, -0.85); g.add(l); }
+  for (const sd of [-1, 1]) { const p = s2w({ x: s0.x, z: s0.z, yaw: yaw0 }, sd * 9.6, -1.5); circles.push({ x: p.x, z: p.z, r: 0.5, h: 8, y0 }); }
+  // grandstand on the inside of the main straight, facing the track
+  const gs = new THREE.Group(), gx = s0.x + fx * 70 - rx * 22, gz = s0.z + fz * 70 - rz * 22;
+  gs.position.set(gx, y0, gz); gs.rotation.y = yaw0 + Math.PI / 2; scene.add(gs);
+  const seatCols = [0x3fa7ff, 0xff4f5e, 0xffd23f, 0x3ddc97, 0x9b6bff];
+  for (let t = 0; t < 5; t++) part(gs, rbox(56, 0.9, 2.2, 0.1), toon(seatCols[t]), 0, 0.45 + t * 0.9, -t * 2.2, 0.03);
+  part(gs, rbox(56, 5, 1, 0.1), toon(0x2b2d42), 0, 2.5, -11.5, 0.03);
+  part(gs, rbox(58, 0.5, 13, 0.2), toon(0xf4f2fa), 0, 7.6, -5.5, 0.04);
+  for (const x of [-27, -9, 9, 27]) part(gs, rbox(0.5, 7.4, 0.5, 0.1), steel, x, 3.7, -11.3, 0);
+  { const c = Math.cos(gs.rotation.y), sn = Math.sin(gs.rotation.y), hw = 28, d0 = 1.2, d1 = -12;
+    const pts2 = [[-hw, d0], [hw, d0], [-hw, d1], [hw, d1]].map(([a, b]) => ({ x: gx + a * c + b * sn, z: gz - a * sn + b * c }));
+    boxes.push({ x0: Math.min(...pts2.map(p => p.x)), z0: Math.min(...pts2.map(p => p.z)), x1: Math.max(...pts2.map(p => p.x)), z1: Math.max(...pts2.map(p => p.z)), h: 8, y0 }); }
+  // red and white curbs on the corners
+  { const pos = [], uv = [], idx = [], hw = CIRCUIT.w / 2, n = P.length;
+    const tan = i => { const a = P[Math.max(0, i - 1)], c = P[Math.min(n - 1, i + 1)]; let tx = c.x - a.x, tz = c.z - a.z; const L = Math.hypot(tx, tz) || 1; return [tx / L, tz / L]; };
+    const corner = P.map((b, i) => { if (i === 0 || i === n - 1) return false; const a = P[i - 1], c = P[i + 1]; return Math.abs(angDiff(Math.atan2(b.x - a.x, b.z - a.z), Math.atan2(c.x - b.x, c.z - b.z))) > 0.02; });
+    let run = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const a = P[i], b = P[i + 1], r0 = run; run += Math.hypot(b.x - a.x, b.z - a.z);
+      if (!corner[i] && !corner[i + 1]) continue;
+      const [ax, az] = tan(i), [bx, bz] = tan(i + 1);
+      for (const sd of [-1, 1]) {
+        const k = pos.length / 3;
+        for (const [q, tx, tz, v] of [[a, ax, az, r0 / 3], [b, bx, bz, run / 3]]) for (const [o, u] of [[hw - 0.2, 0], [hw + 1.4, 1]]) { pos.push(q.x - tz * o * sd, q.h + ROAD_LIFT + 0.03, q.z + tx * o * sd); uv.push(u, v); }
+        idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+      }
+    }
+    const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); cg.setIndex(idx); cg.computeVertexNormals();
+    const cm = new THREE.Mesh(cg, new THREE.MeshToonMaterial({ map: curbTex, gradientMap: gradTex, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3 })); cm.receiveShadow = true; scene.add(cm); }
+  // sign-up pad next to the pit wall, with a board that counts down to the next race
+  const px = s0.x - fx * 8 + rx * 15, pz = s0.z - fz * 8 + rz * 15;
+  CIRCUIT_R.pad = makePad(px, pz, 5, 0xff4f5e, 'CIRCUIT'); CIRCUIT_R.pad.grp.position.y = surfaceHeight(px, pz); CIRCUIT_R.pad.x = px; CIRCUIT_R.pad.z = pz; CIRCUIT_R.pad.r = 5;
+  const bc = document.createElement('canvas'); bc.width = 512; bc.height = 192;
+  const bt = new THREE.CanvasTexture(bc), bg = new THREE.Group(); bg.position.set(px + rx * 6, surfaceHeight(px, pz), pz + rz * 6); bg.rotation.y = yaw0 - Math.PI / 2; scene.add(bg);
+  for (const sd of [-1, 1]) part(bg, rbox(0.35, 5, 0.35, 0.08), steel, sd * 3.2, 2.5, 0, 0);
+  const board = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), new THREE.MeshBasicMaterial({ map: bt, side: THREE.DoubleSide })); board.position.y = 5.2; bg.add(board);
+  circuit.board = { c: bc, g: bc.getContext('2d'), t: bt, x: bg.position.x, z: bg.position.z };
+  circuit.start = { x: s0.x, z: s0.z, yaw: yaw0 };
+}
+function drawCircuitBoard() {
+  const B = circuit.board; if (!B) return;
+  const g = B.g, W = B.c.width, H = B.c.height, id = circuitNext(), left = circuitTime(id) - netNow(), n = circuitEntrants(id).length;
+  g.fillStyle = '#120e24'; g.fillRect(0, 0, W, H); g.strokeStyle = '#ff4f5e'; g.lineWidth = 8; g.strokeRect(6, 6, W - 12, H - 12);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffffff';
+  g.font = '800 34px "Lilita One", "Arial Black", sans-serif'; g.fillText('NEXT RACE', W / 2, 44);
+  g.font = '800 72px "Lilita One", "Arial Black", sans-serif'; g.fillStyle = left < CIRCUIT_CLOSE ? '#ff4f5e' : '#ffd23f'; g.fillText(fmtClock(left), W / 2, 108);
+  g.font = '700 28px Nunito, system-ui, sans-serif'; g.fillStyle = '#9fe6ff'; g.fillText(n + ' / ' + CIRCUIT_MAX + ' signed up · 3 laps', W / 2, 160);
+  B.t.needsUpdate = true;
+}
+const circuitTime = id => id * CIRCUIT_EVERY;
+// the race you can still sign up for: the next one, or the one after if sign-up has closed
+function circuitNext() { const id = Math.floor(netNow() / CIRCUIT_EVERY) + 1; return circuitTime(id) - netNow() < CIRCUIT_CLOSE ? id + 1 : id; }
+function circuitEntrants(id) {
+  const list = [...remotes.values()].filter(r => r.active && r.pres && r.pres.cr === id).map(r => r.peer);
+  if (circuit.signed === id && myPeer) list.push(myPeer);
+  return [...new Set(list)].sort().slice(0, CIRCUIT_MAX);
+}
+function circuitSign() {
+  if (circuit.signed) { circuit.signed = null; toast('You left the circuit race'); return; }
+  const id = circuitNext(), left = circuitTime(id) - netNow();
+  if (circuitEntrants(id).length >= CIRCUIT_MAX) { toast('That race is full (12/12). Try the next one'); return; }
+  circuit.signed = id; circuit.warned = 0;
+  toast('Signed up! The race starts in ' + fmtClock(left) + '. Wherever you are, you get put on the grid.', true);
+}
+let CIRCUIT_BOTS = null;
+function circuitBots() {
+  if (CIRCUIT_BOTS) return CIRCUIT_BOTS;
+  const names = ['Akane', 'Tetsu', 'Mio', 'Kenji', 'Rin'], bodies = ['raijin', 'arashi', 'yoru', 'falke2', 'ostwind'];
+  CIRCUIT_BOTS = names.map((name, k) => {
+    const paint = PAINTS[(k * 5 + 2) % PAINTS.length], m = buildCar(bodies[k], paint.hex, { e: 'v6', i: 't52', a: 'cai', w: ['y5', 'split', 'mesh', 'kagero', 'star'][k], has: [] }, 'none');
+    const t = makeTag(name, '#ff4f5e'); t.position.y = 2.9; t.scale.set(3.4, 0.85, 1); m.root.add(t);
+    m.root.visible = false; scene.add(m.root);
+    return { name, body: bodies[k], model: m, release() { m.root.visible = false; } };
+  });
+  return CIRCUIT_BOTS;
+}
+function circuitStep(dt) {
+  circuit.boardT -= dt;
+  if (circuit.boardT <= 0) { circuit.boardT = 1; if (circuit.board && Math.hypot(player.x - circuit.board.x, player.z - circuit.board.z) < 250) drawCircuitBoard(); }
+  const hint = $('circuitHint');
+  if (!circuit.signed) { hint.hidden = true; return; }
+  const id = circuit.signed, left = circuitTime(id) - netNow();
+  circuit.hintT -= dt;
+  if (circuit.hintT <= 0) { circuit.hintT = 0.25; hint.hidden = !!street || panelOpen; hint.textContent = '🏁 Circuit race in ' + fmtClock(left) + ' · ' + circuitEntrants(id).length + '/' + CIRCUIT_MAX + ' signed up'; }
+  if (left <= 60000 && circuit.warned < 1) { circuit.warned = 1; toast('Circuit race in 1 minute!'); }
+  if (left <= 10000 && circuit.warned < 2) { circuit.warned = 2; toast('Circuit race in 10 seconds. Get ready!'); sfx('beep'); }
+  if (left > 3200) return;
+  const peers = circuitEntrants(id); circuit.signed = null; circuit.warned = 0; hint.hidden = true;
+  if (circuit.started === id) return; circuit.started = id;
+  if (left < -5000) return;   // came back too late
+  if (race || mission || delivery || street || police.stars) { toast('You were busy, so you missed the circuit race'); return; }
+  const goAt = performance.now() + Math.max(500, left);
+  if (peers.length > 1 && room && roomUp && myPeer) {
+    if (!peers.includes(myPeer)) { toast('The race was full'); return; }
+    startStreet(CIRCUIT_R, { multi: true, id: 'gp' + id, peers, fee: 0, prize: 0, goAt, circuit: true });
+  } else startStreet(CIRCUIT_R, { fee: 0, prize: 1500, crew: circuitBots(), lo: 0.75, hi: 1.0, goAt, circuit: true });
+}
+
 let street = null, streetInvite = null, streetHost = null;
 const NEXT_GATES = 2;
 function nearestOnRoute(R, c, hint) {
@@ -7288,7 +7447,7 @@ function startStreet(R, opts) {
   forceIntoCar(); closePanels(); queued = false;
   save.money -= fee; persist(); renderMoney(true);
   const multi = !!opts.multi, crew = opts.crew || R.crew;
-  street = { R, opts, crew, fee, prize: opts.prize != null ? opts.prize : R.prize, id: opts.id || ('s' + rid()), multi, peers: opts.peers || [], phase: 'countdown', goAt: performance.now() + 3200, t0: 0, ri: 0, fin: 0, bots: [], pot: fee * Math.max(1, (opts.peers || []).length), doneAt: 0, results: null };
+  street = { R, opts, crew, fee, prize: opts.prize != null ? opts.prize : R.prize, id: opts.id || ('s' + rid()), multi, peers: opts.peers || [], phase: 'countdown', goAt: opts.goAt || performance.now() + 3200, t0: 0, ri: 0, fin: 0, bots: [], pot: fee * Math.max(1, (opts.peers || []).length), doneAt: 0, results: null };
   const mySlot = multi ? Math.max(0, street.peers.indexOf(myPeer)) : 0;
   streetPlace(player, R.slot(mySlot)); camSnap = true;
   if (!multi) {
@@ -7363,7 +7522,8 @@ function finishStreet(st) {
   const S = street; if (!S || S.results) return;
   const R = S.R, pos = st.findIndex(s => s.me) + 1, myFin = S.fin;
   let cash = 0;
-  if (S.multi) { const winner = st.filter(s => s.fin).sort((a, b) => a.fin - b.fin)[0]; if (winner && winner.me) cash = S.pot; }
+  if (S.opts && S.opts.circuit) cash = S.fin ? (S.multi ? [0, 3000, 1800, 1000][pos] || 300 : [0, 1500, 800, 400][pos] || 100) : 0;
+  else if (S.multi) { const winner = st.filter(s => s.fin).sort((a, b) => a.fin - b.fin)[0]; if (winner && winner.me) cash = S.pot; }
   else cash = pos === 1 ? S.prize : pos === 2 && S.fee ? Math.round(S.fee * 1.5) : 0;
   if (cash) addMoney(cash);
   if (!S.multi && pos === 1) { if (S.opts && S.opts.boss) bossBeaten(S.opts.boss); else if (R.district) turfWin(R.district); }
@@ -7398,7 +7558,7 @@ function streetHud(now) {
   const S = street; if (!S) return;
   const st = streetStandings(), pos = st.findIndex(s => s.me) + 1;
   $('sPos').textContent = pos + '/' + st.length;
-  $('sProg').textContent = Math.min(100, Math.round(100 * S.ri / (S.R.len - 1))) + '%';
+  $('sProg').textContent = S.R.laps ? 'Lap ' + Math.min(S.R.laps, Math.floor(S.ri / S.R.loopLen) + 1) + '/' + S.R.laps : Math.min(100, Math.round(100 * S.ri / (S.R.len - 1))) + '%';
   $('sTime').textContent = fmtTime(S.fin || (S.phase === 'countdown' ? 0 : now - S.t0));
 }
 // ---------- meet panel ----------
@@ -7848,7 +8008,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); bmStep(dt); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); bmStep(dt); circuitStep(dt); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }

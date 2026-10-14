@@ -148,7 +148,7 @@ wss.on('connection', ws => {
   const me = { peer: crypto.randomBytes(8).toString('hex'), pid: null, presence: {}, tokens: 80, alive: true };
   clients.set(ws, me);
   send(ws, {
-    t: 'hello', peer: me.peer, records: topRecords(),
+    t: 'hello', peer: me.peer, now: Date.now(), records: topRecords(),
     peers: [...clients.values()].filter(c => c !== me).map(c => ({ peer: c.peer, presence: c.presence })),
   });
   send(ws, { t: 'mk_listings', listings: listingsOut() });
