@@ -4088,13 +4088,19 @@ function initStandalone() {
         for (const f of (L.topics[m.topic] || [])) f({ topic: m.topic, data: m.data, peer: m.peer, by: null, isMe: false, sameTab: false, kind: 'viewer', guest: false });
       } else if (m.t === 'records') setRecords(m.records);
       else if (m.t === 'auth_ok') { authed = true; send({ t: 'save_get' }); reconcileEscrow(new Set(Array.isArray(m.mine) ? m.mine : [])); if (!$('market').hidden) renderMarket(); }
-      else if (m.t === 'save' || m.t === 'save_fix') {
-        // the server's copy of your save is the real one
-        if (m.save && typeof m.save === 'object') {
-          const nick = save.nick; save = sanitizeSave(m.save); if (!save.nick) save.nick = nick;
+      else if (m.t === 'save') {
+        // the newer of the two copies wins: the server's (another device, or a browser that lost its data) or ours,
+        // which then goes to the server and gets checked there
+        const srv = m.save && typeof m.save === 'object' ? m.save : null;
+        if (srv && num(srv.ts, 0) > num(save.ts, 0)) {
+          const nick = save.nick; save = sanitizeSave(srv); if (!save.nick) save.nick = nick;
           try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { }
-          applySave(); if (m.t === 'save_fix') toast('The server corrected your progress');
-        } else flushSave();   // nothing stored yet: send ours
+          applySave();
+        } else flushSave();
+      } else if (m.t === 'save_fix') {
+        // only take off what was too much; anything earned since then stays
+        const dm = Math.max(0, num(m.sentMoney, 0) - num(m.money, 0)), dx = Math.max(0, num(m.sentXp, 0) - num(m.xp, 0));
+        if (dm || dx) { save.money = Math.max(0, save.money - dm); save.xp = Math.max(0, save.xp - dx); persist(); renderMoney(); renderXp(); toast('The server corrected your progress'); }
       }
       else if (m.t === 'mk_listings') setListings(m.listings);
       else if (m.t === 'mk_sold' && typeof m.lid === 'string') { payoutSold(m.lid, Math.floor(num(m.price, 0)), cleanName(m.buyer)); send({ t: 'mk_ack', lid: m.lid }); }

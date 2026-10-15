@@ -135,9 +135,9 @@ const server = http.createServer((req, res) => {
 // ---------- player saves ----------
 // The server keeps the real copy of every save. Editing the browser's storage changes nothing.
 // Money: any balance is fine, but it never grows by more than $500,000 in one go (market sales on top).
-// XP grows only as fast as the game can hand it out.
+// XP likewise never jumps by more than 100,000 at once. Normal play never comes near either limit.
 state.saves = state.saves || {};
-const SAVE_LIMITS = { moneyJump: 500000, firstXp: 60000, xpRate: 40, xpBucket: 12000, maxCars: 40, bytes: 300 * 1024 };
+const SAVE_LIMITS = { moneyJump: 500000, xpJump: 100000, maxCars: 40, bytes: 300 * 1024 };
 const levelOfXp = xp => { let L = 1; while (L < 50 && xp >= Math.round(200 * Math.pow(L, 1.55))) L++; return L; };
 function cleanSave(o) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
@@ -150,21 +150,14 @@ function cleanSave(o) {
 }
 function storeSave(pid, incoming) {
   const s = cleanSave(incoming); if (!s) return null;
-  const now = Date.now(), prev = state.saves[pid], L = SAVE_LIMITS; let fixed = false;
-  if (!prev) {
-    if (s.money > L.moneyJump) { s.money = L.moneyJump; fixed = true; }
-    if (s.xp > L.firstXp) { s.xp = L.firstXp; fixed = true; }
-    state.saves[pid] = { save: s, at: now, xb: L.xpBucket, credit: 0 };
-  } else {
-    const dt = Math.max(0, (now - prev.at) / 1000);
-    let xb = Math.min(L.xpBucket, (prev.xb != null ? prev.xb : L.xpBucket) + dt * L.xpRate);
-    const maxGain = L.moneyJump + (prev.credit || 0), dm = s.money - prev.save.money, dx = s.xp - prev.save.xp;
-    if (dm > maxGain) { s.money = prev.save.money + maxGain; fixed = true; }
-    if (dx > xb) { s.xp = prev.save.xp + Math.floor(xb); xb = 0; fixed = true; } else if (dx > 0) xb -= dx;
-    state.saves[pid] = { save: s, at: now, xb, credit: 0 };
-  }
+  const prev = state.saves[pid], L = SAVE_LIMITS, sent = { sentMoney: s.money, sentXp: s.xp };
+  const baseM = prev ? prev.save.money + (prev.credit || 0) : 0, baseX = prev ? prev.save.xp : 0;
+  let fixed = false;
+  if (s.money - baseM > L.moneyJump) { s.money = baseM + L.moneyJump; fixed = true; }
+  if (s.xp - baseX > L.xpJump) { s.xp = baseX + L.xpJump; fixed = true; }
+  state.saves[pid] = { save: s, at: Date.now(), credit: 0 };
   saveState();
-  return { s, fixed };
+  return { s, fixed, sent };
 }
 
 // ---------- live room ----------
@@ -280,7 +273,8 @@ wss.on('connection', ws => {
     } else if (m.t === 'save_get' && me.pid) {
       const e = state.saves[me.pid]; send(ws, { t: 'save', save: e ? e.save : null });
     } else if (m.t === 'save_put' && me.pid && m.save) {
-      const r = storeSave(me.pid, m.save); if (r && r.fixed) send(ws, { t: 'save_fix', save: r.s });
+      // only the amounts that were too high are reported back; the client takes off just the difference
+      const r = storeSave(me.pid, m.save); if (r && r.fixed) send(ws, Object.assign({ t: 'save_fix', money: r.s.money, xp: r.s.xp }, r.sent));
     } else if (m.t === 'mk_ack' && me.pid && typeof m.lid === 'string') {
       const list = state.sold[me.pid];
       if (list) { state.sold[me.pid] = list.filter(s => s.lid !== m.lid); if (!state.sold[me.pid].length) delete state.sold[me.pid]; saveState(); }
