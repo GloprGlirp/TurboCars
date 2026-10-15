@@ -270,6 +270,7 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 #searchHint[hidden] { display: none; }
 #circuitHint { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 6; background: #ff4f5e; color: #fff; border: 3px solid #1d1a2e; border-radius: 999px; padding: 5px 14px; font: 800 14px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
 #circuitHint[hidden] { display: none; }
+.drtab { width: 100%; border-collapse: collapse; margin: 6px 0 12px; font-size: 14px; } .drtab th, .drtab td { padding: 5px 8px; text-align: left; border-bottom: 2px solid rgba(29,26,46,.12); } .drtab td:first-child { font-weight: 800; }
 #bigMap { display: block; width: 100%; max-width: 640px; aspect-ratio: 1; height: auto; margin: 0 auto; border: 3px solid var(--ink); border-radius: 14px; background: #43b9ee; }
 .xp { gap: .45em; padding: .25em .7em; }
 .xp .lv { font-variant-numeric: tabular-nums; }
@@ -573,6 +574,15 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
   </div>
 </div>
 <div id="circuitHint" hidden></div>
+<div id="dragPanel" class="overlay" hidden>
+  <div class="panel sticker">
+    <button class="btn small alt x" id="bCloseDrag" type="button">Close</button>
+    <h2>Pebble Dragway</h2>
+    <p class="lede" id="dragLede"></p>
+    <div id="dragResult" hidden></div>
+    <div class="row"><button class="btn" id="bDragGo" type="button">Stage the car · $100</button></div>
+  </div>
+</div>
 <div id="bmPanel" class="overlay" hidden>
   <div class="panel sticker">
     <button class="btn small alt x" id="bCloseBM" type="button">Close</button>
@@ -1120,6 +1130,7 @@ function sanitizeSave(o) {
   s.xp = clamp(Math.floor(num(o.xp, 0)), 0, XP_CAP);
   s.codes = Array.isArray(o.codes) ? o.codes.filter(c => typeof c === 'string' && /^[a-z0-9]{1,24}$/.test(c)).slice(0, 50) : [];
   s.ts = num(o.ts, 0);
+  s.dragBest = clamp(num(o.dragBest, 0), 0, 60);
   if (o.missions && typeof o.missions === 'object') for (const id of MISSION_IDS) { const m = o.missions[id]; if (m && typeof m === 'object') s.missions[id] = { best: (typeof m.best === 'number' && Number.isFinite(m.best)) ? m.best : null, medal: clamp(Math.floor(num(m.medal, 0)), 0, 3) }; }
   let cars = [];
   if (Array.isArray(o.cars)) cars = o.cars.map(c => sanitizeCar(c, true)).filter(Boolean);
@@ -1777,6 +1788,7 @@ addRamp(120, 95, 0.9, 8, 14, 4.2);
 // flat decks (parking garage levels): only count when you are already up near them, so you can drive underneath
 const DECKS = [];   // {x0,z0,x1,z1,h}
 function surfaceHeight(x, z, y) {
+  if (x > 2700) return 0;   // Pebble Dragway: its own flat area far east of the island
   let h = gridH(x, z);
   const rf = ribbonF(x, z);
   if (rf > 0) h += ROAD_LIFT * rf;
@@ -3774,8 +3786,8 @@ function collideWorld(c, R) {
     const vn = c.vx * nx + c.vz * nz; if (vn < 0) { c.vx -= 1.1 * vn * nx; c.vz -= 1.1 * vn * nz; hit = Math.max(hit, -vn); }
   }
   const lim = WMAX - 40;
-  if (Math.abs(c.x) > lim || Math.abs(c.z) > lim) { c.x = clamp(c.x, -lim, lim); c.z = clamp(c.z, -lim, lim); hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.vx *= -0.3; c.vz *= -0.3; }
-  if (c.px != null && gridH(c.x, c.z) < -0.8 && !roadAt(c.x, c.z)) { hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.x = c.px; c.z = c.pz; c.vx *= -0.35; c.vz *= -0.35; }
+  if (c.x < 2700 && (Math.abs(c.x) > lim || Math.abs(c.z) > lim)) { c.x = clamp(c.x, -lim, lim); c.z = clamp(c.z, -lim, lim); hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.vx *= -0.3; c.vz *= -0.3; }
+  if (c.px != null && c.x < 2700 && gridH(c.x, c.z) < -0.8 && !roadAt(c.x, c.z)) { hit = Math.max(hit, Math.hypot(c.vx, c.vz)); c.x = c.px; c.z = c.pz; c.vx *= -0.35; c.vz *= -0.35; }
   return hit;
 }
 // cars are capsules: a line along the car with rounded ends, about 4.4 m long and 2 m wide (a person is a small circle)
@@ -3809,7 +3821,7 @@ function collideCars(a, b, R, moveB) {
 function updateSurface(c) {
   const r = Math.hypot(c.x, c.z);
   const ns = nearestSample(c.x, c.z, c.hintI); c.hintI = ns.i; c.trackDist = ns.dist;
-  c.onRoad = ns.dist < ROAD_W / 2 + 1.8 || r < 60 || onSpoke(c.x, c.z) || roadAt(c.x, c.z) || (r < 392 && surfaceHeight(c.x, c.z) > 0.05);
+  c.onRoad = c.x > 2700 || ns.dist < ROAD_W / 2 + 1.8 || r < 60 || onSpoke(c.x, c.z) || roadAt(c.x, c.z) || (r < 392 && surfaceHeight(c.x, c.z) > 0.05);
   if (c.grounded && ns.dist < ROAD_W / 2) {
     for (const bp of boostPads) { if (Math.abs(bp.x - c.x) < 4.5 && Math.abs(bp.z - c.z) < 4.5) { if (c.padBoost <= 0 && c === player) { toast('Boost!'); sfx('boost'); } c.padBoost = 1.1; } }
   }
@@ -4328,7 +4340,7 @@ function openPanel(id) { closePanels(); $(id).hidden = false; panelOpen = true; 
 function closePanels() {
   if ($('meet')) $('meet').hidden = true;
   if ($('tutorial') && !$('tutorial').hidden && !save.tut) { save.tut = 1; persist(); }
-  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe', 'dynoPanel', 'usedPanel', 'bmPanel']) $(id).hidden = true; panelOpen = !$('results').hidden;
+  for (const id of ['garage', 'records', 'missions', 'mission', 'codes', 'mapPanel', 'market', 'props', 'dealer', 'tutorial', 'fuelPanel', 'wardrobe', 'dynoPanel', 'usedPanel', 'bmPanel', 'dragPanel']) $(id).hidden = true; panelOpen = !$('results').hidden;
   for (const el of document.querySelectorAll('.tut-hl')) el.classList.remove('tut-hl');
 }
 $('bCloseGarage').addEventListener('click', closePanels);
@@ -5523,9 +5535,15 @@ function fuelIcons(g, P, sc, inView) {
 function drawMinimap() {
   mg.fillStyle = '#43b9ee'; mg.fillRect(0, 0, MMS, MMS);
   const sw = MM_VIEW / WCELL * WM_PX;
-  mg.drawImage(worldMap, w2px(player.x) - sw / 2, w2px(player.z) - sw / 2, sw, sw, 0, 0, MMS, MMS);
   const S = MMS / MM_VIEW;
   const P = (x, z) => [MMC + (x - player.x) * S, MMC + (z - player.z) * S];
+  if (inDragZone(player.x)) {
+    // the dragway has its own little map: sand, the strip, start and finish
+    mg.fillStyle = '#8f7a62'; mg.fillRect(0, 0, MMS, MMS);
+    const [a, b] = P(DRAG.X - 16, DRAG.ZS - 120), [c, d] = P(DRAG.X + 16, DRAG.ZEND); mg.fillStyle = '#3e3a4e'; mg.fillRect(a, b, c - a, d - b);
+    mg.fillStyle = '#ffffff'; for (const z of [DRAG.ZS, DRAG.ZF]) { const [x0, y0] = P(DRAG.X - 16, z); mg.fillRect(x0, y0 - 1.5, c - a, 3); }
+    const [px, py] = P(DRAG.pad.x, DRAG.pad.z); mg.fillStyle = '#ffd23f'; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, py, 7, 0, TAU); mg.fill(); mg.stroke();
+  } else mg.drawImage(worldMap, w2px(player.x) - sw / 2, w2px(player.z) - sw / 2, sw, sw, 0, 0, MMS, MMS);
   const inView = (x, z) => Math.abs(x - player.x) < MM_VIEW * 0.62 && Math.abs(z - player.z) < MM_VIEW * 0.62;
   const dot = (x, z, col, r) => { if (!inView(x, z)) return; const [px, py] = P(x, z); mg.fillStyle = col; mg.strokeStyle = '#1d1a2e'; mg.lineWidth = 3; mg.beginPath(); mg.arc(px, py, r, 0, TAU); mg.fill(); mg.stroke(); };
   mg.save(); mg.beginPath(); mg.arc(MMC, MMC, MMS / 2, 0, TAU); mg.clip(); drawSearch(mg, P, S, inView); mg.restore();
@@ -5683,7 +5701,7 @@ const TRAVEL = (() => {
 })();
 function travelTo(t) {
   if (police.stars) { toast('Lose the police first'); return; }
-  if (race || mission || delivery || street) { toast('Finish what you are doing first'); return; }
+  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return; }
   forceIntoCar();
   Object.assign(player, { x: t.x, z: t.z, yaw: t.yaw, y: surfaceHeight(t.x, t.z), vx: 0, vz: 0, vy: 0, yr: 0, grounded: true, hintI: -1 });
   camSnap = true; closePanels(); toast(t.name);
@@ -5721,7 +5739,8 @@ function renderTravelList() {
   if (nav) list.append(btn('✖ Clear route', '', () => { clearNav('Route cleared'); drawBigMap(); renderTravelList(); }));
   { const id = circuitNext(), left = circuitTime(id) - netNow(), n = circuitEntrants(id).length;
     list.append(btn(circuit.signed ? '🏁 Leave circuit race' : '🏁 Sign up: circuit race in ' + fmtClock(left) + ' (' + n + '/' + CIRCUIT_MAX + ')', circuit.signed ? 'alt' : '', () => { circuitSign(); renderTravelList(); }, !circuit.signed && (!!street || n >= CIRCUIT_MAX)));
-    const q = CIRCUIT_R.pad; list.append(btn('🏁 Pebble Circuit', 'alt', () => travelTo({ name: 'Pebble Circuit', x: q.x - 8, z: q.z - 4, yaw: circuit.start.yaw }))); }
+    const q = CIRCUIT_R.pad; list.append(btn('🏁 Pebble Circuit', 'alt', () => travelTo({ name: 'Pebble Circuit', x: q.x - 8, z: q.z - 4, yaw: circuit.start.yaw })));
+    list.append(btn('🚦 Pebble Dragway', 'alt', () => travelTo({ name: 'Pebble Dragway', x: DRAG.X - 9, z: DRAG.ZS - 62, yaw: 0 }))); }
   const dp = PROPS.dealer.pad, ds = DEALER.site, dyaw = Math.atan2(ds.x - dp.x, ds.z - dp.z);
   const spots = [...TRAVEL, { name: 'Pebble Motors', x: dp.x - Math.sin(dyaw) * 6, z: dp.z - Math.cos(dyaw) * 6, yaw: dyaw }];
   { const up = PROPS.usedlot.pad, us = USED.s, uy = Math.atan2(us.x - up.x, us.z - up.z); spots.push({ name: "Shiro's Used Cars", x: up.x - Math.sin(uy) * 6, z: up.z - Math.cos(uy) * 6, yaw: uy }); }
@@ -6230,6 +6249,8 @@ function fuelStep(inp, dt) {
 }
 $('bCloseFuel').addEventListener('click', closePanels);
 $('bCloseBM').addEventListener('click', closePanels);
+$('bCloseDrag').addEventListener('click', closePanels);
+$('bDragGo').addEventListener('click', () => startDrag());
 $('fuelPanel').addEventListener('pointerdown', e => { if (e.target.id === 'fuelPanel') closePanels(); });
 
 // =====================================================================
@@ -6912,6 +6933,7 @@ $('wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardro
 function nearProp() {
   const p = player;
   if (BM.open && Math.hypot(p.x - BM.x, p.z - BM.z) < (onFoot ? 4.2 : 7)) return { kind: 'bm', text: 'to trade with the black market dealer' };
+  if (!drag && Math.hypot(p.x - DRAG.pad.x, p.z - DRAG.pad.z) < 6) return { kind: 'drag', text: 'to enter the drag race' };
   if (CIRCUIT_R.pad && Math.hypot(p.x - CIRCUIT_R.pad.x, p.z - CIRCUIT_R.pad.z) < 6 && !street) return { kind: 'circuit', text: circuit.signed ? 'to leave the circuit race' : 'to sign up for the next circuit race (' + fmtClock(circuitTime(circuitNext()) - netNow()) + ')' };
   { const fd = findAt(); if (fd) return { kind: 'find', f: fd, text: 'to restore this abandoned ' + BODY[fd.id].name };
     if (onFoot) { const cs = counterAt(); if (cs) return { kind: 'pay', st: cs, text: fuelDebt && fuelDebt.st === cs ? 'to pay $' + fuelDebt.amount.toFixed(2) + ' for your fuel' : 'to talk to the cashier' }; }
@@ -6937,6 +6959,7 @@ function openProp(pr) {
   if (pr.kind === 'find') { claimFind(pr.f); return; }
   if (pr.kind === 'bm') { openBM(); return; }
   if (pr.kind === 'circuit') { circuitSign(); return; }
+  if (pr.kind === 'drag') { openDrag(); return; }
   if (pr.kind === 'used') { openUsed(); return; }
   if (pr.kind === 'pump') { openFuel(pr.st); return; }
   if (pr.kind === 'pay') { payFuel(pr.st); return; }
@@ -7436,12 +7459,203 @@ function circuitStep(dt) {
   const peers = circuitEntrants(id); circuit.signed = null; circuit.warned = 0; hint.hidden = true;
   if (circuit.started === id) return; circuit.started = id;
   if (left < -5000) return;   // came back too late
-  if (race || mission || delivery || street || police.stars) { toast('You were busy, so you missed the circuit race'); return; }
+  if (race || mission || delivery || street || drag || police.stars) { toast('You were busy, so you missed the circuit race'); return; }
   const goAt = performance.now() + Math.max(500, left);
   if (peers.length > 1 && room && roomUp && myPeer) {
     if (!peers.includes(myPeer)) { toast('The race was full'); return; }
     startStreet(CIRCUIT_R, { multi: true, id: 'gp' + id, peers, fee: 0, prize: 0, goAt, circuit: true });
   } else startStreet(CIRCUIT_R, { fee: 0, prize: 1500, crew: circuitBots(), lo: 0.75, hi: 1.0, goAt, circuit: true });
+}
+
+// =====================================================================
+// Pebble Dragway: a separate area (fast travel only) with one huge quarter-mile strip, a christmas tree and timing
+// =====================================================================
+const DRAG = { X: 3200, LANE: 6, ZS: -1000, QM: 402.34, ZEND: 1250, best: 0 };
+DRAG.ZF = DRAG.ZS + DRAG.QM;
+const inDragZone = (x) => x > 2700;
+let drag = null;   // the run in progress
+{
+  const X = DRAG.X, ZS = DRAG.ZS, ZF = DRAG.ZF, ZE = DRAG.ZEND, L = DRAG.LANE;
+  const len = ZE - (ZS - 120), zc = (ZE + ZS - 120) / 2;
+  // ground all around, then the strip itself
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(560, 3300), toon(0x8f7a62)); sand.rotation.x = -Math.PI / 2; sand.position.set(X, -0.02, 0); sand.receiveShadow = true; scene.add(sand);
+  const stripTex = canvasTex(128, 512, (c, w, h) => {
+    c.fillStyle = '#3e3a4e'; c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(255,255,255,.04)'; for (let i = 0; i < 400; i++) c.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    c.fillStyle = '#f4f2fa'; c.fillRect(2, 0, 3, h); c.fillRect(w - 5, 0, 3, h); c.fillRect(w / 2 - 2, 0, 4, h);
+    c.fillStyle = 'rgba(0,0,0,.28)'; for (const x0 of [w * 0.18, w * 0.32, w * 0.68, w * 0.82]) c.fillRect(x0 - 5, 0, 10, h);   // rubbered-in wheel tracks
+  }, true);
+  stripTex.wrapS = stripTex.wrapT = THREE.RepeatWrapping; stripTex.repeat.set(1, len / 40);
+  const strip = new THREE.Mesh(new THREE.PlaneGeometry(32, len), new THREE.MeshToonMaterial({ map: stripTex, gradientMap: softGrad })); strip.rotation.x = -Math.PI / 2; strip.position.set(X, 0.01, zc); strip.receiveShadow = true; scene.add(strip);
+  // start line, finish line, burnout box
+  const lineM = new THREE.MeshBasicMaterial({ color: 0xf4f2fa });
+  for (const [z, d] of [[ZS, 0.5], [ZF, 1.2]]) { const l = new THREE.Mesh(new THREE.PlaneGeometry(31, d), lineM); l.rotation.x = -Math.PI / 2; l.position.set(X, 0.03, z); scene.add(l); }
+  const box = new THREE.Mesh(new THREE.PlaneGeometry(30, 22), new THREE.MeshBasicMaterial({ color: 0x1d1a2e, transparent: true, opacity: 0.5, depthWrite: false })); box.rotation.x = -Math.PI / 2; box.position.set(X, 0.025, ZS - 30); scene.add(box);
+  // walls: centre barrier, outer walls, the end of the shutdown area and the edge of the area
+  const conc = toon(0xd9d5e8), wallH = 1.1;
+  const wall = (x0, z0, x1, z1, h, m) => {
+    const w = x1 - x0, d = z1 - z0, mesh = new THREE.Mesh(rbox(w, h, d, Math.min(0.15, w * 0.3, d * 0.3)), m || conc);
+    mesh.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2); mesh.castShadow = mesh.receiveShadow = true; scene.add(mesh);
+    boxes.push({ x0, z0, x1, z1, h: h + 0.5, y0: 0 });
+  };
+  wall(X - 0.4, ZS - 60, X + 0.4, ZF + 380, wallH);
+  for (const sd of [-1, 1]) wall(X + sd * 16 - 0.4, ZS - 120, X + sd * 16 + 0.4, ZE, wallH);
+  wall(X - 16, ZE, X + 16, ZE + 2, 2.2, toon(0xff4f5e));
+  for (const sd of [-1, 1]) wall(X + sd * 250 - 1, -1600, X + sd * 250 + 1, 1600, 3, toon(0x5c5870));
+  wall(X - 250, -1602, X + 250, -1598, 3, toon(0x5c5870)); wall(X - 250, 1598, X + 250, 1602, 3, toon(0x5c5870));
+  // the staging lanes open into the pit area behind the burnout box
+  // grandstands along the first 300 m, both sides
+  const seatCols = [0x3fa7ff, 0xff4f5e, 0xffd23f, 0x3ddc97, 0xff7ac8];
+  for (const sd of [-1, 1]) for (let z = ZS - 40; z < ZS + 300; z += 70) {
+    const g = new THREE.Group(); g.position.set(X + sd * 30, 0, z + 30); g.rotation.y = sd * Math.PI / 2; scene.add(g);
+    for (let t = 0; t < 5; t++) part(g, rbox(60, 0.9, 2.2, 0.1), toon(seatCols[(t + (z / 70 | 0)) % 5]), 0, 0.45 + t * 0.9, t * 2.2, 0.03);
+    part(g, rbox(62, 0.5, 13, 0.2), toon(0xf4f2fa), 0, 7.4, 5, 0.04);
+    for (const x of [-28, 0, 28]) part(g, rbox(0.5, 7.4, 0.5, 0.1), toon(0x3a3d52), x, 3.7, 10.8, 0);
+    boxes.push({ x0: X + sd * 30 - (sd > 0 ? 0 : 12), z0: z, x1: X + sd * 30 + (sd > 0 ? 12 : 0), z1: z + 60, h: 8, y0: 0 });
+  }
+  // light towers with glowing pools all the way down
+  for (let z = ZS - 60; z < ZE; z += 110) for (const sd of [-1, 1]) {
+    const x = X + sd * 19;
+    const pole = new THREE.Mesh(cyl(0.25, 0.35, 16, 8), toon(0x3a3d52)); pole.position.set(x, 8, z); scene.add(pole);
+    const head = new THREE.Mesh(rbox(2.6, 0.6, 1.2, 0.1), new THREE.MeshBasicMaterial({ color: 0xfff2d0 })); head.position.set(x - sd * 0.8, 16, z); scene.add(head);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(26, 40), new THREE.MeshBasicMaterial({ map: glowTex, color: 0xfff0c8, transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending })); pool.rotation.x = -Math.PI / 2; pool.position.set(X + sd * 4, 0.04, z); scene.add(pool);
+    circles.push({ x, z, r: 0.5, h: 16, y0: 0 });
+  }
+  // gantries over the start and finish, distance boards on the walls
+  const gantry = (z, text, col) => {
+    const g = new THREE.Group(); g.position.set(X, 0, z); scene.add(g);
+    for (const sd of [-1, 1]) part(g, rbox(0.8, 9, 0.8, 0.1), toon(0x3a3d52), sd * 17, 4.5, 0, 0);
+    part(g, rbox(36, 1.2, 1.2, 0.2), toon(0x3a3d52), 0, 9, 0, 0.04);
+    signBoard(g, text, col, '#ffffff', 0, 10.8, 0, 14, 2.2);
+    return g;
+  };
+  gantry(ZS - 4, 'PEBBLE DRAGWAY', '#ff4f5e'); gantry(ZF, '1/4 MILE', '#3ddc97');
+  for (const [d, t] of [[18.3, '60 FT'], [100.6, '330 FT'], [201.2, '1/8 MILE'], [304.8, '1000 FT']]) for (const sd of [-1, 1]) {
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.2), new THREE.MeshBasicMaterial({ map: textTex(t, '#1d1a2e', '#ffd23f', 256, 86, 54), side: THREE.DoubleSide }));
+    b.position.set(X + sd * 15.6, 2.2, ZS + d); b.rotation.y = -sd * Math.PI / 2; scene.add(b);
+  }
+  // timing boards at the finish: ET and speed per lane
+  DRAG.boards = [-1, 1].map(sd => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 160; const t = new THREE.CanvasTexture(c);
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(6, 3.75), new THREE.MeshBasicMaterial({ map: t })); b.position.set(X + sd * 21, 6, ZF + 12); b.rotation.y = Math.PI; scene.add(b);
+    const back = new THREE.Mesh(rbox(6.4, 4.2, 0.3, 0.1), toon(0x1d1a2e)); back.position.set(X + sd * 21, 6, ZF + 12.2); scene.add(back);
+    const pole = new THREE.Mesh(cyl(0.2, 0.2, 4, 8), toon(0x3a3d52)); pole.position.set(X + sd * 21, 2, ZF + 12.2); scene.add(pole);
+    return { c, g: c.getContext('2d'), t };
+  });
+  // the christmas tree, between the lanes just past the start line
+  const tree = new THREE.Group(); tree.position.set(X, 0, ZS + 7); scene.add(tree);
+  part(tree, rbox(0.3, 3.2, 0.3, 0.06), toon(0x2b2d42), 0, 1.6, 0, 0);
+  part(tree, rbox(1.2, 2.6, 0.25, 0.08), toon(0x1d1a2e), 0, 2.35, 0, 0);
+  const bulb = (x, y, off) => { const m = new THREE.Mesh(geo('treeBulb', () => new THREE.SphereGeometry(0.12, 10, 8)), new THREE.MeshBasicMaterial({ color: off })); m.position.set(x, y, -0.15); tree.add(m); return m; };
+  DRAG.tree = [-1, 1].map(sd => ({
+    stage: [bulb(sd * 0.3, 3.45, 0x3a3640), bulb(sd * 0.3, 3.2, 0x3a3640)],
+    amber: [2.85, 2.55, 2.25].map(y => bulb(sd * 0.3, y, 0x4a3410)),
+    green: bulb(sd * 0.3, 1.9, 0x123a1c), red: bulb(sd * 0.3, 1.6, 0x4a1018),
+  }));
+  // the entry pad in the pits, and a sign pointing at it
+  const px = X - 9, pz = ZS - 48;
+  DRAG.pad = makePad(px, pz, 5, 0xffd23f, 'DRAG'); DRAG.pad.grp.position.y = 0; DRAG.pad.x = px; DRAG.pad.z = pz; DRAG.pad.r = 5;
+  // distant hills so the edge of the area isn't empty
+  for (let k = 0; k < 26; k++) {
+    const a = k / 26 * TAU, r = 1900 + (k % 3) * 160, hgt = 120 + (k * 37 % 90);
+    const m = new THREE.Mesh(new THREE.ConeGeometry(260 + (k * 53 % 120), hgt, 7), toon(0x4a3f5c)); m.position.set(X + Math.cos(a) * r * 0.35, hgt / 2 - 5, Math.sin(a) * r); scene.add(m);
+  }
+}
+function dragTree(lane, state) {
+  const T = DRAG.tree[lane], on = (m, c) => m.material.color.setHex(c);
+  on(T.stage[0], state.pre ? 0xfff3c0 : 0x3a3640); on(T.stage[1], state.stage ? 0xfff3c0 : 0x3a3640);
+  T.amber.forEach((m, k) => on(m, state.amber > k ? 0xffb020 : 0x4a3410));
+  on(T.green, state.green ? 0x3dff6a : 0x123a1c); on(T.red, state.red ? 0xff2030 : 0x4a1018);
+}
+function dragBoard(k, et, kmh, win) {
+  const B = DRAG.boards[k], g = B.g;
+  g.fillStyle = '#05040c'; g.fillRect(0, 0, 256, 160); g.strokeStyle = win ? '#3ddc97' : '#ff4f5e'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 154);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffd23f'; g.font = '800 54px "Lilita One", "Arial Black", sans-serif';
+  g.fillText(et ? et.toFixed(3) : '--', 128, 58); g.fillStyle = '#9fe6ff'; g.font = '700 34px Nunito, sans-serif'; g.fillText(kmh ? Math.round(kmh) + ' km/h' : '', 128, 120);
+  B.t.needsUpdate = true;
+}
+function openDrag() {
+  const best = num(save.dragBest, 0);
+  $('dragLede').textContent = 'Quarter mile (402 m) against a car matched to yours. Stay off the throttle until the tree goes green: jump it and you red-light. Entry $100, a win pays $600.' + (best ? ' Your best: ' + best.toFixed(3) + ' s.' : '');
+  $('dragResult').hidden = true; $('bDragGo').textContent = 'Stage the car · $100'; $('bDragGo').disabled = save.money < 100;
+  openPanel('dragPanel');
+}
+const DRAG_BOTS = ['muscle', 'raijin', 'kaminari', 'falke4', 'yoru', 'arashi'];
+let dragBotModel = null, dragBotBody = '';
+function startDrag() {
+  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return; }
+  if (save.money < 100) { toast('Entry is $100'); return; }
+  save.money -= 100; persist(); renderMoney(true);
+  closePanels(); forceIntoCar();
+  const X = DRAG.X, L = DRAG.LANE, st = player.stats, f = 0.94 + Math.random() * 0.12;
+  Object.assign(player, { x: X - L, z: DRAG.ZS - 1.8, y: 0, yaw: 0, vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, grounded: true, nitro: player.stats.nitroMax });
+  camSnap = true;
+  const body = DRAG_BOTS[(Math.random() * DRAG_BOTS.length) | 0];
+  if (!dragBotModel || dragBotBody !== body) {
+    if (dragBotModel) scene.remove(dragBotModel.root);
+    dragBotModel = buildCar(body, PAINTS[(Math.random() * PAINTS.length) | 0].hex, { e: 'v8', i: 't68', a: 'cai', w: 'y5', has: [] }, 'none', 'low'); dragBotBody = body;
+    scene.add(dragBotModel.root);
+  }
+  dragBotModel.root.visible = true;
+  const now = performance.now();
+  drag = { t0: now, green: now + 2700, phase: 'stage', foul: false, me: { leave: 0, cross: 0, sixty: 0, react: null, trap: 0 },
+    bot: { z: DRAG.ZS - 1.8, v: 0, react: 0.18 + Math.random() * 0.25, leave: 0, cross: 0, trap: 0, top: st.top * f, acc: st.accel * (1 + st.boostAcc * 0.7) * f, model: dragBotModel, s: { visPitch: 0, visRoll: 0 } } };
+  for (const k of [0, 1]) { dragTree(k, {}); dragBoard(k, 0, 0, false); }
+  showBig('STAGE'); sfx('beep');
+}
+function dragStep(dt, now) {
+  const D = drag; if (!D) return;
+  const X = DRAG.X, L = DRAG.LANE, inp = player.lastInput || {};
+  // before the green the car stays on the line (you can still rev it)
+  if (now < D.green) {
+    Object.assign(player, { x: X - L, z: DRAG.ZS - 1.8, yaw: 0, vx: 0, vz: 0, fs: 0, ls: 0, yr: 0 });
+    const t = (now - D.t0) / 1000, ambers = t < 1.2 ? 0 : Math.min(3, Math.floor((t - 1.2) / 0.5) + 1);
+    if (ambers > 0 && (inp.throttle || 0) > 0.1 && !D.foul) { D.foul = true; showBig('RED LIGHT!'); sfx('bump'); }
+    for (const k of [0, 1]) dragTree(k, { pre: true, stage: t > 0.6, amber: ambers, red: k === 0 && D.foul });
+    if (ambers !== D.lastAmber) { D.lastAmber = ambers; if (ambers) sfx('beep'); }
+  } else if (D.phase === 'stage') {
+    D.phase = 'run'; for (const k of [0, 1]) dragTree(k, { pre: true, stage: true, amber: 0, green: !(k === 0 && D.foul), red: k === 0 && D.foul }); sfx('go');
+  }
+  const me = D.me;
+  if (D.phase === 'run' || D.phase === 'done') {
+    if (me.react == null && (inp.throttle || 0) > 0.1) me.react = (now - D.green) / 1000;
+    if (!me.leave && player.z > DRAG.ZS - 1.5) me.leave = now;
+    if (!me.sixty && player.z > DRAG.ZS + 18.3) me.sixty = now;
+    if (!me.cross && player.z >= DRAG.ZF) { me.cross = now; me.trap = Math.abs(player.fs) * SPEED_UNIT; dragBoard(0, (me.cross - me.leave) / 1000, me.trap, false); }
+    // the other lane
+    const b = D.bot;
+    if (now > D.green + b.react * 1000 && !b.cross) {
+      if (!b.leave) b.leave = now;
+      b.v = Math.min(b.top, b.v + b.acc * Math.max(0.12, 1 - b.v / b.top) * dt); b.z += b.v * dt;   // same pull curve as your car, capped at its top speed
+      if (b.z >= DRAG.ZF) { b.cross = now; b.trap = b.v * SPEED_UNIT; dragBoard(1, (b.cross - b.leave) / 1000, b.trap, false); }
+    } else if (b.cross) { b.v = Math.max(0, b.v - 14 * dt); b.z += b.v * dt; }
+    b.model.root.position.set(X + L, 0, b.z); b.model.root.rotation.y = 0;
+    animateCar(b.model, b.v, 0, 0, 0, false, false, dt, b.s);
+    D.simT = (D.simT || 0) + dt;
+    if (me.cross && b.cross && D.phase === 'run') finishDrag(now);
+    else if (D.phase === 'run' && D.simT > 45) finishDrag(now);   // 45 s of driving without both finishing
+  } else {
+    D.bot.model.root.position.set(X + L, 0, D.bot.z); D.bot.model.root.rotation.y = 0;
+  }
+}
+function finishDrag(now) {
+  const D = drag; D.phase = 'done';
+  const me = D.me, b = D.bot, win = !D.foul && me.cross && (!b.cross || me.cross < b.cross);
+  const et = me.cross && me.leave ? (me.cross - me.leave) / 1000 : 0, betEt = b.cross ? (b.cross - b.leave) / 1000 : 0;
+  if (me.cross) dragBoard(0, et, me.trap, win); if (b.cross) dragBoard(1, betEt, b.trap, !win);
+  if (win) { addMoney(600); addXp(100); showBig('WIN!'); sfx('levelup'); } else { addXp(40); showBig(D.foul ? 'RED LIGHT' : 'LOSS'); }
+  if (et && !D.foul && (!save.dragBest || et < save.dragBest)) { save.dragBest = Math.round(et * 1000) / 1000; persist(); toast('New personal best: ' + et.toFixed(3) + ' s', true); }
+  const rows = [['Reaction', me.react == null ? '--' : (D.foul ? 'red light' : me.react.toFixed(3) + ' s'), b.react.toFixed(3) + ' s'],
+    ['60 ft', me.sixty && me.leave ? ((me.sixty - me.leave) / 1000).toFixed(3) + ' s' : '--', ''],
+    ['Quarter mile', et ? et.toFixed(3) + ' s' : 'did not finish', betEt ? betEt.toFixed(3) + ' s' : '--'],
+    ['Trap speed', me.trap ? Math.round(me.trap) + ' km/h' : '--', b.trap ? Math.round(b.trap) + ' km/h' : '--']];
+  const box = $('dragResult'); box.textContent = '';
+  box.append(el('div', 'label', win ? 'You won! +$600' : D.foul ? 'Red light: you jumped the start' : 'You lost this one'));
+  const tb = el('table', 'drtab'), hd = el('tr', ''); hd.append(el('th', '', ''), el('th', '', 'You'), el('th', '', BODY[dragBotBody].name)); tb.append(hd);
+  for (const r of rows) { const tr = el('tr', ''); for (const c of r) tr.append(el('td', '', c)); tb.append(tr); }
+  box.append(tb); box.hidden = false;
+  $('bDragGo').textContent = 'Run again · $100'; $('bDragGo').disabled = save.money < 100;
+  setTimeout(() => { if (drag === D) { drag = null; b.model.root.visible = false; openPanel('dragPanel'); } }, 2200);
 }
 
 let street = null, streetInvite = null, streetHost = null;
@@ -7454,7 +7668,7 @@ function nearestOnRoute(R, c, hint) {
 function streetPlace(c, q) { Object.assign(c, { x: q.x, z: q.z, yaw: q.yaw, y: surfaceHeight(q.x, q.z), vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, grounded: true, hintI: -1 }); }
 function startStreet(R, opts) {
   opts = opts || {};
-  if (race || mission || delivery || street) { toast('Finish what you are doing first'); return false; }
+  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return false; }
   if (police.stars) { toast('Lose the police first'); return false; }
   const fee = opts.fee != null ? opts.fee : R.fee;
   if (save.money < fee) { toast('You need $' + fee + ' to enter'); return false; }
@@ -8022,7 +8236,7 @@ function frame(now) {
   acc = 0;
   updateVisuals(dt, now);
   updateCamera(dt);
-  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); bmStep(dt); circuitStep(dt); }
+  if (playing) { hudT -= dt; mapT -= dt; if (hudT <= 0) { hudT = 1 / 30; updateHud(now); } if (mapT <= 0) { mapT = 1 / 15; drawMinimap(); } sendPresence(now); perfStep(dt); shopLightStep(); navStep(dt); searchStep(dt); bmStep(dt); circuitStep(dt); dragStep(dt, now); }
   updateEngineSound(Math.abs(player.fs), player.lastInput ? player.lastInput.throttle : 0, player.boosting, dt);
   renderer.render(scene, camera);
 }
