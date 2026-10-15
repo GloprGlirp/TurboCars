@@ -133,10 +133,11 @@ const server = http.createServer((req, res) => {
 });
 
 // ---------- player saves ----------
-// The server keeps the real copy of every save. Editing the browser's storage changes nothing, and money and XP
-// can only grow as fast as the game can pay out (a refilling allowance; market sales add to it).
+// The server keeps the real copy of every save. Editing the browser's storage changes nothing.
+// Money: any balance is fine, but it never grows by more than $500,000 in one go (market sales on top).
+// XP grows only as fast as the game can hand it out.
 state.saves = state.saves || {};
-const SAVE_LIMITS = { firstMoney: 200000, firstXp: 60000, moneyRate: 60, moneyBucket: 60000, xpRate: 40, xpBucket: 12000, maxCars: 40, bytes: 300 * 1024 };
+const SAVE_LIMITS = { moneyJump: 500000, firstXp: 60000, xpRate: 40, xpBucket: 12000, maxCars: 40, bytes: 300 * 1024 };
 const levelOfXp = xp => { let L = 1; while (L < 50 && xp >= Math.round(200 * Math.pow(L, 1.55))) L++; return L; };
 function cleanSave(o) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
@@ -151,16 +152,16 @@ function storeSave(pid, incoming) {
   const s = cleanSave(incoming); if (!s) return null;
   const now = Date.now(), prev = state.saves[pid], L = SAVE_LIMITS; let fixed = false;
   if (!prev) {
-    if (s.money > L.firstMoney) { s.money = L.firstMoney; fixed = true; }
+    if (s.money > L.moneyJump) { s.money = L.moneyJump; fixed = true; }
     if (s.xp > L.firstXp) { s.xp = L.firstXp; fixed = true; }
-    state.saves[pid] = { save: s, at: now, mb: L.moneyBucket, xb: L.xpBucket, credit: 0 };
+    state.saves[pid] = { save: s, at: now, xb: L.xpBucket, credit: 0 };
   } else {
     const dt = Math.max(0, (now - prev.at) / 1000);
-    let mb = Math.min(L.moneyBucket, prev.mb + dt * L.moneyRate) + (prev.credit || 0), xb = Math.min(L.xpBucket, prev.xb + dt * L.xpRate);
-    const dm = s.money - prev.save.money, dx = s.xp - prev.save.xp;
-    if (dm > mb) { s.money = prev.save.money + Math.floor(mb); mb = 0; fixed = true; } else if (dm > 0) mb -= dm;
+    let xb = Math.min(L.xpBucket, (prev.xb != null ? prev.xb : L.xpBucket) + dt * L.xpRate);
+    const maxGain = L.moneyJump + (prev.credit || 0), dm = s.money - prev.save.money, dx = s.xp - prev.save.xp;
+    if (dm > maxGain) { s.money = prev.save.money + maxGain; fixed = true; }
     if (dx > xb) { s.xp = prev.save.xp + Math.floor(xb); xb = 0; fixed = true; } else if (dx > 0) xb -= dx;
-    state.saves[pid] = { save: s, at: now, mb, xb, credit: 0 };
+    state.saves[pid] = { save: s, at: now, xb, credit: 0 };
   }
   saveState();
   return { s, fixed };
