@@ -17,11 +17,13 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 const PAINTS = ['cherry', 'tangerine', 'lemon', 'mint', 'sky', 'grape', 'bubblegum', 'snow', 'midnight'];
 const BODIES = ['mini', 'bubble', 'brick', 'zippy', 'van', 'buggy', 'koi', 'kaze', 'pickup', 'muscle', 'truck', 'falcon', 'cruiser', 'tempest', 'vento', 'rocket', 'hatch', 'sedan', 'suv', 'coupe', 'gt', 'super', 'kitsune', 'hikari', 'sakura', 'yoru', 'raijin', 'arashi', 'oni', 'kaminari', 'hakone', 'shogun', 'tanuki', 'falke4', 'falke2', 'ostwind'];
 const ENGINES = ['i4', 'i5', 'v6', 'i6', 'v8', 'v10', 'v12', 'kuro6'];
-const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'c30', 'tsb', 'gt99'];
+const INDUCTIONS = ['na', 't38', 't52', 't68', 'h76', 'x88', 'c30', 'tsb', 'gt99'];
 const INTAKES = ['stock', 'cai', 'ram', 'itb'];
 const WHEELS = ['stock', 'star', 'dish', 'mesh', 'slick', 'knob', 'aero', 'split', 'y5', 'kagero', 'kagerow'];
 const TYRES = ['street', 'sport', 'drift', 'semi', 'slick'];
-const PARTS = { g: ['stock', 'short', 'long'], k: ['stock', 's1', 's2'], c: ['stock', 'rad', 'ic', 'full', 'ice'], p: ['stock', 'pist', 'rods', 'built', 'ti'], z: ['stock', 'irid', 'cold'], b: ['stock', 'pads', 'bbk', 'race'], x: ['stock', 's1', 's2', 'pro', 'bm'] };
+const PARTS = { g: ['stock', 'short', 'long'], k: ['stock', 's1', 's2'], c: ['stock', 'rad', 'ic', 'full', 'ice'], p: ['stock', 'pist', 'rods', 'built', 'ti'], z: ['stock', 'irid', 'cold'], b: ['stock', 'pads', 'bbk', 'race'], x: ['stock', 's1', 's2', 'pro', 'bm'], f: ['stock', 'inj', 'pump', 'e85', 'meth'], h: ['stock', 'cat', 'dp', 'race'], m: ['stock', 'st', 'race'], l: ['none', 'als', 'rally'] };
+const SETUP_KEYS = ['boost', 'timing', 'afr', 'rev', 'fd', 'susp', 'diff', 'tyre', 'aero', 'bias'];
+const cleanSetup = e => Object.fromEntries(SETUP_KEYS.map(k => [k, Math.max(-1.25, Math.min(1.25, Number(e && e[k]) || 0))]));
 const LOOK = { pl: ['lit', 'off'], kit: ['stock', 'street', 'wide'], wing: ['none', 'duck', 'gt', 'big'], stk: ['none', 'banner', 'hashiri', 'num', 'kings', 'devils', 'tengu'] };
 const UPGRADES = ['engine', 'accel', 'grip', 'drift', 'nitro', 'susp'];
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '');
@@ -80,14 +82,15 @@ function cleanCar(c) {
   const up = {};
   for (const k of UPGRADES) up[k] = Math.max(0, Math.min(5, Math.floor(Number(c.up && c.up[k]) || 0)));
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbx]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
   return {
     m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none', stance: ['stock', 'low', 'slammed'].includes(c.stance) ? c.stance : 'stock',
-    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', ...Object.fromEntries(Object.entries(PARTS).map(([k, l]) => [k, l.includes(t[k]) ? t[k] : 'stock'])), has },
+    tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', ...Object.fromEntries(Object.entries(PARTS).map(([k, l]) => [k, l.includes(t[k]) ? t[k] : l[0]])), has },
     look: Object.fromEntries(Object.entries(LOOK).map(([k, l]) => [k, l.includes(c.look && c.look[k]) ? c.look[k] : l[0]])),
     lookOwn: Array.isArray(c.lookOwn) ? c.lookOwn.filter(x => typeof x === 'string' && /^[a-z]{2,5}:[a-z0-9]{1,10}$/.test(x)).slice(0, 40) : [],
     wear: Math.max(0, Math.min(1, Number(c.wear) || 0)),
-    ecu: Object.fromEntries(['boost', 'timing', 'rev'].map(k => [k, Math.max(-1.25, Math.min(1.25, Number(c.ecu && c.ecu[k]) || 0))])),
+    ecu: cleanSetup(c.ecu),
+    setups: Array.isArray(c.setups) ? c.setups.slice(0, 3).map(x => x && typeof x === 'object' ? { n: cleanName(x.n), e: cleanSetup(x.e) } : null) : [],
     plate: cleanPlate(c.plate),
   };
 }

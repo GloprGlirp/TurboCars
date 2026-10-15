@@ -263,11 +263,13 @@ select, input[type=number] { font: 800 1rem var(--font-body); color: var(--ink);
 .hint.ok { color: #1f9c63; }
 .panel.wide { width: min(720px, 100%); }
 .ecu { display: grid; gap: 8px; }
-.ecurow { display: grid; grid-template-columns: 9.5em 1fr 9em 3.4em; align-items: center; gap: 4px 10px; font-size: 13px; }
+.carinfo .warn { color: #ff4f5e; font-weight: 800; }
+.ecurow.setupslot { display: flex; flex-wrap: wrap; gap: 6px 10px; } .setupslot .n { min-width: 6em; } .setupslot .lo { flex: 1 1 14em; }
+.ecurow { display: grid; grid-template-columns: 9.5em 1fr 9em 5.8em; align-items: center; gap: 4px 10px; font-size: 13px; }
 .ecurow .n { font-weight: 800; grid-column: 1; } .ecurow .lo { grid-column: 1; grid-row: 2; opacity: .7; font-size: 12px; }
 .ecurow input { grid-column: 2; grid-row: 1 / span 2; width: 100%; accent-color: #9b6bff; } .ecurow .hi { grid-column: 3; grid-row: 1 / span 2; opacity: .7; font-size: 12px; } .ecurow b { grid-column: 4; grid-row: 1 / span 2; text-align: right; }
 .ecurow .hint { grid-column: 1 / -1; }
-@media (max-width: 560px) { .ecurow { grid-template-columns: 1fr 3.4em; } .ecurow .n, .ecurow .lo, .ecurow .hi { grid-column: 1; grid-row: auto; } .ecurow input { grid-column: 1; grid-row: auto; } .ecurow b { grid-column: 2; grid-row: 1; } }
+@media (max-width: 560px) { .ecurow { grid-template-columns: 1fr 5.8em; } .ecurow .n, .ecurow .lo, .ecurow .hi { grid-column: 1; grid-row: auto; } .ecurow input { grid-column: 1; grid-row: auto; } .ecurow b { grid-column: 2; grid-row: 1; } }
 #searchHint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 6; background: #1d1a2e; color: #fff; border: 3px solid #fff; border-radius: 999px; padding: 6px 16px; font: 700 15px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
 #searchHint[hidden] { display: none; }
 #circuitHint { position: fixed; top: 58px; left: 50%; transform: translateX(-50%); z-index: 6; background: #ff4f5e; color: #fff; border: 3px solid #1d1a2e; border-radius: 999px; padding: 5px 14px; font: 800 14px Nunito, system-ui, sans-serif; pointer-events: none; white-space: nowrap; }
@@ -469,6 +471,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="tabs" role="tablist" id="gTabs">
       <button class="tab" type="button" role="tab" data-tab="perf">Performance</button>
       <button class="tab" type="button" role="tab" data-tab="engine">Engine bay</button>
+      <button class="tab" type="button" role="tab" data-tab="setup">Setup</button>
       <button class="tab" type="button" role="tab" data-tab="wheels">Wheels</button>
       <button class="tab" type="button" role="tab" data-tab="body">Body</button>
       <button class="tab" type="button" role="tab" data-tab="look">Paint</button>
@@ -486,20 +489,35 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
       <div class="opts" id="indList"></div>
       <div class="label">Air intake</div>
       <div class="opts" id="intakeList"></div>
+      <div class="label">Exhaust</div>
+      <div class="opts" id="exhList"></div>
+      <div class="label">Camshafts</div>
+      <div class="opts" id="camList"></div>
+      <div class="label">Fuel system: big power needs big injectors</div>
+      <div class="opts" id="fuelList"></div>
+      <div class="label">Anti-lag: keeps the turbo spooled off the throttle</div>
+      <div class="opts" id="alsList"></div>
       <div class="label">Cooling: slows heat build-up</div>
       <div class="opts" id="coolList"></div>
       <div class="label">Engine internals: stronger engine, less wear and fewer blow-ups</div>
       <div class="opts" id="pistList"></div>
       <div class="label">Spark plugs</div>
       <div class="opts" id="plugList"></div>
-      <div class="label">ECU: unlocks software tuning</div>
+      <div class="label">ECU: unlocks software tuning in the Setup tab</div>
       <div class="opts" id="ecuList"></div>
-      <div class="label">Software tuning</div>
-      <div class="ecu" id="ecuTune"></div>
       <div class="label">Gearing</div>
       <div class="opts" id="gearList"></div>
       <div class="label">Weight reduction</div>
       <div class="opts" id="weightList"></div>
+    </div>
+    <div data-pane="setup" hidden>
+      <div class="carinfo" id="setupPower"></div>
+      <div class="label">Engine software</div>
+      <div class="ecu" id="ecuTune"></div>
+      <div class="label">Chassis setup</div>
+      <div class="ecu" id="chassisTune"></div>
+      <div class="label">Saved setups</div>
+      <div class="ecu" id="setupSlots"></div>
     </div>
     <div data-pane="body" hidden>
       <div class="label">Body kit</div>
@@ -871,30 +889,32 @@ const MISSION_IDS = ['donuts', 'slalom', 'hopper', 'sprint', 'sideways', 'coast'
 
 // engine bay parts and wheels, fitted per car. Brands are made up.
 const ENGINES = [
-  { id: 'i4', name: 'Inline-4', brand: 'Stock', cost: 0, top: 1, acc: 1, turn: 1, bk: 2.3, tips: 1, snd: { p: 1, t: 'sawtooth', t2: 'square', r2: 0.5 } },
-  { id: 'i5', name: 'Inline-5', brand: 'Quintet', cost: 500, top: 1.04, acc: 1.05, turn: 1, bk: 2.0, tips: 1, snd: { p: 0.92, t: 'sawtooth', t2: 'sawtooth', r2: 0.6 } },
-  { id: 'v6', name: 'V6', brand: 'Hexa', cost: 900, top: 1.07, acc: 1.08, turn: 0.99, bk: 1.75, tips: 2, snd: { p: 0.82, t: 'sawtooth', t2: 'square', r2: 0.5 } },
-  { id: 'i6', name: 'Inline-6', brand: 'Straightline', cost: 1200, top: 1.09, acc: 1.09, turn: 0.99, bk: 1.65, tips: 2, snd: { p: 1.05, t: 'sawtooth', t2: 'triangle', r2: 1.5 } },
-  { id: 'v8', name: 'V8', brand: 'Thunderblock', cost: 1800, top: 1.13, acc: 1.16, turn: 0.96, drift: 1.05, bk: 1.2, tips: 4, snd: { p: 0.62, t: 'square', t2: 'sawtooth', r2: 0.5 } },
-  { id: 'v10', name: 'V10', brand: 'Decima', cost: 2600, top: 1.17, acc: 1.18, turn: 0.97, drift: 1.03, bk: 1.0, tips: 4, snd: { p: 1.18, t: 'sawtooth', t2: 'square', r2: 1.25 } },
-  { id: 'kuro6', name: 'Kuro black-label twin-cam six', brand: '???', cost: 5200, top: 1.2, acc: 1.2, turn: 0.99, bk: 1.3, bm: true, tips: 2, snd: { p: 1.08, t: 'sawtooth', t2: 'triangle', r2: 1.6 } },
-  { id: 'v12', name: 'V12', brand: 'Dodeca', cost: 3600, top: 1.21, acc: 1.2, turn: 0.95, bk: 0.8, tips: 4, snd: { p: 1.32, t: 'sawtooth', t2: 'triangle', r2: 2 } },
+  { id: 'i4', name: 'Inline-4', brand: 'Stock', cost: 0, top: 1, acc: 1, turn: 1, bk: 2.3, tips: 1, mul: 1, be: 1.0, snd: { p: 1, t: 'sawtooth', t2: 'square', r2: 0.5 } },
+  { id: 'i5', name: 'Inline-5', brand: 'Quintet', cost: 500, top: 1.04, acc: 1.05, turn: 1, bk: 2.0, tips: 1, mul: 1.2, be: 0.95, snd: { p: 0.92, t: 'sawtooth', t2: 'sawtooth', r2: 0.6 } },
+  { id: 'v6', name: 'V6', brand: 'Hexa', cost: 900, top: 1.07, acc: 1.08, turn: 0.99, bk: 1.75, tips: 2, mul: 1.35, be: 0.85, snd: { p: 0.82, t: 'sawtooth', t2: 'square', r2: 0.5 } },
+  { id: 'i6', name: 'Inline-6', brand: 'Straightline', cost: 1200, top: 1.09, acc: 1.09, turn: 0.99, bk: 1.65, tips: 2, mul: 1.45, be: 1.0, snd: { p: 1.05, t: 'sawtooth', t2: 'triangle', r2: 1.5 } },
+  { id: 'v8', name: 'V8', brand: 'Thunderblock', cost: 1800, top: 1.13, acc: 1.16, turn: 0.96, drift: 1.05, bk: 1.2, tips: 4, mul: 1.8, be: 0.72, snd: { p: 0.62, t: 'square', t2: 'sawtooth', r2: 0.5 } },
+  { id: 'v10', name: 'V10', brand: 'Decima', cost: 2600, top: 1.17, acc: 1.18, turn: 0.97, drift: 1.03, bk: 1.0, tips: 4, mul: 2.1, be: 0.62, snd: { p: 1.18, t: 'sawtooth', t2: 'square', r2: 1.25 } },
+  { id: 'kuro6', name: 'Kuro black-label twin-cam six', brand: '???', cost: 5200, top: 1.2, acc: 1.2, turn: 0.99, bk: 1.3, bm: true, tips: 2, mul: 1.75, be: 1.05, snd: { p: 1.08, t: 'sawtooth', t2: 'triangle', r2: 1.6 } },
+  { id: 'v12', name: 'V12', brand: 'Dodeca', cost: 3600, top: 1.21, acc: 1.2, turn: 0.95, bk: 0.8, tips: 4, mul: 2.4, be: 0.52, snd: { p: 1.32, t: 'sawtooth', t2: 'triangle', r2: 2 } },
 ];
 const INDUCTIONS = [
-  { id: 'na', name: 'Naturally aspirated', brand: 'Stock', cost: 0, top: 1, acc: 1, lag: 0 },
-  { id: 't38', name: 'S38 small turbo', brand: 'Snailworks', cost: 450, top: 1.04, acc: 1.07, lag: 0.12, turbo: true },
-  { id: 't52', name: 'S52 street turbo', brand: 'Snailworks', cost: 850, top: 1.07, acc: 1.1, lag: 0.25, turbo: true },
-  { id: 't68', name: 'S68 big turbo', brand: 'Snailworks', cost: 1400, top: 1.11, acc: 1.14, lag: 0.42, turbo: true },
-  { id: 'h76', name: 'Hurricane 76 race turbo', brand: 'Gale Boost', cost: 2100, top: 1.14, acc: 1.16, lag: 0.6, turbo: true },
-  { id: 'c30', name: 'C30 centrifugal supercharger', brand: 'Spinwell', cost: 1000, top: 1.09, acc: 1.07, lag: 0 },
-  { id: 'tsb', name: 'Twin-screw blower', brand: 'Blowr', cost: 1200, top: 1.06, acc: 1.15, lag: 0, blower: true },
-  { id: 'gt99', name: 'Ghost GT99 twin-turbo kit', brand: '???', cost: 4200, top: 1.17, acc: 1.2, lag: 0.36, turbo: true, bm: true },
+  { id: 'na', name: 'Naturally aspirated', brand: 'Stock', cost: 0, b0: 0, bmax: 0, lag: 0 },
+  { id: 't38', name: 'S38 small turbo', brand: 'Snailworks', cost: 450, b0: 0.6, bmax: 1.0, lag: 0.12, turbo: true },
+  { id: 't52', name: 'S52 street turbo', brand: 'Snailworks', cost: 850, b0: 0.9, bmax: 1.5, lag: 0.25, turbo: true },
+  { id: 't68', name: 'S68 big turbo', brand: 'Snailworks', cost: 1400, b0: 1.2, bmax: 2.1, lag: 0.42, turbo: true },
+  { id: 'h76', name: 'Hurricane 76 race turbo', brand: 'Gale Boost', cost: 2100, b0: 1.5, bmax: 2.8, lag: 0.6, turbo: true },
+  { id: 'x88', name: 'X88 monster turbo', brand: 'Gale Boost Racing', cost: 4800, b0: 1.8, bmax: 3.6, lag: 0.82, turbo: true },
+  { id: 'c30', name: 'C30 centrifugal supercharger', brand: 'Spinwell', cost: 1000, b0: 0.45, bmax: 0.85, lag: 0, cent: true },
+  { id: 'tsb', name: 'Twin-screw blower', brand: 'Blowr', cost: 1200, b0: 0.55, bmax: 1.0, lag: 0, blower: true, loss: 0.95 },
+  { id: 'gt99', name: 'Ghost GT99 twin-turbo kit', brand: '???', cost: 4200, b0: 1.4, bmax: 2.7, lag: 0.36, turbo: true, bm: true },
 ];
+const isBoosted = I => !!(I && I.bmax);
 const INTAKES = [
-  { id: 'stock', name: 'Stock airbox', brand: 'Stock', cost: 0, top: 1, acc: 1 },
-  { id: 'cai', name: 'Cold air intake', brand: 'Frostline', cost: 250, top: 1.02, acc: 1.02 },
-  { id: 'ram', name: 'Ram-air hood scoop', brand: 'Frostline', cost: 550, top: 1.03, acc: 1.04, scoop: true },
-  { id: 'itb', name: 'Individual throttle bodies', brand: 'Stackworks', cost: 900, top: 1.04, acc: 1.06 },
+  { id: 'stock', name: 'Stock airbox', brand: 'Stock', cost: 0, pow: 1 },
+  { id: 'cai', name: 'Cold air intake', brand: 'Frostline', cost: 250, pow: 1.03 },
+  { id: 'ram', name: 'Ram-air hood scoop', brand: 'Frostline', cost: 550, pow: 1.045, scoop: true },
+  { id: 'itb', name: 'Individual throttle bodies', brand: 'Stackworks', cost: 900, pow: 1.07 },
 ];
 const WHEELS = [
   { id: 'stock', name: 'Steelies', brand: 'Stock', cost: 0, grip: 1, off: 0, style: 'hub', rim: 0xcfcbe0 },
@@ -912,7 +932,7 @@ const WHEELS = [
 // player level needed to buy each part, car and upgrade tier (things already owned stay usable)
 const UNLOCK = {
   e: { i5: 3, v6: 5, i6: 8, v8: 12, v10: 18, v12: 25 },
-  i: { t38: 4, c30: 7, t52: 9, tsb: 11, t68: 15, h76: 22 },
+  i: { t38: 4, c30: 7, t52: 9, tsb: 11, t68: 15, h76: 22, x88: 28 },
   a: { cai: 2, ram: 6, itb: 13 },
   w: { star: 2, dish: 4, knob: 6, aero: 8, kagero: 9, kagerow: 9, mesh: 10, split: 12, slick: 14, y5: 16 },
   car: { ostwind: 16, falke4: 18, falke2: 19, brick: 2, zippy: 2, van: 3, buggy: 3, koi: 4, hatch: 4, kaze: 5, pickup: 6, suv: 7, muscle: 8, sedan: 9, kitsune: 3, hikari: 6, sakura: 8, yoru: 12, raijin: 20, arashi: 17, truck: 10, falcon: 14, coupe: 15, cruiser: 16, tempest: 18, vento: 20, gt: 22, rocket: 28, super: 30 },
@@ -986,35 +1006,86 @@ const ECUS = [
   { id: 'bm', name: 'Ghost map ECU', brand: '???', cost: 3800, pow: 1.1, range: 1.25, bm: true },
 ];
 const BRAKE_BY = Object.fromEntries(BRAKES.map(x => [x.id, x])), ECU_BY = Object.fromEntries(ECUS.map(x => [x.id, x]));
+// fuel system: how much power the injectors and pump can feed (× this engine's stock power). Past that it runs lean
+const FUELS = [
+  { id: 'stock', name: 'Stock injectors and pump', brand: 'Stock', cost: 0, cap: 2.2, pow: 1, cool: 1 },
+  { id: 'inj', name: 'Bigger injectors', brand: 'Flowtek', cost: 600, cap: 3.2, pow: 1, cool: 1 },
+  { id: 'pump', name: 'Injectors and twin fuel pumps', brand: 'Flowtek', cost: 1400, cap: 4.5, pow: 1, cool: 1 },
+  { id: 'e85', name: 'Flex-fuel E85 conversion', brand: 'Flowtek Racing', cost: 2600, cap: 6.5, pow: 1.06, cool: 1.08 },
+  { id: 'meth', name: 'Methanol race fuel system', brand: 'Flowtek Racing', cost: 5200, cap: 11, pow: 1.1, cool: 1.15 },
+];
+// exhaust: frees up power (most of all on turbo engines) and makes it louder and poppier
+const EXHAUSTS = [
+  { id: 'stock', name: 'Stock exhaust', brand: 'Stock', cost: 0, na: 0, tb: 0, pops: 0 },
+  { id: 'cat', name: 'High-flow cat-back', brand: 'Pipeline', cost: 400, na: 0.03, tb: 0.05, pops: 0.1 },
+  { id: 'dp', name: 'Downpipe and race cat', brand: 'Pipeline', cost: 850, na: 0.04, tb: 0.1, pops: 0.2 },
+  { id: 'race', name: 'Straight-through race exhaust', brand: 'Pipeline Racing', cost: 1600, na: 0.07, tb: 0.14, pops: 0.35 },
+];
+// camshafts: more power up top and a higher redline
+const CAMS = [
+  { id: 'stock', name: 'Stock camshafts', brand: 'Stock', cost: 0, pow: 1, rpm: 0 },
+  { id: 'st', name: 'Street camshafts', brand: 'Liftmaster', cost: 700, pow: 1.04, rpm: 300 },
+  { id: 'race', name: 'Race camshafts and valve springs', brand: 'Liftmaster Race', cost: 1700, pow: 1.08, rpm: 700, lumpy: true },
+];
+// anti-lag: keeps the turbo spinning off the throttle. Pops, bangs and flames, and a hot engine
+const ANTILAGS = [
+  { id: 'none', name: 'No anti-lag', brand: 'Stock', cost: 0, keep: 0, heat: 0, pops: 0 },
+  { id: 'als', name: 'Street anti-lag (ignition retard)', brand: 'Bitworks', cost: 1800, keep: 0.65, heat: 0.15, pops: 0.35 },
+  { id: 'rally', name: 'Rally anti-lag with air valve', brand: 'Bitworks Motorsport', cost: 3400, keep: 1, heat: 0.3, pops: 0.7 },
+];
+const FUEL_BY = Object.fromEntries(FUELS.map(x => [x.id, x])), EXH_BY = Object.fromEntries(EXHAUSTS.map(x => [x.id, x])), CAM_BY = Object.fromEntries(CAMS.map(x => [x.id, x])), ALS_BY = Object.fromEntries(ANTILAGS.map(x => [x.id, x]));
+UNLOCK.f = { inj: 5, pump: 10, e85: 16, meth: 24 }; UNLOCK.h = { cat: 2, dp: 6, race: 12 }; UNLOCK.m = { st: 7, race: 15 }; UNLOCK.l = { als: 10, rally: 18 };
+
 UNLOCK.b = { pads: 2, bbk: 7, race: 14 }; UNLOCK.x = { s1: 3, s2: 8, pro: 15 };
+// engine software (needs an ECU) and chassis setup (always open). Values run -1..1, the ECU sets how far
 const ECU_KEYS = [
   { k: 'boost', name: 'Boost pressure', lo: 'less boost, cooler', hi: 'more boost, more heat', boost: true },
   { k: 'timing', name: 'Ignition timing', lo: 'safe, less power', hi: 'more power, likes 98 octane' },
-  { k: 'rev', name: 'Shift map', lo: 'short: faster off the line', hi: 'long: higher top speed' },
+  { k: 'afr', name: 'Fuel mixture', lo: 'rich: safer and cooler', hi: 'lean: more power, hotter' },
+  { k: 'rev', name: 'Rev limiter', lo: 'early: easy on the engine', hi: 'late: more top end, more wear' },
 ];
+const CHASSIS_KEYS = [
+  { k: 'fd', name: 'Final drive', lo: 'short: quicker off the line', hi: 'long: higher top speed' },
+  { k: 'susp', name: 'Suspension', lo: 'soft: dirt and drifting', hi: 'stiff: grip and turn-in' },
+  { k: 'diff', name: 'Differential', lo: 'open: tidy grip', hi: 'locked: easy drifts' },
+  { k: 'tyre', name: 'Tyre pressure', lo: 'low: more grip', hi: 'high: more speed, slides more' },
+  { k: 'aero', name: 'Downforce', lo: 'low: faster on straights', hi: 'high: grip in fast corners' },
+  { k: 'bias', name: 'Brake bias', lo: 'front: stable, short stops', hi: 'rear: rotates into drifts' },
+];
+const SETUP_KEYS = ECU_KEYS.concat(CHASSIS_KEYS).map(K => K.k);
+const zeroSetup = () => Object.fromEntries(SETUP_KEYS.map(k => [k, 0]));
 // the fine tuning that's actually allowed with the fitted ECU
 function ecuVals(car) {
   const X = ECU_BY[(car.tune || {}).x] || ECU_BY.stock, R = X.range, e = car.ecu || {};
-  return { X, R, boost: clamp(num(e.boost, 0), -R, R), timing: clamp(num(e.timing, 0), -R, R), rev: clamp(num(e.rev, 0), -R, R) };
+  const o = { X, R };
+  for (const K of ECU_KEYS) o[K.k] = clamp(num(e[K.k], 0), -R, R);
+  for (const K of CHASSIS_KEYS) o[K.k] = clamp(num(e[K.k], 0), -1, 1);
+  return o;
 }
+// boost in bar for a slider value: down to 40 % of the base pressure, up to the turbo's maximum (overboost with the ghost ECU)
+function boostBar(I, v) { if (!isBoosted(I)) return 0; return v < 0 ? I.b0 * (1 + 0.6 * v) : I.b0 + (I.bmax - I.b0) * v; }
+const REDLINE = { i4: 7800, i5: 7200, v6: 7000, i6: 7600, v8: 6800, v10: 8300, v12: 8000, kuro6: 8600 };
+const redlineOf = car => { const t = car.tune || DEFAULT_TUNE; return (REDLINE[t.e] || 7500) + (CAM_BY[t.m] || CAM_BY.stock).rpm + Math.round(ecuVals(car).rev * 800 / 50) * 50; };
 const GEAR_BY = Object.fromEntries(GEARINGS.map(x => [x.id, x])), WEIGHT_BY = Object.fromEntries(WEIGHTS.map(x => [x.id, x]));
 const COOL_BY = Object.fromEntries(COOLINGS.map(x => [x.id, x])), INTERNAL_BY = Object.fromEntries(INTERNALS.map(x => [x.id, x])), PLUG_BY = Object.fromEntries(PLUGS.map(x => [x.id, x]));
 UNLOCK.g = { short: 4, long: 4 }; UNLOCK.k = { s1: 5, s2: 11 }; UNLOCK.c = { rad: 3, ic: 6, full: 12 }; UNLOCK.p = { pist: 6, rods: 10, built: 16 }; UNLOCK.z = { irid: 2, cold: 7 };
-const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE, g: GEAR_BY, k: WEIGHT_BY, c: COOL_BY, p: INTERNAL_BY, z: PLUG_BY, b: BRAKE_BY, x: ECU_BY };
-const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] });
+const SLOT_MAP = { e: ENGINE, i: IND, a: INTAKE, w: WHEEL, y: TYRE, g: GEAR_BY, k: WEIGHT_BY, c: COOL_BY, p: INTERNAL_BY, z: PLUG_BY, b: BRAKE_BY, x: ECU_BY, f: FUEL_BY, h: EXH_BY, m: CAM_BY, l: ALS_BY };
+const DEFAULT_TUNE = Object.freeze({ e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', f: 'stock', h: 'stock', m: 'stock', l: 'none', has: [] });
 // how well this engine copes: cooling (heat) and strength (wear, blow-ups)
 function engineCare(car) {
   const t = car.tune || DEFAULT_TUNE, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock, I = IND[t.i] || IND.na;
-  // boost makes heat; bigger turbos make more
-  const ev = ecuVals(car), boosted = I.turbo || I.blower || I.id === 'c30', knock = num(car.oct, 95) < 97 && ev.timing > 0 ? ev.timing * 0.3 : 0;
-  const stress = 1 + (boosted ? 0.25 + I.lag * 0.5 : 0) + ((ENGINE[t.e] || ENGINE.i4).acc - 1) * 1.5 + (boosted ? Math.max(0, ev.boost) * 0.3 : 0) + Math.max(0, ev.timing) * 0.2 + knock;
-  return { cool: C.cool * Z.cool, str: Pn.str * Z.str, stress };
+  const F = FUEL_BY[t.f] || FUEL_BY.stock, L = ALS_BY[t.l] || ALS_BY.none, E = ENGINE[t.e] || ENGINE.i4, pw = powerOf(car), ev = pw.ev;
+  // boost makes heat, more boost than the turbo was built for makes lots; advanced timing on 95 octane knocks
+  const boosted = isBoosted(I), knock = num(car.oct, 95) < 97 && ev.timing > 0 ? ev.timing * 0.3 : 0;
+  const stress = 1 + (boosted ? 0.2 + I.lag * 0.4 + Math.max(0, pw.bar - I.b0) * 0.35 : 0) + (E.mul - 1) * 0.2 + Math.max(0, ev.timing) * 0.2 + knock
+    + Math.max(0, ev.afr) * 0.3 - Math.max(0, -ev.afr) * 0.12 + Math.max(0, ev.rev) * 0.15 + (boosted ? L.heat : 0) + pw.lean * 3 + pw.over * 1.2;
+  return { cool: C.cool * Z.cool * F.cool, str: Pn.str * Z.str, stress: Math.max(0.8, stress), lean: pw.lean, over: pw.over };
 }
 const tuneKey = t => [t.e, t.i, t.a, t.w, t.y || 'street'].join('.');
 function parseTune(str) {
   const parts = typeof str === 'string' ? str.split('.') : [];
   const pick = (k, slot, def) => SLOT_MAP[slot][parts[k]] ? parts[k] : def;
-  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] };
+  return { e: pick(0, 'e', 'i4'), i: pick(1, 'i', 'na'), a: pick(2, 'a', 'stock'), w: pick(3, 'w', 'stock'), y: pick(4, 'y', 'street'), g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', f: 'stock', h: 'stock', m: 'stock', l: 'none', has: [] };
 }
 const UP_COST = [150, 300, 550, 900, 1400];
 const MAX_LVL = 5;
@@ -1027,33 +1098,49 @@ const SPEED_UNIT = 3.6;  // world units are metres: m/s -> km/h
 const BOT_NAMES = ['Pip', 'Bolt', 'Mango', 'Ziggy'];
 const REWARD = [400, 250, 150, 80];
 
+// ---------- power: real horsepower from the parts, then the car's pace follows from it ----------
+// The car's own upgrade levels set its stock power. Engine, boost, cams, exhaust, fuel and software multiply it.
+// No cap: more boost always makes more power, but the fuel system and internals have to keep up or it runs lean and wears out.
+function powerOf(car) {
+  const b = (BODY[car.m] || BODY.bubble).s, up = car.up || STARTER_UP(), t = car.tune || DEFAULT_TUNE;
+  const E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock;
+  const F = FUEL_BY[t.f] || FUEL_BY.stock, H = EXH_BY[t.h] || EXH_BY.stock, M = CAM_BY[t.m] || CAM_BY.stock;
+  const kg0 = KG[car.m] || 1300, stock = (15 + 3 * up.accel) * b.accel * kg0 / 110 * (1 + 0.04 * up.engine);
+  const ev = ecuVals(car), boosted = isBoosted(I), bar = boostBar(I, ev.boost);
+  // fuel: 98 octane gives a little more, most of all to boosted engines; boost on 95 loses a bit
+  const ox = (clamp(num(car.oct, 95), 95, 98) - 95) / 3, fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && ox < 0.34 ? 0.015 : 0);
+  const wearMul = 1 - Math.max(0, num(car.wear, 0) - 0.3) * 0.45;
+  const soft = ev.X.pow * (1 + 0.05 * ev.timing + 0.04 * ev.afr);
+  const na = stock * E.mul * A.pow * M.pow * (1 + (boosted ? H.tb : H.na)) * Pn.pow * Z.pow * F.pow * soft * fuelMul * wearMul;
+  // about +90 % per bar with an intercooler (less without); small engines take boost best
+  const gain = boosted ? (1 + bar * 0.9 * E.be * (C.boostPow ? 1 + (C.boostPow - 1) * 2 : 0.85)) * (I.loss || 1) : 1;
+  let hp = na * gain, lean = 0;
+  const cap = stock * E.mul * F.cap;
+  if (hp > cap) { lean = hp / cap - 1; hp = cap + (hp - cap) * 0.15; }
+  const safe = stock * E.mul * 2 * Pn.str * Z.str, over = Math.max(0, hp / safe - 1);
+  return { hp, na: Math.min(na, hp), stock, bar, lean, over, cap, safe, ev, kg: kg0 + (WEIGHT_BY[t.k] || WEIGHT_BY.stock).kg };
+}
 function statsFor(car) {
   const b = (BODY[car.m] || BODY.bubble).s, up = car.up;
-  const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
-  const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock, B = BRAKE_BY[t.b] || BRAKE_BY.stock;
-  // forced induction: small engines gain much more from boost than big ones, so every engine can end up fast
-  const bk = E.bk || 1, iTop = 1 + (I.top - 1) * bk, iAcc = (I.acc - 1) * bk;
-  // software: the ECU itself, then the three sliders
-  const ev = ecuVals(car), bst = (I.turbo || I.blower || I.id === 'c30') ? ev.boost : 0;
-  const ecuAcc = ev.X.pow * (1 + 0.06 * bst + 0.03 * ev.timing - 0.05 * ev.rev), ecuTop = (1 + (ev.X.pow - 1) * 0.6) * (1 + 0.03 * bst + 0.015 * ev.timing + 0.045 * ev.rev);
-  // a worn engine loses power; past 30 % wear it gets noticeably weaker
-  const wearMul = 1 - Math.max(0, num(car.wear, 0) - 0.3) * 0.45;
-  const partPow = Pn.pow * Z.pow * ((I.turbo || I.blower || I.id === 'c30') && C.boostPow ? C.boostPow : 1);
-  // fuel: 98 octane gives a little more, most of all to boosted engines; a tuned engine on 95 loses a bit
-  const oct = clamp(num(car.oct, 95), 95, 98), boosted = I.turbo || I.blower || I.id === 'c30', ox = (oct - 95) / 3;
-  const fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && oct < 96 ? 0.015 : 0);
+  const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
+  const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, B = BRAKE_BY[t.b] || BRAKE_BY.stock, L = ALS_BY[t.l] || ALS_BY.none;
+  const pw = powerOf(car), ev = pw.ev, R = pw.hp / pw.stock, Rna = pw.na / pw.stock;
+  // pace from power: acceleration grows with the square root, top speed with the cube root (air drag)
+  const wing = car.look && car.look.wing && car.look.wing !== 'none' ? 1 : 0.4;
+  const topMul = Math.pow(R, 0.3) * (1 + 0.04 * ev.rev) * (1 + 0.05 * ev.fd) * (1 + 0.02 * ev.tyre - 0.04 * ev.aero * wing);
+  const accMul = Math.pow(Rna, 0.5) * (1 - 0.06 * ev.fd);
   return {
-    top: (28 + 3.2 * up.engine) * b.top * E.top * iTop * A.top * (1 + (fuelMul - 1) * 0.5) * G.top * (1 + (partPow - 1) * 0.5) * (1 + (wearMul - 1) * 0.5) * ecuTop,
-    accel: (15 + 3 * up.accel) * b.accel * E.acc * A.acc * fuelMul * G.acc * K.acc * partPow * wearMul * ecuAcc,
-    boostAcc: iAcc, lag: I.lag, drive: b.drive || 'rwd',
-    brake: 30 * B.brake,
+    top: (28 + 3.2 * up.engine) * b.top * G.top * topMul,
+    accel: (15 + 3 * up.accel) * b.accel * G.acc * K.acc * accMul,
+    boostAcc: Math.pow(R / Math.max(0.01, Rna), 0.5) - 1, lag: I.lag, als: isBoosted(I) ? L.keep : 0, drive: b.drive || 'rwd', hp: pw.hp,
+    brake: 30 * B.brake * (1 - 0.04 * ev.bias),
     grip: 9,
-    latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip * K.grip,
-    turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn * K.turn,
-    drift: b.drift * (1 + 0.06 * up.drift) * (E.drift || 1) * Y.drift,
+    latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip * K.grip * (1 + 0.035 * ev.susp - 0.035 * ev.tyre + 0.05 * ev.aero * wing - 0.02 * ev.diff),
+    turn: (2.15 + 0.06 * up.grip + 0.08 * up.drift) * b.turn * E.turn * K.turn * (1 + 0.03 * ev.susp - 0.03 * ev.diff),
+    drift: b.drift * (1 + 0.06 * up.drift) * (E.drift || 1) * Y.drift * (1 - 0.03 * ev.susp + 0.1 * ev.diff + 0.06 * ev.tyre + 0.05 * ev.bias),
     driftScore: b.drift * (1 + 0.12 * up.drift),
     nitroMax: 2 + 0.6 * up.nitro,
-    offroad: clamp((b.offroad ? 0.98 : 0.78 + 0.035 * up.susp) + W.off + Y.off, 0.55, 1),
+    offroad: clamp((b.offroad ? 0.98 : 0.78 + 0.035 * up.susp) + W.off + Y.off - 0.05 * ev.susp, 0.55, 1),
   };
 }
 // ---------- performance index and classes ----------
@@ -1071,24 +1158,26 @@ const className = k => CLASSES[k] === Infinity ? 'UNL' : String(CLASSES[k]);
 function carPI(car) { return perfIndex(statsFor(car)); }
 function carClass(car) { return classOf(carPI(car)); }
 // shown power and weight: power follows from acceleration and kerb weight
-function carPower(car) { const st = statsFor(car), kg = (KG[car.m] || 1300) + ((WEIGHT_BY[car.tune && car.tune.k] || WEIGHT_BY.stock).kg); return { kg, hp: Math.round(st.accel * (1 + st.boostAcc * 0.6) * kg / 110) }; }
+function carPower(car) { const pw = powerOf(car); return { kg: pw.kg, hp: Math.round(pw.hp) }; }
 const STAT_MAX = { top: 44 * 1.34 * 1.24 * 1.14 * 1.04, accel: 30 * 1.3 * 1.2 * 1.16 * 1.06, latMax: 45 * 1.3 * 1.1, drift: 1.35 * 1.3 * 1.05, nitroMax: 5 };
 
 // ---------- save ----------
 const SAVE_KEY = 'pebble-isle-rally-save-v1';
 const GEAR_TQ = [1.45, 1.2, 1.02, 0.88, 0.77, 0.68];   // pull in each gear of the manual box
 const STARTER_UP = () => ({ engine: 0, accel: 0, grip: 0, drift: 0, nitro: 0, susp: 0 });
-function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', has: [] }, ecu: { boost: 0, timing: 0, rev: 0 }, plate: '', fuel: 1, oct: 95, wear: 0, look: { kit: 'stock', wing: 'none', stk: 'none' }, lookOwn: [] }; }
+function newCarObj(m, paint) { return { id: 'c' + rid() + rid().slice(0, 4), m, neon: 'none', stance: 'stock', paint: PAINT[paint] ? paint : 'cherry', up: STARTER_UP(), tune: { e: 'i4', i: 'na', a: 'stock', w: 'stock', y: 'street', g: 'stock', k: 'stock', c: 'stock', p: 'stock', z: 'stock', b: 'stock', x: 'stock', f: 'stock', h: 'stock', m: 'stock', l: 'none', has: [] }, ecu: zeroSetup(), setups: [], plate: '', fuel: 1, oct: 95, wear: 0, look: { kit: 'stock', wing: 'none', stk: 'none' }, lookOwn: [] }; }
+function cleanSetup(e) { e = e && typeof e === 'object' ? e : {}; return Object.fromEntries(SETUP_KEYS.map(k => [k, clamp(num(e[k], 0), -1.25, 1.25)])); }
 function sanitizeCar(o, keepId) {
   if (!o || typeof o !== 'object' || !BODY[o.m]) return null;
   const c = newCarObj(o.m, o.paint);
   if (keepId && typeof o.id === 'string' && /^c[a-z0-9]{2,24}$/.test(o.id)) c.id = o.id;
   if (o.up && typeof o.up === 'object') for (const u of UPGRADES) c.up[u.id] = clamp(Math.floor(num(o.up[u.id], 0)), 0, MAX_LVL);
   const t = o.tune && typeof o.tune === 'object' ? o.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbx]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
   const pick = (slot, def) => { const v = t[slot], m = SLOT_MAP[slot][v]; return m && (m.cost === 0 || has.includes(slot + ':' + v)) ? v : def; };
-  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), b: pick('b', 'stock'), x: pick('x', 'stock'), has };
-  { const e = o.ecu && typeof o.ecu === 'object' ? o.ecu : {}; c.ecu = { boost: clamp(num(e.boost, 0), -1.25, 1.25), timing: clamp(num(e.timing, 0), -1.25, 1.25), rev: clamp(num(e.rev, 0), -1.25, 1.25) }; }
+  c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), b: pick('b', 'stock'), x: pick('x', 'stock'), f: pick('f', 'stock'), h: pick('h', 'stock'), m: pick('m', 'stock'), l: pick('l', 'none'), has };
+  c.ecu = cleanSetup(o.ecu);
+  c.setups = Array.isArray(o.setups) ? o.setups.slice(0, 3).map(x => x && typeof x === 'object' ? { n: cleanName(x.n) || '', e: cleanSetup(x.e) } : null) : [];
   c.wear = clamp(num(o.wear, 0), 0, 1);
   const lk = o.look && typeof o.look === 'object' ? o.look : {};
   c.look = { pl: lk.pl === 'off' ? 'off' : 'lit', kit: KITS.some(x => x.id === lk.kit) ? lk.kit : 'stock', wing: WINGS.some(x => x.id === lk.wing) ? lk.wing : 'none', stk: STICKERS.some(x => x.id === lk.stk) ? lk.stk : 'none' };
@@ -3683,7 +3772,7 @@ function stepCar(c, inp, dt, opts) {
       if (fs < -0.5) fs += st.brake * dt;
       else {
         // turbos need revs before they make boost; superchargers push from idle
-        const spoolTarget = st.lag ? clamp(fs / (st.top * st.lag * 1.4 + 0.01), 0, 1) : 1;
+        const spoolTarget = st.lag ? Math.max(st.als || 0, clamp(fs / (st.top * st.lag * 1.4 + 0.01), 0, 1)) : 1;
         c.spool = lerp(c.spool || 0, spoolTarget, 1 - Math.exp(-5 * dt));
         let pull = Math.max(0.12, 1 - fs / top);
         if (c.manual) {
@@ -3702,6 +3791,8 @@ function stepCar(c, inp, dt, opts) {
       const eb = c.manual && fs > 3 ? 4.5 + 7 * clamp(fs / (top * GEAR_TOP[clamp(c.gear || 1, 1, 6) - 1]), 0, 1.2) * (7 - (c.gear || 1)) / 6 : 4.5;
       fs -= Math.sign(fs) * Math.min(Math.abs(fs), eb * dt);
     }
+    // off the throttle the turbo winds down, unless anti-lag keeps it spinning
+    if (!(inp.throttle > 0 || c.padBoost > 0) && st.lag) c.spool = lerp(c.spool || 0, st.als || 0, 1 - Math.exp(-(st.als ? 4 : 2.2) * dt));
     if (c.manual && fs > 0) { const vmax = top * GEAR_TOP[clamp(c.gear || 1, 1, 6) - 1] * 1.03; if (fs > vmax) fs = lerp(fs, vmax, 1 - Math.exp(-3 * dt)); }
     if (!(inp.throttle > 0)) c.spool = lerp(c.spool || 0, 0, 1 - Math.exp(-4 * dt));
     if (fs > top) fs = lerp(fs, top, 1 - Math.exp(-1.6 * dt));
@@ -3901,20 +3992,26 @@ function updateEngineSound(speed, throttle, boost, dt) {
   if (eng.gear === 1) target = Math.max(target, thr * 0.4);
   if (p.sliding) target += Math.min(0.25, Math.abs(p.slip) * 0.45) * (thr > 0 ? 1 : 0.3);
   if (!p.grounded) target = thr > 0 ? 0.97 : target * 0.9;
-  if (revving) target = 0.78 + 0.14 * Math.sin(performance.now() / 110);
-  target = clamp(target, 0.06, 1);
+  if (revving) target = 1.02;
+  target = clamp(target, 0.06, 1.02);
   if (eng.shiftT > 0) { eng.shiftT -= dt; target *= 0.85; }
-  eng.rpm += (target - eng.rpm) * (1 - Math.exp(-(target > eng.rpm ? 7 : 4) * dt));
+  eng.rpm += (target - eng.rpm) * (1 - Math.exp(-(target > eng.rpm ? (revving ? 16 : 7) : 4) * dt));
+  // bouncing off the rev limiter: the ignition cuts, revs drop, unburnt fuel goes bang in the exhaust
+  if (revving && eng.rpm > 0.985) {
+    eng.rpm = 0.9 + Math.random() * 0.03; oneShot('limit', 0.16, 1.05 + Math.random() * 0.1);
+    const ex = EXH_BY[tn.h] || EXH_BY.stock, al = isBoosted(ind) ? (ALS_BY[tn.l] || ALS_BY.none) : ALS_BY.none;
+    if (Math.random() < 0.3 + ch.pops * 0.5 + ex.pops + al.pops * 0.5) { popBurst(1 + ((Math.random() * (1 + ex.pops * 4 + al.pops * 3)) | 0), ch); if (playerModel) playerModel.bfT = 0.12 + ex.pops * 0.15 + al.pops * 0.1; bfCount++; }
+  }
   if (p.manual) {
     eng.gear = clamp(p.gear || 1, 1, 6);
     if (p.limiter && thr > 0.3 && Math.random() < dt * 6) oneShot('limit', 0.12, 1);
-  } else if (eng.rpm > 0.95 && thr > 0.3 && eng.gear < 6 && eng.shiftT <= 0 && p.grounded) {
+  } else if (!revving && eng.rpm > 0.95 && thr > 0.3 && eng.gear < 6 && eng.shiftT <= 0 && p.grounded) {
     eng.gear++; eng.shiftT = 0.22; oneShot('up', 0.35, 1);
     if (Math.random() < ch.pops * 0.5) { popBurst(2, ch); if (playerModel) playerModel.bfT = 0.15; bfCount++; }
   } else if (eng.gear > 1 && speed / (top * GEAR_TOP[eng.gear - 2]) < 0.6 && eng.shiftT <= 0) {
     eng.gear--; eng.shiftT = 0.18; if (speed > 6) oneShot('down', 0.3, 1);
   }
-  if (!p.manual && speed < 1 && thr === 0) eng.gear = 1;
+  if (!p.manual && ((speed < 1 && thr === 0) || revving)) eng.gear = 1;
   const rpm = eng.rpm, load = thr > 0.1 && eng.shiftT <= 0 ? 1 : 0;
   eng.load = (eng.load || 0) + (load - (eng.load || 0)) * (1 - Math.exp(-10 * dt));
   // tone: deeper engines get a darker filter, opened up a little as revs climb
@@ -3941,8 +4038,10 @@ function updateEngineSound(speed, throttle, boost, dt) {
   // lifting off: blow-off valve on turbos, pops and bangs on the big engines
   if (live && lastThr > 0.5 && thr === 0) {
     if (ind.turbo && sp > 0.45) oneShot('bov', 0.45, 0.95 + Math.random() * 0.1);
-    if (rpm > 0.55 && Math.random() < ch.pops + (ind.turbo ? 0.2 : 0)) { popBurst(2 + ((Math.random() * 3) | 0), ch); if (playerModel) playerModel.bfT = 0.2; bfCount++; }
+    if (rpm > 0.55 && Math.random() < ch.pops + (ind.turbo ? 0.2 : 0) + (EXH_BY[tn.h] || EXH_BY.stock).pops) { popBurst(2 + ((Math.random() * 3) | 0), ch); if (playerModel) playerModel.bfT = 0.2; bfCount++; }
   }
+  { const al = ind.turbo ? (ALS_BY[tn.l] || ALS_BY.none) : null;
+    if (live && al && al.keep && thr === 0 && !revving && (rpm > 0.35 || speed > 8) && Math.random() < dt * al.pops * 7) { popBurst(1 + ((Math.random() * 2) | 0), ch); if (playerModel) playerModel.bfT = 0.14 + al.pops * 0.12; bfCount++; if (Math.random() < 0.3) oneShot('bov', 0.2, 1.3); } }
   lastThr = thr;
   // police siren: a rising and falling wail
   let near = 1e9; for (const c of cops) if (!c.leaving) near = Math.min(near, Math.hypot(c.x - player.x, c.z - player.z));
@@ -4244,7 +4343,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, id: uid || null, cr: circuit.signed || null, dr: drag ? 1 : null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, id: uid || null, cr: circuit.signed || null, dr: drag ? 1 : null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, al: (isBoosted(IND[ac().tune.i]) && ac().tune.l && ac().tune.l !== 'none') || ac().tune.h === 'race' ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -4421,36 +4520,80 @@ function renderOptions(container, list, slot, fx) {
       const tt = ac().tune;
       if (!owned) { if (save.money < o.cost) return; save.money -= o.cost; tt.has.push(key); sfx('buy'); renderMoney(true); toast(o.name + ' fitted', true); }
       tt[slot] = o.id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage();
+      const care = engineCare(ac()); if (care.lean > 0) toast('Running lean! Your fuel system can\'t feed that much power. Fit bigger injectors'); else if (care.over > 0.15) toast('That is a lot of power for these internals: forged parts keep it alive');
     });
     row.append(txt, btn); container.append(row);
   }
 }
-// software tuning sliders: boost, timing and the shift map
-function renderEcu() {
-  const box = $('ecuTune'), car = ac(), ev = ecuVals(car), I = IND[car.tune.i] || IND.na, boosted = I.turbo || I.blower || I.id === 'c30';
+// setup tab: engine software (bar, degrees, AFR, rpm), chassis setup and three saved setups per car
+function hpWith(car, slot, id) { const c = Object.assign({}, car, { tune: Object.assign({}, car.tune, { [slot]: id }) }); return Math.round(powerOf(c).hp); }
+function setupVal(K, v, car) {
+  const I = IND[car.tune.i] || IND.na;
+  if (K.k === 'boost') return isBoosted(I) ? boostBar(I, v).toFixed(2) + ' bar' : '–';
+  if (K.k === 'timing') return (v > 0 ? '+' : '') + (v * 6).toFixed(1) + '°';
+  if (K.k === 'afr') return 'AFR ' + (12.2 + v * 1.4).toFixed(1);
+  if (K.k === 'rev') return redlineOf(Object.assign({}, car, { ecu: Object.assign({}, car.ecu, { rev: v }) })).toLocaleString('en-US') + ' rpm';
+  if (K.k === 'fd') return (3.9 * (1 - 0.18 * v)).toFixed(2) + ':1';
+  if (K.k === 'tyre') return (2.2 + v * 0.5).toFixed(1) + ' bar';
+  if (K.k === 'bias') return Math.round(60 - v * 10) + '% front';
+  return (v > 0 ? '+' : '') + Math.round(v * 100) + '%';
+}
+function setupPowerLine() {
+  const box = $('setupPower'); if (!box) return; const car = ac(), pw = powerOf(car), care = engineCare(car);
   box.textContent = '';
-  if (!ev.R) { box.append(el('p', 'hint', 'Fit an ECU above to tune the engine software.')); return; }
-  car.ecu = car.ecu || { boost: 0, timing: 0, rev: 0 };
-  for (const K of ECU_KEYS) {
-    const row = el('div', 'ecurow'), off = K.boost && !boosted;
-    const val = el('b', '', ''), show = v => { val.textContent = (v > 0 ? '+' : '') + Math.round(v * 100) + '%'; };
-    const r = document.createElement('input'); r.type = 'range'; r.min = String(-ev.R); r.max = String(ev.R); r.step = '0.05'; r.value = String(ev[K.k]); r.disabled = off;
-    r.setAttribute('aria-label', K.name);
-    r.addEventListener('input', () => { car.ecu[K.k] = Number(r.value); show(car.ecu[K.k]); player.stats = statsFor(car); });
-    r.addEventListener('change', () => { persist(); updateClassHud(); renderGarage(); });
-    show(ev[K.k]);
-    row.append(el('span', 'n', K.name), el('span', 'lo', K.lo), r, el('span', 'hi', K.hi), val);
-    if (off) row.append(el('span', 'hint', 'needs a turbo or supercharger'));
-    box.append(row);
+  box.append(el('span', '', Math.round(pw.hp) + ' hp' + (pw.bar ? ' at ' + pw.bar.toFixed(2) + ' bar' : '') + ' · ' + Math.round(pw.hp * 0.7457 * 9549 / Math.max(3000, redlineOf(car) * 0.72)) + ' Nm'), el('span', '', 'Fuel system good for ' + Math.round(pw.cap) + ' hp · internals ' + Math.round(pw.safe) + ' hp'));
+  if (care.lean > 0) box.append(el('span', 'warn', 'Running lean! The injectors can\'t keep up: fit a bigger fuel system'));
+  else if (care.over > 0) box.append(el('span', 'warn', 'More power than the internals like: it will wear fast'));
+}
+function sliderRow(box, K, car, lo, hi, disabled, why) {
+  const row = el('div', 'ecurow'), val = el('b', '', ''), show = v => { val.textContent = setupVal(K, v, car); };
+  const r = document.createElement('input'); r.type = 'range'; r.min = String(lo); r.max = String(hi); r.step = '0.05'; r.value = String(clamp(num(car.ecu[K.k], 0), lo, hi)); r.disabled = disabled;
+  r.setAttribute('aria-label', K.name);
+  r.addEventListener('input', () => { car.ecu[K.k] = Number(r.value); show(car.ecu[K.k]); player.stats = statsFor(car); setupPowerLine(); });
+  r.addEventListener('change', () => { persist(); renderGarage(); });
+  show(Number(r.value));
+  row.append(el('span', 'n', K.name), el('span', 'lo', K.lo), r, el('span', 'hi', K.hi), val);
+  if (why) row.append(el('span', 'hint', why));
+  box.append(row);
+}
+function renderEcu() {
+  const box = $('ecuTune'), car = ac(), ev = ecuVals(car), I = IND[car.tune.i] || IND.na, boosted = isBoosted(I);
+  car.ecu = Object.assign(zeroSetup(), car.ecu || {});
+  box.textContent = '';
+  setupPowerLine();
+  if (!ev.R) box.append(el('p', 'hint', 'Fit an ECU in the Engine bay to tune the engine software.' + (boosted ? ' Your turbo runs its base ' + I.b0.toFixed(2) + ' bar.' : '')));
+  else {
+    for (const K of ECU_KEYS) sliderRow(box, K, car, -ev.R, ev.R, K.boost && !boosted, K.boost && !boosted ? 'needs a turbo or supercharger' : '');
+    box.append(btn('Reset to safe map', 'alt', () => { for (const K of ECU_KEYS) car.ecu[K.k] = 0; persist(); player.stats = statsFor(car); renderGarage(); }));
+    if (ev.timing > 0 && num(car.oct, 95) < 97) box.append(el('p', 'hint', 'Advanced timing on 95 octane knocks: more heat and wear. Fill up with 98.'));
+    if (boosted && ev.R > 1) box.append(el('p', 'hint', 'The ghost ECU lets you overboost past what the turbo was built for. Mind the heat.'));
   }
-  box.append(btn('Reset to safe map', 'alt', () => { car.ecu = { boost: 0, timing: 0, rev: 0 }; persist(); player.stats = statsFor(car); updateClassHud(); renderGarage(); }));
-  if (ev.timing > 0 && num(car.oct, 95) < 97) box.append(el('p', 'hint', 'Advanced timing on 95 octane knocks: more heat and wear. Fill up with 98.'));
+  const cb = $('chassisTune'); cb.textContent = '';
+  for (const K of CHASSIS_KEYS) sliderRow(cb, K, car, -1, 1, false, K.k === 'aero' && !(car.look && car.look.wing && car.look.wing !== 'none') ? 'fit a wing for the full effect' : '');
+  cb.append(btn('Reset chassis', 'alt', () => { for (const K of CHASSIS_KEYS) car.ecu[K.k] = 0; persist(); player.stats = statsFor(car); renderGarage(); }));
+  // saved setups: drag, drift, circuit, whatever you like
+  const sb = $('setupSlots'); sb.textContent = '';
+  car.setups = Array.isArray(car.setups) ? car.setups : [];
+  for (let k = 0; k < 3; k++) {
+    const S = car.setups[k], row = el('div', 'ecurow setupslot');
+    const name = S ? (S.n || 'Setup ' + (k + 1)) : 'Empty slot';
+    row.append(el('span', 'n', name), el('span', 'lo', S ? summarySetup(car, S.e) : 'Save your current setup here'));
+    row.append(btn('Save here', 'alt', () => {
+      car.setups[k] = { n: S && S.n ? S.n : ['Drag', 'Drift', 'Circuit'][k], e: Object.assign({}, car.ecu) }; persist(); toast(car.setups[k].n + ' setup saved', true); renderGarage();
+    }));
+    if (S) row.append(btn('Load', '', () => { car.ecu = cleanSetup(S.e); persist(); player.stats = statsFor(car); toast(name + ' setup loaded', true); renderGarage(); }));
+    sb.append(row);
+  }
+}
+function summarySetup(car, e) {
+  const c = Object.assign({}, car, { ecu: cleanSetup(e) }), pw = powerOf(c);
+  return Math.round(pw.hp) + ' hp' + (pw.bar ? ' · ' + pw.bar.toFixed(2) + ' bar' : '') + ' · ' + redlineOf(c).toLocaleString('en-US') + ' rpm · final ' + setupVal({ k: 'fd' }, num(c.ecu.fd, 0), c);
 }
 function renderGarage() {
   const st = statsFor(ac());
   $('carLabel').textContent = 'Your ' + BODY[ac().m].name + ' · ' + { rwd: 'rear-wheel drive', fwd: 'front-wheel drive', awd: 'all-wheel drive' }[st.drive];
   { const ci = $('carInfo'); ci.textContent = ''; const pi = perfIndex(st), pw = carPower(ac());
-    ci.append(classBadge(pi), el('span', '', pw.hp + ' hp · ' + pw.kg + ' kg · ' + (pw.hp / pw.kg * 1000).toFixed(0) + ' hp/t'), el('span', '', 'Fuel ' + Math.round((ac().fuel ?? 1) * 100) + '% · ' + Math.round(ac().oct || 95) + ' octane')); }
+    ci.append(el('span', '', pw.hp + ' hp · ' + pw.kg + ' kg · ' + (pw.hp / pw.kg * 1000).toFixed(0) + ' hp/t'), el('span', '', 'Fuel ' + Math.round((ac().fuel ?? 1) * 100) + '% · ' + Math.round(ac().oct || 95) + ' octane')); }
   if (document.activeElement !== $('plateIn')) $('plateIn').value = ac().plate || '';
   { const box = $('plateLight'), car = ac(); car.look = car.look || {}; box.textContent = '';
     for (const [id, name] of [['lit', 'Lit up'], ['off', 'Plain, dark at night']]) {
@@ -4483,14 +4626,19 @@ function renderGarage() {
   { const box2 = $('garageNeon'); box2.textContent = '';
     for (const n of NEONS) { const b = document.createElement('button'); b.type = 'button'; b.className = 'swatch' + (n.hex ? '' : ' none'); b.style.background = n.hex ? '#' + n.hex.toString(16).padStart(6, '0') : '#2b2d42'; b.title = n.name; b.setAttribute('aria-label', 'Neon ' + n.name); b.setAttribute('aria-pressed', String(ac().neon === n.id)); if (!n.hex) b.textContent = '✕';
       b.addEventListener('click', () => { ac().neon = n.id; persist(); rebuildPlayerModel(); playerModel.root.add(playerBeep); renderGarage(); }); box2.append(b); } }
-  renderOptions($('engList'), ENGINES, 'e', o => (!o.cost ? 'The engine it came with' : pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration')) + ' · ' + (o.bk >= 1.9 ? 'loves boost: turbos gain ×' + o.bk : o.bk >= 1.4 ? 'good with boost: ×' + o.bk : o.bk >= 1 ? 'boost gains ×' + o.bk : 'already strong, boost gains ×' + o.bk) + (o.turn < 0.98 ? ' · heavier nose' : ''));
-  renderOptions($('ecuList'), ECUS, 'x', o => !o.cost ? 'No software tuning' : pctFx(o.pow, 'power') + ' · tuning range ±' + Math.round(o.range * 100) + '%');
+  { const car = ac(), hp0 = Math.round(powerOf(car).hp), hx = (slot, o) => { const h = hpWith(car, slot, o.id), d = h - hp0; return h + ' hp here' + (d ? ' (' + (d > 0 ? '+' : '') + d + ')' : ''); };
+  renderOptions($('engList'), ENGINES, 'e', o => hx('e', o) + ' · ' + (o.be >= 1 ? 'loves boost' : o.be >= 0.8 ? 'good with boost' : 'already strong, gains less from boost') + (o.turn < 0.98 ? ' · heavier nose' : ''));
+  renderOptions($('ecuList'), ECUS, 'x', o => !o.cost ? 'No software tuning' : pctFx(o.pow, 'power') + ' · ' + (o.range >= 1.2 ? 'unlocks overboost past the turbo limit' : o.range >= 1 ? 'full tuning range' : 'tuning range ' + Math.round(o.range * 100) + '%'));
   renderEcu();
   renderOptions($('brakeList'), BRAKES, 'b', o => !o.cost ? 'Fine for the street' : '+' + Math.round((o.brake - 1) * 100) + '% braking power');
-  renderOptions($('indList'), INDUCTIONS, 'i', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · ' + (o.lag ? (o.lag < 0.2 ? 'little lag' : o.lag < 0.45 ? 'some lag' : 'big lag, huge top end') : 'instant boost') : 'No boost');
-  renderOptions($('intakeList'), INTAKES, 'a', o => o.cost ? pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') : 'Factory airbox');
-  renderOptions($('coolList'), COOLINGS, 'c', o => !o.cost ? 'Fine for a stock engine' : '+' + Math.round((o.cool - 1) * 100) + '% cooling' + (o.boostPow ? ' · +4% power with a turbo or supercharger' : ''));
-  renderOptions($('pistList'), INTERNALS, 'p', o => !o.cost ? 'Wears fast when pushed' : '+' + Math.round((o.str - 1) * 100) + '% engine strength' + (o.pow > 1 ? ' · ' + pctFx(o.pow, 'power') : ''));
+  renderOptions($('indList'), INDUCTIONS, 'i', o => o.cost ? o.b0.toFixed(1) + '–' + o.bmax.toFixed(1) + ' bar · ' + hx('i', o) + ' · ' + (o.lag ? (o.lag < 0.2 ? 'little lag' : o.lag < 0.45 ? 'some lag' : o.lag < 0.7 ? 'big lag, huge top end' : 'massive lag, enormous power') : 'instant boost') : 'No boost');
+  renderOptions($('intakeList'), INTAKES, 'a', o => o.cost ? hx('a', o) : 'Factory airbox');
+  renderOptions($('exhList'), EXHAUSTS, 'h', o => o.cost ? hx('h', o) + ' · +' + Math.round(o.na * 100) + '% (+' + Math.round(o.tb * 100) + '% with a turbo)' + (o.pops > 0.25 ? ' · loud, spits flames' : o.pops > 0.15 ? ' · pops and crackles' : '') : 'Quiet and restrictive');
+  renderOptions($('camList'), CAMS, 'm', o => o.cost ? hx('m', o) + ' · redline +' + o.rpm + ' rpm' + (o.lumpy ? ' · lumpy idle' : '') : 'Factory cam profile');
+  renderOptions($('fuelList'), FUELS, 'f', o => 'Feeds up to ' + Math.round(powerOf(car).stock * (ENGINE[car.tune.e] || ENGINE.i4).mul * o.cap) + ' hp' + (o.pow > 1 ? ' · ' + pctFx(o.pow, 'power') + ' · runs cooler' : ''));
+  renderOptions($('alsList'), ANTILAGS, 'l', o => !o.cost ? 'Boost drops when you lift' : (o.keep >= 1 ? 'Full boost all the time' : 'Keeps ' + Math.round(o.keep * 100) + '% boost off the throttle') + ' · bangs and flames · more heat · needs a turbo'); }
+  renderOptions($('coolList'), COOLINGS, 'c', o => !o.cost ? 'Fine for a stock engine' : '+' + Math.round((o.cool - 1) * 100) + '% cooling' + (o.boostPow ? ' · intercooler: more power per bar of boost' : ''));
+  renderOptions($('pistList'), INTERNALS, 'p', o => 'Happy up to ' + Math.round(powerOf(ac()).stock * (ENGINE[ac().tune.e] || ENGINE.i4).mul * 2 * o.str * (PLUG_BY[ac().tune.z] || PLUG_BY.stock).str) + ' hp' + (o.pow > 1 ? ' · ' + pctFx(o.pow, 'power') : ''));
   renderOptions($('plugList'), PLUGS, 'z', o => !o.cost ? 'Factory plugs' : pctFx(o.pow, 'power') + ' · +' + Math.round((o.str - 1) * 100) + '% strength' + (o.cool > 1 ? ' · runs cooler' : ''));
   renderOptions($('gearList'), GEARINGS, 'g', o => !o.cost ? 'Balanced' : pctFx(o.acc, 'acceleration') + ' · ' + pctFx(o.top, 'top speed'));
   renderOptions($('weightList'), WEIGHTS, 'k', o => !o.cost ? 'Comfortable and heavy' : o.kg + ' kg · ' + pctFx(o.acc, 'acceleration') + (o.grip < 1 ? ' · a little twitchier' : ''));
@@ -6364,12 +6512,11 @@ function engineStep(dt, inp, hit) {
 // =====================================================================
 // dyno: power and torque curves for the current build
 // =====================================================================
-const REDLINE = { i4: 7800, i5: 7200, v6: 7000, i6: 7600, v8: 6800, v10: 8300, v12: 8000 };
 function dynoCurve(car) {
-  const t = car.tune, I = IND[t.i] || IND.na, red = REDLINE[t.e] || 7500, pw = carPower(car), pts = [];
+  const t = car.tune, I = IND[t.i] || IND.na, red = redlineOf(car), pw = carPower(car), pts = [];
   const shape = r => {
     if (I.turbo) { const sp = 0.32 + I.lag * 0.6; return r < sp ? 0.42 + 0.4 * (r / sp) ** 2 : 1.02 - 0.2 * ((r - sp) / (1 - sp)) ** 1.6; }
-    if (I.id === 'c30') return 0.5 + 0.48 * r;
+    if (I.cent) return 0.5 + 0.48 * r;
     if (I.blower) return 0.95 - 0.14 * r * r;
     return 0.62 + 0.38 * Math.sin(Math.PI * clamp((r - 0.1) / 1.05, 0, 1));
   };
@@ -6717,8 +6864,8 @@ function drawBM(g, P, sc, inView, rim) {
 }
 const bmLede = () => "Parts you won't find in any catalogue, fitted to your " + BODY[ac().m].name + '. Leaving in ' + Math.max(1, Math.ceil(BM.left / 60000)) + ' min.';
 const BM_FX = {
-  e: o => pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'acceleration') + ' · boost gains ×' + o.bk,
-  i: o => pctFx(o.top, 'top speed') + ' · ' + pctFx(o.acc, 'pull') + ' · less lag than a race turbo',
+  e: o => hpWith(ac(), 'e', o.id) + ' hp in your car · takes boost better than any other engine',
+  i: o => o.b0 + '–' + o.bmax + ' bar · ' + hpWith(ac(), 'i', o.id) + ' hp in your car · less lag than a race turbo',
   c: o => '+' + Math.round((o.cool - 1) * 100) + '% cooling · +' + Math.round((o.boostPow - 1) * 100) + '% power with boost',
   p: o => '+' + Math.round((o.str - 1) * 100) + '% engine strength · ' + pctFx(o.pow, 'power'),
   x: o => pctFx(o.pow, 'power') + ' · software range ±' + Math.round(o.range * 100) + '%',
@@ -8106,7 +8253,7 @@ function updateVisuals(dt, now) {
     if (r.drift && frameN % 3 === 0) puff(r.x - Math.sin(r.yaw) * 1.8, 0.5, r.z - Math.cos(r.yaw) * 1.8, 0xffffff, 0.9, 0.8);
     if (r.beepT > 0) { r.beepT -= dt; r.beep.visible = true; r.beep.position.y = (r.body === 'truck' ? 6.3 : 5.1); } else r.beep.visible = false;
     if (r.tag) r.tag.visible = Math.hypot(r.x - player.x, r.z - player.z) < 160;
-    if (r.revving && Math.random() < dt * 2.5) { const dd = Math.hypot(r.x - player.x, r.z - player.z); if (dd < 70) { r.model.bfT = 0.2; oneShot('limit', 0.18 * (1 - dd / 80), 0.95); } }
+    if (r.revving && Math.random() < dt * (r.pres && r.pres.al ? 7 : 2.5)) { const dd = Math.hypot(r.x - player.x, r.z - player.z); if (dd < 70) { r.model.bfT = 0.2; oneShot('limit', 0.18 * (1 - dd / 80), 0.95); } }
   }
   // particles
   for (const q of puffs) {
