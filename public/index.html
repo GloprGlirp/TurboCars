@@ -70,6 +70,8 @@ body { background: #8fd3ff; color: var(--ink); font-family: var(--font-body); ov
 @media (prefers-reduced-motion: reduce) { #grain { animation: none; } }
 #streetInvite { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 12px 16px; width: min(380px, calc(100vw - 32px)); font-weight: 800; background: #ffe0f1; }
 #streetInvite .row { margin-top: 8px; }
+#dragInvite { position: absolute; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); pointer-events: auto; padding: 12px 16px; width: min(380px, calc(100vw - 32px)); font-weight: 800; background: #fff3c0; z-index: 7; }
+#dragInvite .row { margin-top: 8px; }
 .swatch.none { color: #fff; font-weight: 900; }
 #speedo.limiter .num { color: var(--pop, #ff4f5e); }
 .overlay.tut { background: rgba(29,26,46,.28); place-items: start center; padding-top: max(16vh, 90px); }
@@ -384,6 +386,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="cell sticker"><div class="k">TIME</div><div class="v" id="sTime">0:00.00</div></div>
     <button class="chip" id="bQuitStreet" type="button">Quit</button>
   </div>
+  <div id="dragInvite" class="sticker" hidden><div id="diText"></div><div class="row"><button class="btn small" id="diAccept" type="button">Accept</button><button class="btn small alt" id="diDecline" type="button">Decline</button></div></div>
   <div id="streetInvite" class="sticker" hidden><div id="siText"></div><div class="row"><button class="btn small" id="siAccept" type="button">Accept</button><button class="btn small alt" id="siDecline" type="button">No thanks</button></div></div>
   <div id="delivbar" class="topbar" hidden>
     <div class="cell sticker"><div class="k">DELIVERY</div><div class="v" id="dvLoad">0</div></div>
@@ -397,7 +400,7 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <div class="nitro"><i id="nitroFill"></i></div><div class="nitro-l">NITRO</div>
     <div class="nitro-l" id="oweTxt" style="color:#ff4f5e" hidden></div>
     <div class="fuelrow"><span class="nitro-l" style="margin:0" id="tempLbl">TEMP</span><div class="fuel temp" id="tempBar"><i id="tempFill"></i></div></div>
-    <div class="fuelrow"><span class="cbadge" id="hudClass">150</span><span class="nitro-l" style="margin:0">FUEL</span><div class="fuel" id="fuelBar"><i id="fuelFill"></i></div></div>
+    <div class="fuelrow"><span class="cbadge" id="hudClass" hidden></span><span class="nitro-l" style="margin:0">FUEL</span><div class="fuel" id="fuelBar"><i id="fuelFill"></i></div></div>
   </div>
   <div id="prompt" class="sticker" hidden></div>
   <div id="meetHud" class="sticker" hidden></div>
@@ -580,7 +583,8 @@ body.touch.racing #speedo { top: calc(84px + env(safe-area-inset-top, 0px)); }
     <h2>Pebble Dragway</h2>
     <p class="lede" id="dragLede"></p>
     <div id="dragResult" hidden></div>
-    <div class="row"><button class="btn" id="bDragGo" type="button">Stage the car · $100</button></div>
+    <div class="row"><button class="btn" id="bDragGo" type="button">Race a bot · $100</button></div>
+    <div id="dragPlayers"></div>
   </div>
 </div>
 <div id="bmPanel" class="overlay" hidden>
@@ -4060,6 +4064,7 @@ function wireNet() {
     room.on('race', onRaceMsg, () => { });
     room.on('chat', onChatMsg, () => { });
     room.on('street', onStreetMsg, () => { });
+    room.on('drag', onDragMsg, () => { });
   }
 }
 
@@ -4186,7 +4191,7 @@ function upsertPeer(p) {
     r.x = num(pr.x); r.z = num(pr.z); r.y = num(pr.y); r.yaw = num(pr.h);
   }
   const wl = clamp(Math.floor(num(pr.wl, 0)), 0, 5);
-  const label = displayName(r) + ' · ' + className(r.pc) + ' · LV ' + clamp(Math.floor(num(pr.lv, 1)), 1, MAX_PLAYER_LVL) + (wl ? ' ' + '★'.repeat(wl) : '');
+  const label = displayName(r) + ' · LV ' + clamp(Math.floor(num(pr.lv, 1)), 1, MAX_PLAYER_LVL) + (wl ? ' ' + '★'.repeat(wl) : '');
   if (r.nickShown !== label) { if (r.tag) r.model.root.remove(r.tag); r.tag = makeTag(label, PAINT[paint].hex); r.tag.position.y = body === 'truck' ? 5.2 : 4.0; r.model.root.add(r.tag); r.nickShown = label; }
   r.tx = clamp(num(pr.x), WMIN, WMAX); r.tz = clamp(num(pr.z), WMIN, WMAX); r.ty = clamp(num(pr.y), -5, 260); r.tyaw = num(pr.h);
   r.vx = clamp(num(pr.vx), -90, 90); r.vz = clamp(num(pr.vz), -90, 90);
@@ -4239,7 +4244,7 @@ function sendPresence(now) {
   lastPresence = now;
   const p = player;
   const pres = {
-    n: save.nick || null, id: uid || null, cr: circuit.signed || null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
+    n: save.nick || null, id: uid || null, cr: circuit.signed || null, dr: drag ? 1 : null, c: ac().paint, b: ac().m, tn: tuneKey(ac().tune), pl: ac().plate || null, pc: myClass(), ft: fitCode(save.fit), vk: lookCode(ac().look), rv: revving ? 1 : null, fl: flashCount || null, ng: ac().neon !== 'none' ? ac().neon : null, sk: ac().stance !== 'stock' ? ac().stance : null, bf: bfCount,
     sr: street && street.multi ? [street.id, street.ri, Math.round(street.fin || 0)] : null,
     x: r1(p.x), y: r2(p.y), z: r1(p.z), h: Math.round(p.yaw * 1000) / 1000, vx: r1(p.vx), vz: r1(p.vz),
     d: p.drifting ? 1 : 0, nb: p.boosting ? 1 : 0, hn: hornCount, lv: levelOf(save.xp), wl: police.stars || null,
@@ -4383,7 +4388,7 @@ function statBar(parent, label, frac, value, cls) {
 }
 let garageTab = 'perf';
 for (const b of $('gTabs').children) b.addEventListener('click', () => { garageTab = b.dataset.tab; renderGarage(); });
-function classBadge(pi) { const k = classOf(pi), b = el('span', 'cbadge', className(k)); b.style.background = CLASS_COL[k]; const sm = el('small', '', 'PI ' + pi); b.append(sm); b.title = 'Performance class ' + className(k) + ' (PI ' + pi + ')'; return b; }
+function classBadge() { const b = el('span', ''); b.hidden = true; return b; }   // classes are gone
 $('bPlate').addEventListener('click', () => {
   const text = cleanPlate($('plateIn').value);
   if (!text) { toast('Type a plate first'); return; }
@@ -4738,10 +4743,11 @@ const bots = [];
 
 // ---------- class matching: you only race cars of your own performance class ----------
 function myClass() { return classOf(perfIndex(player.stats)); }
-const sameClass = r => (r.pc || 0) === myClass();
-// opponents are built for the class, not copied from your car: PI spread over the upper part of the class band
+// no performance classes any more: everyone can race everyone
+const sameClass = r => true;
+// bot opponents are built around your car's performance (a little below to a little above it)
 function classTargets(n, lo, hi) {
-  const k = myClass(), cap = CLASSES[k] === Infinity ? Math.max(1000, perfIndex(player.stats) * 1.05) : CLASSES[k], base = k ? CLASSES[k - 1] : 60;
+  const pi = Math.max(60, perfIndex(player.stats)), cap = pi * 1.08, base = pi * 0.85;
   const out = []; for (let i = 0; i < n; i++) out.push(base + (cap - base) * lerp(lo, hi, n > 1 ? i / (n - 1) : 0.5)); return out;
 }
 function classBotStats(targetPI) {
@@ -4749,7 +4755,7 @@ function classBotStats(targetPI) {
   return botStats(Math.max(20, st.top * s), Math.max(12, st.accel * (1 + st.boostAcc * 0.6) * s));
 }
 const CLASS_CARS = [['mini', 'bubble', 'kitsune'], ['kaze', 'hatch', 'hikari'], ['falcon', 'tempest', 'sakura'], ['coupe', 'yoru', 'arashi', 'falke4'], ['raijin', 'gt', 'vento', 'falke2'], ['super', 'rocket', 'raijin'], ['super', 'rocket', 'vento']];
-function updateClassHud() { const pi = perfIndex(player.stats), k = classOf(pi), b = $('hudClass'); b.textContent = className(k); b.style.background = CLASS_COL[k]; b.title = 'Class ' + className(k) + ' · PI ' + pi; }
+function updateClassHud() { const b = $('hudClass'); if (b) b.hidden = true; }
 function queuedList() {
   const list = [];
   if (queued && myPeer) list.push({ peer: myPeer, name: save.nick || 'You', me: true });
@@ -4767,8 +4773,8 @@ function lobbyTick() {
   const lob = $('lobby'), inv = $('raceInvite');
   const hosting = !queued && !race && !mission && playing && room && roomUp ? [...remotes.values()].filter(r => r.active && r.pres && r.pres.q && !r.pres.race && sameClass(r)) : [];
   inv.hidden = !hosting.length;
-  if (hosting.length) inv.textContent = displayName(hosting[0]) + (hosting.length > 1 ? ' and ' + (hosting.length - 1) + ' more are' : ' is') + ' waiting for a class ' + className(myClass()) + ' race · Join';
-  $('lobbyTitle').textContent = 'Class ' + className(myClass()) + ' race lobby';
+  if (hosting.length) inv.textContent = displayName(hosting[0]) + (hosting.length > 1 ? ' and ' + (hosting.length - 1) + ' more are' : ' is') + ' waiting for a race · Join';
+  $('lobbyTitle').textContent = 'Race lobby';
   if (!queued || race) { lob.hidden = true; lobbyEndsAt = 0; myLob = null; return; }
   lob.hidden = false;
   const now = performance.now();
@@ -6455,7 +6461,6 @@ function flashLights() {
 function routeNear() { const m = atMeet(); if (m) return STREET_BY[m.route]; let best = STREET[0], bd = 1e18; for (const R of STREET) { const d = (R.pad.x - player.x) ** 2 + (R.pad.z - player.z) ** 2; if (d < bd) { bd = d; best = R; } } return best; }
 function challengePeer(r) {
   if (!(room && roomUp)) return;
-  if (!sameClass(r)) { toast(displayName(r) + ' drives a class ' + className(r.pc || 0) + ' car. You can only race your own class'); return; }
   const R = routeNear();
   if (save.money < R.fee) { toast('You need $' + R.fee + ' for the ' + R.name); return; }
   streetHost = { R, id: 's' + rid(), joined: new Set(), until: performance.now() + 15000 };
@@ -7247,7 +7252,7 @@ const TUT = [
   { icon: '💼', title: 'Businesses and homes', text: 'Buy businesses that earn money even while you are offline. Legit ones pay out by themselves. Shady ones pay more, but you drive the goods to buyers yourself. Homes are garages and fast travel spots.', hl: 'bMenu',
     keys: [['Menu → Property', 'See everything you can buy']] },
   { icon: '🚨', title: 'Watch out for the police', text: 'Go over 120 km/h in Pebble City and the police come after you. Stay out of sight until the timer runs out, or leave the city, to lose them. Get boxed in and you pay a fine.' },
-  { icon: '⛽', title: 'Fuel, classes and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Every car has a class from 150 to Unlimited: races only put you against cars of your class. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
+  { icon: '⛽', title: 'Fuel, hidden cars and your look', text: 'Your tank runs down as you drive. Stop at a Pebble Fuel pump, pick 95 or 98 and fill up, then walk into the shop and pay at the counter. Drive off without paying and the police come after you with a $1,000 fine. Rumours in the Missions menu hint at abandoned cars hidden around the map. Press V to buy streetwear.',
     keys: [['E', 'Pump fuel or pay'], ['V', 'Wardrobe']] },
   { icon: '🌧', title: 'Crews, meetups and your engine', text: 'Rival crews own Downtown, the Farmlands and the Mountain Pass: beat three of their racers, then the boss, and the district pays you. Crew racers cruise around: sit behind one and flash your lights to race. Hidden meetups wait in the city. Some nights the fog rolls in. Nitro and heat wear your engine; cooling and forged parts help, repairs are in the garage.',
     keys: [['L', 'Flash lights / challenge'], ['X', 'Rev the engine']] },
@@ -7574,22 +7579,42 @@ function dragBoard(k, et, kmh, win) {
   g.fillText(et ? et.toFixed(3) : '--', 128, 58); g.fillStyle = '#9fe6ff'; g.font = '700 34px Nunito, sans-serif'; g.fillText(kmh ? Math.round(kmh) + ' km/h' : '', 128, 120);
   B.t.needsUpdate = true;
 }
+function dragRivals() { return [...remotes.values()].filter(r => r.active && !r.foot && r.x > 2700 && Math.hypot(r.x - DRAG.pad.x, r.z - DRAG.pad.z) < 90 && !(r.pres && r.pres.dr)); }
 function openDrag() {
   const best = num(save.dragBest, 0);
-  $('dragLede').textContent = 'Quarter mile (402 m) against a car matched to yours. Stay off the throttle until the tree goes green: jump it and you red-light. Entry $100, a win pays $600.' + (best ? ' Your best: ' + best.toFixed(3) + ' s.' : '');
-  $('dragResult').hidden = true; $('bDragGo').textContent = 'Stage the car · $100'; $('bDragGo').disabled = save.money < 100;
+  $('dragLede').textContent = 'Quarter mile (402 m). Stay off the throttle until the tree goes green: jump it and you red-light. Entry $100, a win pays $600.' + (best ? ' Your best: ' + best.toFixed(3) + ' s.' : '');
+  $('dragResult').hidden = true; $('bDragGo').textContent = 'Race a bot · $100'; $('bDragGo').disabled = save.money < 100;
+  renderDragRivals();
   openPanel('dragPanel');
+}
+function renderDragRivals() {
+  const box = $('dragPlayers'); box.textContent = '';
+  const riv = dragRivals();
+  box.append(el('div', 'label', 'Race a player'));
+  if (!(room && roomUp)) { box.append(el('p', 'hint', 'Not connected to the island server right now.')); return; }
+  if (!riv.length) { box.append(el('p', 'hint', 'Nobody else is in the drag pits right now. Bring a friend: anyone can race anyone.')); return; }
+  const row = el('div', 'row');
+  for (const r of riv) row.append(btn((dragHost && dragHost.peer === r.peer ? 'Waiting for ' : 'Challenge ') + displayName(r) + ' · $100', 'alt', () => dragChallenge(r), save.money < 100 || !!dragHost));
+  box.append(row);
 }
 const DRAG_BOTS = ['muscle', 'raijin', 'kaminari', 'falke4', 'yoru', 'arashi'];
 let dragBotModel = null, dragBotBody = '';
-function startDrag() {
-  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return; }
-  if (save.money < 100) { toast('Entry is $100'); return; }
+function startDrag(opts) {
+  opts = opts || {};
+  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return false; }
+  if (save.money < 100) { toast('Entry is $100'); return false; }
   save.money -= 100; persist(); renderMoney(true);
   closePanels(); forceIntoCar();
-  const X = DRAG.X, L = DRAG.LANE, st = player.stats, f = 0.94 + Math.random() * 0.12;
-  Object.assign(player, { x: X - L, z: DRAG.ZS - 1.8, y: 0, yaw: 0, vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, grounded: true, nitro: player.stats.nitroMax });
+  const X = DRAG.X, L = DRAG.LANE, st = player.stats, f = 0.94 + Math.random() * 0.12, lane = opts.lane || 0, xl = X + (lane ? L : -L);
+  Object.assign(player, { x: xl, z: DRAG.ZS - 1.8, y: 0, yaw: 0, vx: 0, vz: 0, vy: 0, yr: 0, fs: 0, ls: 0, grounded: true, nitro: player.stats.nitroMax });
   camSnap = true;
+  if (opts.pvp) {
+    const t0 = opts.t0 || performance.now();
+    drag = { t0, green: t0 + 2700, phase: 'stage', foul: false, lane, xl, pvp: Object.assign({ res: null, sent: false }, opts.pvp), bot: null, me: { leave: 0, cross: 0, sixty: 0, react: null, trap: 0 } };
+    for (const k of [0, 1]) { dragTree(k, {}); dragBoard(k, 0, 0, false); }
+    showBig('STAGE'); sfx('beep');
+    return true;
+  }
   const body = DRAG_BOTS[(Math.random() * DRAG_BOTS.length) | 0];
   if (!dragBotModel || dragBotBody !== body) {
     if (dragBotModel) scene.remove(dragBotModel.root);
@@ -7598,30 +7623,42 @@ function startDrag() {
   }
   dragBotModel.root.visible = true;
   const now = performance.now();
-  drag = { t0: now, green: now + 2700, phase: 'stage', foul: false, me: { leave: 0, cross: 0, sixty: 0, react: null, trap: 0 },
+  drag = { t0: now, green: now + 2700, phase: 'stage', foul: false, lane: 0, xl, pvp: null, me: { leave: 0, cross: 0, sixty: 0, react: null, trap: 0 },
     bot: { z: DRAG.ZS - 1.8, v: 0, react: 0.18 + Math.random() * 0.25, leave: 0, cross: 0, trap: 0, top: st.top * f, acc: st.accel * (1 + st.boostAcc * 0.7) * f, model: dragBotModel, s: { visPitch: 0, visRoll: 0 } } };
   for (const k of [0, 1]) { dragTree(k, {}); dragBoard(k, 0, 0, false); }
   showBig('STAGE'); sfx('beep');
+  return true;
 }
 function dragStep(dt, now) {
   const D = drag; if (!D) return;
   const X = DRAG.X, L = DRAG.LANE, inp = player.lastInput || {};
   // before the green the car stays on the line (you can still rev it)
   if (now < D.green) {
-    Object.assign(player, { x: X - L, z: DRAG.ZS - 1.8, yaw: 0, vx: 0, vz: 0, fs: 0, ls: 0, yr: 0 });
+    Object.assign(player, { x: D.xl, z: DRAG.ZS - 1.8, yaw: 0, vx: 0, vz: 0, fs: 0, ls: 0, yr: 0 });
     const t = (now - D.t0) / 1000, ambers = t < 1.2 ? 0 : Math.min(3, Math.floor((t - 1.2) / 0.5) + 1);
     if (ambers > 0 && (inp.throttle || 0) > 0.1 && !D.foul) { D.foul = true; showBig('RED LIGHT!'); sfx('bump'); }
-    for (const k of [0, 1]) dragTree(k, { pre: true, stage: t > 0.6, amber: ambers, red: k === 0 && D.foul });
+    for (const k of [0, 1]) dragTree(k, { pre: true, stage: t > 0.6, amber: ambers, red: k === D.lane && D.foul });
     if (ambers !== D.lastAmber) { D.lastAmber = ambers; if (ambers) sfx('beep'); }
   } else if (D.phase === 'stage') {
-    D.phase = 'run'; for (const k of [0, 1]) dragTree(k, { pre: true, stage: true, amber: 0, green: !(k === 0 && D.foul), red: k === 0 && D.foul }); sfx('go');
+    D.phase = 'run'; for (const k of [0, 1]) dragTree(k, { pre: true, stage: true, amber: 0, green: !(k === D.lane && D.foul), red: k === D.lane && D.foul }); sfx('go');
   }
   const me = D.me;
   if (D.phase === 'run' || D.phase === 'done') {
     if (me.react == null && (inp.throttle || 0) > 0.1) me.react = (now - D.green) / 1000;
     if (!me.leave && player.z > DRAG.ZS - 1.5) me.leave = now;
     if (!me.sixty && player.z > DRAG.ZS + 18.3) me.sixty = now;
-    if (!me.cross && player.z >= DRAG.ZF) { me.cross = now; me.trap = Math.abs(player.fs) * SPEED_UNIT; dragBoard(0, (me.cross - me.leave) / 1000, me.trap, false); }
+    if (!me.cross && player.z >= DRAG.ZF) { me.cross = now; me.trap = Math.abs(player.fs) * SPEED_UNIT; dragBoard(D.lane, (me.cross - me.leave) / 1000, me.trap, false); }
+    D.simT = (D.simT || 0) + dt;
+    if (D.pvp) {
+      // tell the other driver how it went, once you're through (or gave up)
+      const P = D.pvp;
+      if (!P.sent && (me.cross || D.simT > 45)) {
+        P.sent = true; P.sentAt = now;
+        room.emit('drag', { act: 'res', id: P.id, foul: D.foul, total: me.cross ? (me.cross - D.green) / 1000 : null, et: me.cross && me.leave ? (me.cross - me.leave) / 1000 : null, react: me.react, trap: me.trap }).catch(() => { });
+      }
+      if (D.phase === 'run' && P.sent && (P.res || now - P.sentAt > 20000)) finishDrag(now);
+      return;
+    }
     // the other lane
     const b = D.bot;
     if (now > D.green + b.react * 1000 && !b.cross) {
@@ -7631,32 +7668,85 @@ function dragStep(dt, now) {
     } else if (b.cross) { b.v = Math.max(0, b.v - 14 * dt); b.z += b.v * dt; }
     b.model.root.position.set(X + L, 0, b.z); b.model.root.rotation.y = 0;
     animateCar(b.model, b.v, 0, 0, 0, false, false, dt, b.s);
-    D.simT = (D.simT || 0) + dt;
     if (me.cross && b.cross && D.phase === 'run') finishDrag(now);
     else if (D.phase === 'run' && D.simT > 45) finishDrag(now);   // 45 s of driving without both finishing
-  } else {
+  } else if (D.bot) {
     D.bot.model.root.position.set(X + L, 0, D.bot.z); D.bot.model.root.rotation.y = 0;
   }
 }
 function finishDrag(now) {
   const D = drag; D.phase = 'done';
-  const me = D.me, b = D.bot, win = !D.foul && me.cross && (!b.cross || me.cross < b.cross);
-  const et = me.cross && me.leave ? (me.cross - me.leave) / 1000 : 0, betEt = b.cross ? (b.cross - b.leave) / 1000 : 0;
-  if (me.cross) dragBoard(0, et, me.trap, win); if (b.cross) dragBoard(1, betEt, b.trap, !win);
+  const me = D.me, b = D.bot, P = D.pvp, oppLane = 1 - D.lane;
+  const et = me.cross && me.leave ? (me.cross - me.leave) / 1000 : 0, myTotal = !D.foul && me.cross ? (me.cross - D.green) / 1000 : Infinity;
+  let opp, oppName, win;
+  if (P) {
+    const r = P.res || {}; oppName = P.name || 'Opponent';
+    opp = { react: r.react, et: r.et || 0, trap: r.trap || 0, foul: !!r.foul, total: !r.foul && r.total ? r.total : Infinity };
+    win = myTotal < opp.total || (myTotal === Infinity && opp.total === Infinity && false);
+  } else {
+    oppName = BODY[dragBotBody].name;
+    opp = { react: b.react, et: b.cross ? (b.cross - b.leave) / 1000 : 0, trap: b.trap, foul: false, total: b.cross ? (b.cross - D.green) / 1000 : Infinity };
+    win = myTotal < opp.total;
+  }
+  if (me.cross) dragBoard(D.lane, et, me.trap, win); if (opp.et) dragBoard(oppLane, opp.et, opp.trap, !win);
   if (win) { addMoney(600); addXp(100); showBig('WIN!'); sfx('levelup'); } else { addXp(40); showBig(D.foul ? 'RED LIGHT' : 'LOSS'); }
   if (et && !D.foul && (!save.dragBest || et < save.dragBest)) { save.dragBest = Math.round(et * 1000) / 1000; persist(); toast('New personal best: ' + et.toFixed(3) + ' s', true); }
-  const rows = [['Reaction', me.react == null ? '--' : (D.foul ? 'red light' : me.react.toFixed(3) + ' s'), b.react.toFixed(3) + ' s'],
-    ['60 ft', me.sixty && me.leave ? ((me.sixty - me.leave) / 1000).toFixed(3) + ' s' : '--', ''],
-    ['Quarter mile', et ? et.toFixed(3) + ' s' : 'did not finish', betEt ? betEt.toFixed(3) + ' s' : '--'],
-    ['Trap speed', me.trap ? Math.round(me.trap) + ' km/h' : '--', b.trap ? Math.round(b.trap) + ' km/h' : '--']];
+  const fmt = v => v ? v.toFixed(3) + ' s' : '--';
+  const rows = [['Reaction', me.react == null ? '--' : (D.foul ? 'red light' : fmt(me.react)), opp.foul ? 'red light' : fmt(opp.react)],
+    ['60 ft', me.sixty && me.leave ? fmt((me.sixty - me.leave) / 1000) : '--', ''],
+    ['Quarter mile', et ? fmt(et) : 'did not finish', opp.et ? fmt(opp.et) : (P && !P.res ? 'no result' : '--')],
+    ['Trap speed', me.trap ? Math.round(me.trap) + ' km/h' : '--', opp.trap ? Math.round(opp.trap) + ' km/h' : '--']];
   const box = $('dragResult'); box.textContent = '';
-  box.append(el('div', 'label', win ? 'You won! +$600' : D.foul ? 'Red light: you jumped the start' : 'You lost this one'));
-  const tb = el('table', 'drtab'), hd = el('tr', ''); hd.append(el('th', '', ''), el('th', '', 'You'), el('th', '', BODY[dragBotBody].name)); tb.append(hd);
+  box.append(el('div', 'label', win ? 'You beat ' + oppName + '! +$600' : D.foul ? 'Red light: you jumped the start' : oppName + ' got you this time'));
+  const tb = el('table', 'drtab'), hd = el('tr', ''); hd.append(el('th', '', ''), el('th', '', 'You'), el('th', '', oppName)); tb.append(hd);
   for (const r of rows) { const tr = el('tr', ''); for (const c of r) tr.append(el('td', '', c)); tb.append(tr); }
   box.append(tb); box.hidden = false;
-  $('bDragGo').textContent = 'Run again · $100'; $('bDragGo').disabled = save.money < 100;
-  setTimeout(() => { if (drag === D) { drag = null; b.model.root.visible = false; openPanel('dragPanel'); } }, 2200);
+  $('bDragGo').textContent = 'Race a bot · $100'; $('bDragGo').disabled = save.money < 100;
+  setTimeout(() => { if (drag === D) { drag = null; if (b) b.model.root.visible = false; renderDragRivals(); openPanel('dragPanel'); } }, 2200);
 }
+// ---------- player vs player on the strip ----------
+let dragHost = null, dragInvite = null;
+function dragChallenge(r) {
+  if (dragHost || save.money < 100 || !(room && roomUp)) return;
+  dragHost = { id: 'd' + rid(), peer: r.peer, name: displayName(r), until: performance.now() + 20000 };
+  room.emit('drag', { act: 'invite', id: dragHost.id, to: r.peer, n: save.nick || '' }).catch(() => { });
+  toast('Challenge sent to ' + dragHost.name); renderDragRivals();
+}
+function onDragMsg(msg) {
+  const d = msg && msg.data; if (!d || typeof d !== 'object' || msg.isMe || msg.sameTab) return;
+  const r = remotes.get(msg.peer), name = r ? displayName(r) : (cleanName(d.n) || 'A racer');
+  if (d.act === 'invite' && d.to === myPeer && !drag && !street && !race && !mission) {
+    dragInvite = { id: String(d.id).slice(0, 20), host: msg.peer, name, until: performance.now() + 20000, joined: false };
+    $('diText').textContent = name + ' challenges you to a quarter mile · $100 each, the winner gets $600'; $('diAccept').hidden = false; $('dragInvite').hidden = false;
+  } else if (d.act === 'join' && dragHost && d.id === dragHost.id && msg.peer === dragHost.peer) {
+    // both in: the tree starts at the same moment on both screens
+    const H = dragHost, at = netNow() + 4500; dragHost = null;
+    room.emit('drag', { act: 'go', id: H.id, to: H.peer, at }).catch(() => { });
+    if (!startDrag({ lane: 0, pvp: { id: H.id, peer: H.peer, name: H.name }, t0: performance.now() + (at - netNow()) })) room.emit('drag', { act: 'res', id: H.id, foul: true, total: null }).catch(() => { });
+  } else if (d.act === 'decline' && dragHost && d.id === dragHost.id) {
+    toast(dragHost.name + ' said no'); dragHost = null; if (!$('dragPanel').hidden) renderDragRivals();
+  } else if (d.act === 'go' && dragInvite && dragInvite.joined && d.id === dragInvite.id && d.to === myPeer) {
+    const I = dragInvite; dragInvite = null; $('dragInvite').hidden = true;
+    const at = num(d.at, netNow() + 4500);
+    if (!startDrag({ lane: 1, pvp: { id: I.id, peer: I.host, name: I.name }, t0: performance.now() + (at - netNow()) })) room.emit('drag', { act: 'res', id: I.id, foul: true, total: null }).catch(() => { });
+  } else if (d.act === 'res' && drag && drag.pvp && d.id === drag.pvp.id && msg.peer === drag.pvp.peer) {
+    drag.pvp.res = { foul: !!d.foul, total: num(d.total, 0) || null, et: num(d.et, 0) || null, react: d.react == null ? null : num(d.react, 0), trap: num(d.trap, 0) };
+    if (drag.pvp.res.et) dragBoard(1 - drag.lane, drag.pvp.res.et, drag.pvp.res.trap, false);
+  }
+}
+$('diAccept').addEventListener('click', () => {
+  const I = dragInvite; if (!I) return;
+  if (save.money < 100) { toast('You need $100'); return; }
+  if (race || mission || delivery || street || drag) { toast('Finish what you are doing first'); return; }
+  I.joined = true; room.emit('drag', { act: 'join', id: I.id }).catch(() => { });
+  $('diText').textContent = 'You are in! Get ready…'; $('diAccept').hidden = true;
+});
+$('diDecline').addEventListener('click', () => { const I = dragInvite; if (I) room.emit('drag', { act: 'decline', id: I.id }).catch(() => { }); dragInvite = null; $('dragInvite').hidden = true; });
+setInterval(() => {
+  const t = performance.now();
+  if (dragHost && t > dragHost.until) { toast(dragHost.name + ' did not answer'); dragHost = null; if (!$('dragPanel').hidden) renderDragRivals(); }
+  if (dragInvite && t > dragInvite.until + (dragInvite.joined ? 10000 : 0)) { dragInvite = null; $('dragInvite').hidden = true; }
+}, 500);
 
 let street = null, streetInvite = null, streetHost = null;
 const NEXT_GATES = 2;
@@ -7796,7 +7886,7 @@ function openMeet(R) { meetDef = R; renderMeet(); openPanel('meet'); }
 function renderMeet() {
   const R = meetDef; if (!R) return;
   $('meetTitle').textContent = R.name;
-  $('meetLede').textContent = R.blurb + ' ' + R.where + ' · ' + (R.len * 6 / 1000).toFixed(1) + ' km. Your car runs in class ' + className(myClass()) + ': the crew and any challengers are matched to it.';
+  $('meetLede').textContent = R.blurb + ' ' + R.where + ' · ' + (R.len * 6 / 1000).toFixed(1) + ' km. Anyone can race anyone; the crew is matched to your car.';
   const L = $('meetBody'); L.textContent = '';
   const solo = el('div', 'propcard');
   solo.append(el('div', 'phead'), el('div', 'fx', 'Race the crew: ' + R.crew.map(c => c.name).join(', ') + '. Entry $' + R.fee + ', the winner takes $' + R.prize.toLocaleString('en-US') + ', second gets $' + Math.round(R.fee * 1.5) + '.'));
@@ -7841,10 +7931,10 @@ setInterval(() => { if (streetHost && performance.now() > streetHost.until) { if
 function onStreetMsg(msg) {
   const d = msg && msg.data; if (!d || typeof d !== 'object' || msg.isMe || msg.sameTab) return;
   const R = STREET_BY[d.route];
-  if (d.act === 'invite' && R && Array.isArray(d.peers) && d.peers.includes(myPeer) && !street && !race && !mission && num(d.pc, -1) === myClass()) {
+  if (d.act === 'invite' && R && Array.isArray(d.peers) && d.peers.includes(myPeer) && !street && !race && !mission) {
     const r = remotes.get(msg.peer); let name = r ? displayName(r) : cleanName(d.n); if (!name || nameIsBad(name)) name = 'A racer';
     streetInvite = { id: String(d.id).slice(0, 20), R, host: msg.peer, name, until: performance.now() + 15000, joined: false };
-    $('siText').textContent = name + ' challenges you (class ' + className(myClass()) + '): ' + R.name + ' · $' + R.fee + ' each, winner takes all';
+    $('siText').textContent = name + ' challenges you: ' + R.name + ' · $' + R.fee + ' each, winner takes all';
     $('streetInvite').hidden = false;
   } else if (d.act === 'join' && streetHost && d.id === streetHost.id) { streetHost.joined.add(msg.peer); if (!$('meet').hidden) renderMeet(); toast((remotes.get(msg.peer) ? displayName(remotes.get(msg.peer)) : 'A racer') + ' is in!'); }
   else if (d.act === 'go' && R && streetInvite && streetInvite.joined && d.id === streetInvite.id && Array.isArray(d.peers) && d.peers.includes(myPeer)) {

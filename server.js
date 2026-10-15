@@ -209,6 +209,10 @@ wss.on('connection', ws => {
       // underground race invites, joins and starts between players
       if (JSON.stringify(m.data || null).length > 1024) return;
       broadcast({ t: 'msg', topic: 'street', data: m.data, peer: me.peer }, ws);
+    } else if (m.t === 'emit' && m.topic === 'drag') {
+      // drag strip challenges and results between two players
+      if (JSON.stringify(m.data || null).length > 512) return;
+      broadcast({ t: 'msg', topic: 'drag', data: m.data, peer: me.peer }, ws);
     } else if (m.t === 'emit' && m.topic === 'race') {
       if (JSON.stringify(m.data || null).length > 4096) return;
       broadcast({ t: 'msg', topic: 'race', data: m.data, peer: me.peer }, ws);
