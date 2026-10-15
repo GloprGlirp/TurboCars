@@ -1175,7 +1175,7 @@ function sanitizeCar(o, keepId) {
   if (keepId && typeof o.id === 'string' && /^c[a-z0-9]{2,24}$/.test(o.id)) c.id = o.id;
   if (o.up && typeof o.up === 'object') for (const u of UPGRADES) c.up[u.id] = clamp(Math.floor(num(o.up[u.id], 0)), 0, MAX_LVL);
   const t = o.tune && typeof o.tune === 'object' ? o.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).slice(0, 80) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).filter((h, k, a) => a.indexOf(h) === k).slice(0, 150) : [];
   const pick = (slot, def) => { const v = t[slot], m = SLOT_MAP[slot][v]; return m && (m.cost === 0 || has.includes(slot + ':' + v)) ? v : def; };
   c.tune = { e: pick('e', 'i4'), i: pick('i', 'na'), a: pick('a', 'stock'), w: pick('w', 'stock'), y: pick('y', 'street'), g: pick('g', 'stock'), k: pick('k', 'stock'), c: pick('c', 'stock'), p: pick('p', 'stock'), z: pick('z', 'stock'), b: pick('b', 'stock'), x: pick('x', 'stock'), f: pick('f', 'stock'), h: pick('h', 'stock'), m: pick('m', 'stock'), l: pick('l', 'none'), has };
   c.ecu = cleanSetup(o.ecu);

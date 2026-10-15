@@ -82,7 +82,7 @@ function cleanCar(c) {
   const up = {};
   for (const k of UPGRADES) up[k] = Math.max(0, Math.min(5, Math.floor(Number(c.up && c.up[k]) || 0)));
   const t = c.tune && typeof c.tune === 'object' ? c.tune : {};
-  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).slice(0, 60) : [];
+  const has = Array.isArray(t.has) ? t.has.filter(h => typeof h === 'string' && /^[eiawygkcpzbxfhml]:[a-z0-9]{1,8}$/.test(h)).filter((h, k, a) => a.indexOf(h) === k).slice(0, 150) : [];
   return {
     m: c.m, paint: PAINTS.includes(c.paint) ? c.paint : 'cherry', up, neon: ['none', 'pink', 'cyan', 'green', 'purple', 'orange', 'yellow'].includes(c.neon) ? c.neon : 'none', stance: ['stock', 'low', 'slammed'].includes(c.stance) ? c.stance : 'stock',
     tune: { e: ENGINES.includes(t.e) ? t.e : 'i4', i: INDUCTIONS.includes(t.i) ? t.i : 'na', a: INTAKES.includes(t.a) ? t.a : 'stock', w: WHEELS.includes(t.w) ? t.w : 'stock', y: TYRES.includes(t.y) ? t.y : 'street', ...Object.fromEntries(Object.entries(PARTS).map(([k, l]) => [k, l.includes(t[k]) ? t[k] : l[0]])), has },
