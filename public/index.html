@@ -1540,6 +1540,7 @@ const perpOf = i => ({ x: -TT[i].z, z: TT[i].x });
 
 // --- mainland: one heightfield shared by the terrain mesh and the physics ---
 const WMIN = -1600, WCELL = 8, GN = 401, WMAX = WMIN + WCELL * (GN - 1);
+const XMAX = 4000;   // the Pebble Dragway lies east of the island grid, so other players can be out there
 const HGT = new Float32Array(GN * GN), TYP = new Uint8Array(GN * GN);
 const T_LAND = 0, T_ROAD = 1, T_NEAR = 2, T_CITY = 3;
 const smooth01 = t => { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); };
@@ -4287,16 +4288,16 @@ function upsertPeer(p) {
     if (r.model) scene.remove(r.model.root);
     r.model = buildCar(body, PAINT[paint].hex, parseTune(tn), ng, sk, pl, look); r.body = body; r.paint = paint; r.tn = tn; r.ng = ng; r.sk = sk; r.pl = pl; r.vk = vk; scene.add(r.model.root);
     r.beep = makeBeep(); r.model.root.add(r.beep); r.tag = null; r.nickShown = null;
-    r.x = num(pr.x); r.z = num(pr.z); r.y = num(pr.y); r.yaw = num(pr.h);
+    r.x = clamp(num(pr.x), WMIN, XMAX); r.z = clamp(num(pr.z), WMIN, WMAX); r.y = num(pr.y); r.yaw = num(pr.h);
   }
   const wl = clamp(Math.floor(num(pr.wl, 0)), 0, 5);
   const label = displayName(r) + ' · LV ' + clamp(Math.floor(num(pr.lv, 1)), 1, MAX_PLAYER_LVL) + (wl ? ' ' + '★'.repeat(wl) : '');
   if (r.nickShown !== label) { if (r.tag) r.model.root.remove(r.tag); r.tag = makeTag(label, PAINT[paint].hex); r.tag.position.y = body === 'truck' ? 5.2 : 4.0; r.model.root.add(r.tag); r.nickShown = label; }
-  r.tx = clamp(num(pr.x), WMIN, WMAX); r.tz = clamp(num(pr.z), WMIN, WMAX); r.ty = clamp(num(pr.y), -5, 260); r.tyaw = num(pr.h);
+  r.tx = clamp(num(pr.x), WMIN, XMAX); r.tz = clamp(num(pr.z), WMIN, WMAX); r.ty = clamp(num(pr.y), -5, 260); r.tyaw = num(pr.h);
   r.vx = clamp(num(pr.vx), -90, 90); r.vz = clamp(num(pr.vz), -90, 90);
   r.drift = !!pr.d; r.boost = !!pr.nb; r.recv = performance.now();
   r.foot = !!pr.f && Array.isArray(pr.pk) && pr.pk.length === 4 && pr.pk.every(v => typeof v === 'number' && Number.isFinite(v));
-  if (r.foot) r.pk = [clamp(pr.pk[0], WMIN, WMAX), clamp(pr.pk[1], -5, 260), clamp(pr.pk[2], WMIN, WMAX), pr.pk[3]];
+  if (r.foot) r.pk = [clamp(pr.pk[0], WMIN, XMAX), clamp(pr.pk[1], -5, 260), clamp(pr.pk[2], WMIN, WMAX), pr.pk[3]];
   if (Math.hypot(r.tx - r.x, r.tz - r.z) > 40) { r.x = r.tx; r.z = r.tz; r.y = r.ty; r.yaw = r.tyaw; }
   const flN = num(pr.fl, 0); if (r.flN != null && flN !== r.flN && r.model) r.model.flashT = 0.6; r.flN = flN;
   r.revving = !!pr.rv;
