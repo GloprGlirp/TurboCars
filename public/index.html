@@ -904,7 +904,7 @@ const INDUCTIONS = [
   { id: 't52', name: 'S52 street turbo', brand: 'Snailworks', cost: 850, b0: 0.9, bmax: 1.5, lag: 0.25, turbo: true },
   { id: 't68', name: 'S68 big turbo', brand: 'Snailworks', cost: 1400, b0: 1.2, bmax: 2.1, lag: 0.42, turbo: true },
   { id: 'h76', name: 'Hurricane 76 race turbo', brand: 'Gale Boost', cost: 2100, b0: 1.5, bmax: 2.8, lag: 0.6, turbo: true },
-  { id: 'x88', name: 'X88 monster turbo', brand: 'Gale Boost Racing', cost: 4800, b0: 1.8, bmax: 3.6, lag: 0.82, turbo: true },
+  { id: 'x88', name: 'X88 monster turbo', brand: 'Gale Boost Racing', cost: 4800, b0: 1.8, bmax: 3.2, lag: 0.82, turbo: true },
   { id: 'c30', name: 'C30 centrifugal supercharger', brand: 'Spinwell', cost: 1000, b0: 0.45, bmax: 0.85, lag: 0, cent: true },
   { id: 'tsb', name: 'Twin-screw blower', brand: 'Blowr', cost: 1200, b0: 0.55, bmax: 1.0, lag: 0, blower: true, loss: 0.95 },
   { id: 'gt99', name: 'Ghost GT99 twin-turbo kit', brand: '???', cost: 4200, b0: 1.4, bmax: 2.7, lag: 0.36, turbo: true, bm: true },
@@ -1105,15 +1105,17 @@ function powerOf(car) {
   const b = (BODY[car.m] || BODY.bubble).s, up = car.up || STARTER_UP(), t = car.tune || DEFAULT_TUNE;
   const E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, A = INTAKE[t.a] || INTAKE.stock, C = COOL_BY[t.c] || COOL_BY.stock, Pn = INTERNAL_BY[t.p] || INTERNAL_BY.stock, Z = PLUG_BY[t.z] || PLUG_BY.stock;
   const F = FUEL_BY[t.f] || FUEL_BY.stock, H = EXH_BY[t.h] || EXH_BY.stock, M = CAM_BY[t.m] || CAM_BY.stock;
-  const kg0 = KG[car.m] || 1300, stock = (15 + 3 * up.accel) * b.accel * kg0 / 110 * (1 + 0.04 * up.engine);
+  const kg0 = KG[car.m] || 1300, stock = 15 * b.accel * kg0 / 110 * (1 + 0.03 * (up.accel + up.engine));
   const ev = ecuVals(car), boosted = isBoosted(I), bar = boostBar(I, ev.boost);
   // fuel: 98 octane gives a little more, most of all to boosted engines; boost on 95 loses a bit
   const ox = (clamp(num(car.oct, 95), 95, 98) - 95) / 3, fuelMul = 1 + ox * (boosted ? 0.05 : 0.02) - (boosted && ox < 0.34 ? 0.015 : 0);
   const wearMul = 1 - Math.max(0, num(car.wear, 0) - 0.3) * 0.45;
-  const soft = ev.X.pow * (1 + 0.05 * ev.timing + 0.04 * ev.afr);
-  const na = stock * E.mul * A.pow * M.pow * (1 + (boosted ? H.tb : H.na)) * Pn.pow * Z.pow * F.pow * soft * fuelMul * wearMul;
-  // about +90 % per bar with an intercooler (less without); small engines take boost best
-  const gain = boosted ? (1 + bar * 0.9 * E.be * (C.boostPow ? 1 + (C.boostPow - 1) * 2 : 0.85)) * (I.loss || 1) : 1;
+  const soft = ev.X.pow * (1 + 0.04 * ev.timing + 0.03 * ev.afr);
+  // bolt-ons stack with diminishing returns, like on a real engine
+  const bolt = Math.pow(A.pow * M.pow * (1 + (boosted ? H.tb : H.na)) * Pn.pow * Z.pow * F.pow * soft * fuelMul, 0.6);
+  const na = stock * E.mul * bolt * wearMul;
+  // about +70 % per bar with an intercooler (less without); small engines take boost best
+  const gain = boosted ? (1 + bar * 0.7 * E.be * (C.boostPow ? 1 + (C.boostPow - 1) * 2 : 0.85)) * (I.loss || 1) : 1;
   let hp = na * gain, lean = 0;
   const cap = stock * E.mul * F.cap;
   if (hp > cap) { lean = hp / cap - 1; hp = cap + (hp - cap) * 0.15; }
@@ -1125,14 +1127,14 @@ function statsFor(car) {
   const t = car.tune, E = ENGINE[t.e] || ENGINE.i4, I = IND[t.i] || IND.na, W = WHEEL[t.w] || WHEEL.stock, Y = TYRE[t.y] || TYRE.street;
   const G = GEAR_BY[t.g] || GEAR_BY.stock, K = WEIGHT_BY[t.k] || WEIGHT_BY.stock, B = BRAKE_BY[t.b] || BRAKE_BY.stock, L = ALS_BY[t.l] || ALS_BY.none;
   const pw = powerOf(car), ev = pw.ev, R = pw.hp / pw.stock, Rna = pw.na / pw.stock;
-  // pace from power: acceleration grows with the square root, top speed with the cube root (air drag)
+  // pace from power: more power always helps, with diminishing returns (traction off the line, air drag at the top)
   const wing = car.look && car.look.wing && car.look.wing !== 'none' ? 1 : 0.4;
-  const topMul = Math.pow(R, 0.3) * (1 + 0.04 * ev.rev) * (1 + 0.05 * ev.fd) * (1 + 0.02 * ev.tyre - 0.04 * ev.aero * wing);
-  const accMul = Math.pow(Rna, 0.5) * (1 - 0.06 * ev.fd);
+  const topMul = Math.pow(R, 0.27) * (1 + 0.04 * ev.rev) * (1 + 0.05 * ev.fd) * (1 + 0.02 * ev.tyre - 0.04 * ev.aero * wing);
+  const accMul = Math.pow(Rna, 0.32) * (1 - 0.06 * ev.fd);
   return {
     top: (28 + 3.2 * up.engine) * b.top * G.top * topMul,
     accel: (15 + 3 * up.accel) * b.accel * G.acc * K.acc * accMul,
-    boostAcc: Math.pow(R / Math.max(0.01, Rna), 0.5) - 1, lag: I.lag, als: isBoosted(I) ? L.keep : 0, drive: b.drive || 'rwd', hp: pw.hp,
+    boostAcc: Math.pow(R / Math.max(0.01, Rna), 0.32) - 1, lag: I.lag, als: isBoosted(I) ? L.keep : 0, drive: b.drive || 'rwd', hp: pw.hp,
     brake: 30 * B.brake * (1 - 0.04 * ev.bias),
     grip: 9,
     latMax: (30 + 3 * up.grip) * b.grip * W.grip * Y.grip * K.grip * (1 + 0.035 * ev.susp - 0.035 * ev.tyre + 0.05 * ev.aero * wing - 0.02 * ev.diff),
