@@ -141,6 +141,23 @@ const server = http.createServer((req, res) => {
 // XP likewise never jumps by more than 100,000 at once. Normal play never comes near either limit.
 state.saves = state.saves || {};
 const SAVE_LIMITS = { moneyJump: 500000, xpJump: 100000, maxCars: 40, bytes: 300 * 1024 };
+// Signed checkpoints: after every accepted save the player gets a receipt (money, xp) signed with SAVE_SECRET.
+// When the server has lost its stored saves (a restart without a persistent disk), that receipt is the trusted
+// starting point instead of $0, so honest players never get cut down to $500,000.
+const SAVE_SECRET = process.env.SAVE_SECRET || 'pebble-isle-default-secret-set-SAVE_SECRET';
+if (!process.env.SAVE_SECRET) console.warn('SAVE_SECRET is not set: save receipts use the built-in default. Set it in the Render environment.');
+// until then, saves from before receipts existed are taken as they are (once per player), so nobody loses progress in the switch
+const RECEIPT_GRACE_UNTIL = Date.parse('2026-10-20T00:00:00Z');
+const signReceipt = (pid, m, x, t) => crypto.createHmac('sha256', SAVE_SECRET).update(pid + '|' + m + '|' + x + '|' + t).digest('hex').slice(0, 32);
+function makeReceipt(pid, s) { const t = Date.now(); return { m: s.money, x: s.xp, t, h: signReceipt(pid, s.money, s.xp, t) }; }
+function readReceipt(pid, r) {
+  if (!r || typeof r !== 'object') return null;
+  const m = Math.floor(Number(r.m)), x = Math.floor(Number(r.x)), t = Math.floor(Number(r.t));
+  if (![m, x, t].every(Number.isFinite) || typeof r.h !== 'string' || r.h.length !== 32) return null;
+  const want = signReceipt(pid, m, x, t);
+  try { if (!crypto.timingSafeEqual(Buffer.from(want), Buffer.from(r.h))) return null; } catch (e) { return null; }
+  return { m, x };
+}
 const levelOfXp = xp => { let L = 1; while (L < 50 && xp >= Math.round(200 * Math.pow(L, 1.55))) L++; return L; };
 function cleanSave(o) {
   if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
@@ -154,13 +171,20 @@ function cleanSave(o) {
 function storeSave(pid, incoming) {
   const s = cleanSave(incoming); if (!s) return null;
   const prev = state.saves[pid], L = SAVE_LIMITS, sent = { sentMoney: s.money, sentXp: s.xp };
-  const baseM = prev ? prev.save.money + (prev.credit || 0) : 0, baseX = prev ? prev.save.xp : 0;
+  // where this player stood last time: the stored save, else their signed receipt, else (new player) nothing
+  let baseM = 0, baseX = 0, known = !!prev;
+  if (prev) { baseM = prev.save.money + (prev.credit || 0); baseX = prev.save.xp; }
+  else { const r = readReceipt(pid, incoming.rcpt); if (r) { baseM = r.m; baseX = r.x; known = true; } }
   let fixed = false;
-  if (s.money - baseM > L.moneyJump) { s.money = baseM + L.moneyJump; fixed = true; }
-  if (s.xp - baseX > L.xpJump) { s.xp = baseX + L.xpJump; fixed = true; }
+  const trustOld = !known && !incoming.rcpt && Date.now() < RECEIPT_GRACE_UNTIL;
+  if (!trustOld) {
+    if (s.money - baseM > L.moneyJump) { s.money = baseM + L.moneyJump; fixed = true; }
+    if (s.xp - baseX > L.xpJump) { s.xp = baseX + L.xpJump; fixed = true; }
+  }
+  delete s.rcpt;
   state.saves[pid] = { save: s, at: Date.now(), credit: 0 };
   saveState();
-  return { s, fixed, sent };
+  return { s, fixed, sent, rcpt: makeReceipt(pid, s) };
 }
 
 // ---------- live room ----------
@@ -281,7 +305,9 @@ wss.on('connection', ws => {
       const e = state.saves[me.pid]; send(ws, { t: 'save', save: e ? e.save : null });
     } else if (m.t === 'save_put' && me.pid && m.save) {
       // only the amounts that were too high are reported back; the client takes off just the difference
-      const r = storeSave(me.pid, m.save); if (r && r.fixed) send(ws, Object.assign({ t: 'save_fix', money: r.s.money, xp: r.s.xp }, r.sent));
+      const r = storeSave(me.pid, m.save); if (!r) return;
+      if (r.fixed) send(ws, Object.assign({ t: 'save_fix', money: r.s.money, xp: r.s.xp }, r.sent));
+      send(ws, { t: 'save_rcpt', rcpt: r.rcpt });
     } else if (m.t === 'mk_ack' && me.pid && typeof m.lid === 'string') {
       const list = state.sold[me.pid];
       if (list) { state.sold[me.pid] = list.filter(s => s.lid !== m.lid); if (!state.sold[me.pid].length) delete state.sold[me.pid]; saveState(); }

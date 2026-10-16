@@ -1266,6 +1266,8 @@ function sanitizeSave(o) {
   s.fit = sanitizeFit(o.fit); s.fitOwn = Array.isArray(o.fitOwn) ? o.fitOwn.filter(x => typeof x === 'string' && /^[a-z]{1,6}:[a-z0-9]{1,10}$/.test(x)).slice(0, 80) : [];
   for (const k of FIT_SLOTS) { const it = FIT[k].find(x => x.id === s.fit[k]); if (it.cost && !s.fitOwn.includes(k + ':' + it.id)) s.fit[k] = FIT[k][0].id; }
   s.fit.acc = s.fit.acc.filter(id => s.fitOwn.includes('acc:' + id));
+  // the server's signed receipt for the last save it accepted (lets it trust your money after a server restart)
+  s.rcpt = o.rcpt && typeof o.rcpt === 'object' && typeof o.rcpt.h === 'string' ? { m: num(o.rcpt.m, 0), x: num(o.rcpt.x, 0), t: num(o.rcpt.t, 0), h: o.rcpt.h.slice(0, 64) } : null;
   return s;
 }
 let save = defaultSave();
@@ -4216,6 +4218,9 @@ function initStandalone() {
           try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { }
           applySave();
         } else flushSave();
+      } else if (m.t === 'save_rcpt' && m.rcpt && typeof m.rcpt === 'object') {
+        // keep it quietly: storing it must not trigger another upload
+        save.rcpt = m.rcpt; try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { }
       } else if (m.t === 'save_fix') {
         // only take off what was too much; anything earned since then stays
         const dm = Math.max(0, num(m.sentMoney, 0) - num(m.money, 0)), dx = Math.max(0, num(m.sentXp, 0) - num(m.xp, 0));
